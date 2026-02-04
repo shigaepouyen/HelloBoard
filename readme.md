@@ -118,6 +118,22 @@ Simple. Visuel. Sans surprises.
 
 ---
 
+👥 Crédits
+
+Développé par JC.
+
+## 📄 Licence
+
+Ce projet est distribué sous la licence MIT.
+
+Permission est accordée, à titre gratuit, à toute personne obtenant une copie de ce logiciel et des fichiers de documentation associés, d'utiliser le logiciel sans restriction, y compris, sans s'y limiter, les droits d'utiliser, de copier, de modifier, de fusionner, de publier, de distribuer, de sous-licencier et/ou de vendre des copies du logiciel.
+
+## 🔒 Sécurité
+
+Le fichier .gitignore protège vos clés API. Ne poussez jamais votre fichier config/settings.json.
+
+HelloBoard - Développé pour simplifier la vie des associations.
+
 ## ❤️ À propos
 
 HelloBoard est pensé pour les associations qui veulent :

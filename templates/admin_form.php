@@ -5,58 +5,65 @@ async function configureForm(org, form, type, name) {
     
     try {
         const response = await fetch(`admin.php?action=analyze&org=${org}&form=${form}&type=${type}`);
-        const items = await response.json();
+        const data = await response.json();
+        const items = data.rules || data; // Gère les deux formats possibles
         
         let html = `
-            <div id="editor-container" class="mt-8 p-6 bg-slate-900 rounded-2xl border border-blue-500/30">
-                <h3 class="text-lg font-bold mb-4 text-blue-400">Configuration : ${name}</h3>
-                <table class="w-full text-xs">
+            <div id="editor-container" class="mt-8 p-10 bg-slate-900 rounded-[2rem] border border-blue-500/30 animate-fade-in shadow-2xl">
+                <div class="mb-8">
+                    <h3 class="text-xl font-black text-white">Nouveau Board : ${name}</h3>
+                    <p class="text-slate-500 text-sm">Définissez les réglages par défaut pour ce formulaire.</p>
+                </div>
+
+                <table class="w-full text-xs text-left">
                     <thead>
-                        <tr class="text-slate-500 uppercase text-left">
-                            <th class="p-2">Item HelloAsso</th>
-                            <th class="p-2">Nom Affiché</th>
-                            <th class="p-2">Type</th>
-                            <th class="p-2">Groupe</th>
-                            <th class="p-2">Graphique</th>
+                        <tr class="text-slate-500 uppercase tracking-widest text-[10px] font-black border-b border-slate-800">
+                            <th class="pb-4 px-2">Visible</th>
+                            <th class="pb-4 px-2">Item HelloAsso</th>
+                            <th class="pb-4 px-2">Nom Affiché</th>
+                            <th class="pb-4 px-2">Type</th>
+                            <th class="pb-4 px-2">Bloc</th>
                         </tr>
                     </thead>
                     <tbody id="rules-body">
         `;
 
-        items.forEach((item, i) => {
+        const ruleList = Array.isArray(items) ? items : items.rules || [];
+
+        ruleList.forEach((item, i) => {
+            const pattern = typeof item === 'string' ? item : item.pattern;
             html += `
-                <tr class="border-t border-slate-800 rule-row" data-pattern="${item}">
-                    <td class="p-2 font-mono text-slate-400">${item}</td>
-                    <td class="p-2"><input type="text" class="display-label bg-slate-800 border border-slate-700 rounded px-2 py-1 w-full" value="${item}"></td>
-                    <td class="p-2">
-                        <select class="rule-type bg-slate-800 border border-slate-700 rounded px-1 py-1">
+                <tr class="border-b border-slate-800/50 rule-row group hover:bg-white/5" data-pattern="${pattern}">
+                    <td class="py-4 px-2"><input type="checkbox" class="rule-visible w-4 h-4 accent-emerald-500" checked></td>
+                    <td class="py-4 px-2 font-mono text-slate-500 max-w-[150px] truncate">${pattern}</td>
+                    <td class="py-4 px-2"><input type="text" class="display-label w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5" value="${pattern}"></td>
+                    <td class="py-4 px-2">
+                        <select class="rule-type bg-slate-800 border border-slate-700 rounded px-1 py-1.5 w-full">
                             <option value="Billet">🎫 Billet</option>
-                            <option value="Option">🍔 Option</option>
-                            <option value="Info">ℹ️ Info</option>
+                            <option value="Option" selected>📊 Option</option>
+                            <option value="Ignorer">🚫 Ignorer</option>
                         </select>
                     </td>
-                    <td class="p-2"><input type="text" class="rule-group bg-slate-800 border border-slate-700 rounded px-2 py-1 w-full" placeholder="Ex: Repas"></td>
-                    <td class="p-2">
-                        <select class="rule-chart bg-slate-800 border border-slate-700 rounded px-1 py-1">
-                            <option value="Doughnut">🍩 Camembert</option>
-                            <option value="Bar">📊 Barres</option>
-                        </select>
-                    </td>
+                    <td class="py-4 px-2"><input type="text" class="rule-group w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5" placeholder="Ex: Repas"></td>
                 </tr>
             `;
         });
 
         html += `</tbody></table>
-                <div class="mt-6 flex justify-end">
-                    <button onclick="saveFullCampaign('${org}','${form}','${type}','${name}')" class="bg-emerald-600 hover:bg-emerald-500 px-8 py-3 rounded-full font-bold transition">
-                        <i class="fa-solid fa-floppy-disk mr-2"></i> Créer le Dashboard
+                <div class="mt-10 flex justify-end gap-4">
+                     <button onclick="location.reload()" class="px-6 py-3 text-slate-500 font-bold">Annuler</button>
+                    <button onclick="saveFullCampaign('${org}','${form}','${type}','${name.replace(/'/g, "\\'")}')" class="bg-emerald-600 hover:bg-emerald-500 px-10 py-4 rounded-2xl font-black text-white shadow-xl transition transform hover:scale-105">
+                        <i class="fa-solid fa-rocket mr-2"></i> Lancer le Board
                     </button>
                 </div>
             </div>`;
         
-        document.querySelector('.bg-slate-800\\/50').innerHTML = html;
+        const container = document.querySelector('.bg-slate-800\\/50') || document.getElementById('config-zone');
+        container.innerHTML = html;
+        container.scrollIntoView({ behavior: 'smooth' });
     } catch (e) {
-        alert("Erreur lors de l'analyse. Vérifiez vos clés API.");
+        console.error(e);
+        alert("Erreur lors de l'analyse.");
         btn.innerHTML = 'Configurer';
     }
 }
@@ -68,9 +75,10 @@ async function saveFullCampaign(org, form, type, name) {
             pattern: row.dataset.pattern,
             displayLabel: row.querySelector('.display-label').value,
             type: row.querySelector('.rule-type').value,
-            group: row.querySelector('.rule-group').value,
-            chartType: row.querySelector('.rule-chart').value,
-            transform: "" 
+            group: row.querySelector('.rule-group').value || 'Divers',
+            chartType: "doughnut",
+            transform: "",
+            hidden: !row.querySelector('.rule-visible').checked
         });
     });
 
@@ -81,15 +89,15 @@ async function saveFullCampaign(org, form, type, name) {
         formSlug: form,
         formType: type,
         icon: "mask",
-        rules: rules
+        rules: rules,
+        goals: { revenue: 0, n1: 0 }
     };
 
-    const body = new FormData();
+    const body = new URLSearchParams();
     body.append('save_campaign', '1');
     body.append('config', JSON.stringify(config));
 
     const res = await fetch('admin.php', { method: 'POST', body: body });
-    const result = await res.json();
-    if(result.success) window.location.href = 'index.php?msg=created';
+    window.location.href = 'index.php?campaign=' + form;
 }
 </script>

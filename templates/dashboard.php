@@ -3,241 +3,243 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($campaignConfig['title']) ?> - HelloBoard</title>
+    <title><?= htmlspecialchars($campaignConfig['title']) ?> — HelloBoard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
         
+        :root {
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --accent: #2563eb;
+            --success: #059669;
+            --border: #e2e8f0;
+        }
+
         body { 
-            font-family: 'Outfit', sans-serif; 
-            background-color: #0f172a; 
-            color: #e2e8f0; 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg-main); 
+            color: var(--text-main); 
             min-height: 100vh;
-            background-image: 
-                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 20%),
-                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 20%);
         }
 
-        .glass { 
-            background: rgba(30, 41, 59, 0.7); 
-            backdrop-filter: blur(12px); 
-            border: 1px solid rgba(255,255,255,0.05); 
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        .card { 
+            background: var(--card-bg); 
+            border: 1px solid var(--border); 
+            border-radius: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .kpi-glow { text-shadow: 0 0 20px rgba(250, 204, 21, 0.2); }
-        
-        .animate-fade-in { animation: fadeIn 0.6s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .card:hover {
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+            border-color: #cbd5e1;
+        }
 
-        .loader { border: 2px solid rgba(255,255,255,0.1); border-top: 2px solid #3b82f6; border-radius: 50%; width: 16px; height: 16px; animation: spin 1s linear infinite; }
+        .kpi-value {
+            letter-spacing: -0.04em;
+            font-weight: 800;
+            color: var(--text-main);
+        }
+
+        .stat-label {
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        .animate-reveal { animation: reveal 0.6s ease-out forwards; opacity: 0; }
+        @keyframes reveal { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        .loader-spin {
+            border: 2px solid #e2e8f0;
+            border-top: 2px solid var(--accent);
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            animation: spin 0.8s linear infinite;
+        }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="p-4 md:p-10 pb-32">
+<body class="p-4 md:p-8 lg:p-12 pb-20">
 
     <div class="max-w-7xl mx-auto">
-        <!-- HEADER -->
-        <header class="flex justify-between items-center mb-12">
+        <!-- HEADER CLEAN -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-16 gap-6 animate-reveal">
             <div class="flex items-center gap-5">
-                <div class="bg-gradient-to-br from-yellow-400 to-amber-600 p-4 rounded-2xl shadow-xl shadow-amber-500/10 transform -rotate-2">
-                    <i class="fa-solid fa-mask text-3xl text-purple-900"></i>
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200">
+                    <img src="assets/img/logo.svg" alt="Logo" class="w-10 h-10 object-contain" onerror="this.innerHTML='<i class=\'fa-solid fa-chart-line text-blue-600 text-2xl\'></i>'; this.type='icon';">
                 </div>
                 <div>
-                    <h1 class="text-4xl font-black italic uppercase tracking-tighter text-white drop-shadow-md">
+                    <h1 class="text-3xl font-extrabold tracking-tight text-slate-900">
                         <?= htmlspecialchars($campaignConfig['title']) ?>
                     </h1>
-                    <div class="flex items-center gap-3 mt-1">
-                        <p class="text-[11px] text-purple-400 font-bold uppercase tracking-[0.4em] ml-1">Live Dashboard</p>
-                        <span id="last-update" class="text-[9px] text-slate-500 uppercase font-mono"></span>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <p class="stat-label !text-emerald-600">Données en direct</p>
+                        <span id="last-update" class="text-[10px] text-slate-400 font-medium ml-2"></span>
                     </div>
                 </div>
             </div>
-            <div class="flex gap-4">
-                <a href="admin.php" class="bg-slate-800/50 p-4 rounded-full hover:bg-slate-700 transition border border-white/5" title="Paramètres">
-                    <i class="fa-solid fa-gear text-slate-400"></i>
+            
+            <div class="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm border border-slate-200">
+                <a href="admin.php" class="p-3 rounded-xl hover:bg-slate-50 transition text-slate-400 hover:text-slate-900" title="Réglages">
+                    <i class="fa-solid fa-gear text-lg"></i>
                 </a>
-                <button onclick="refresh()" id="refresh-btn" class="bg-blue-600 hover:bg-blue-500 px-8 py-3 rounded-full font-bold shadow-lg shadow-blue-900/30 transition flex items-center gap-3 group">
-                    <span id="refresh-icon"><i class="fa-solid fa-rotate group-hover:rotate-180 transition-transform duration-500"></i></span>
-                    <span class="hidden md:inline">Actualiser</span>
+                <button onclick="refresh()" id="refresh-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center gap-2">
+                    <span id="refresh-icon"><i class="fa-solid fa-arrows-rotate"></i></span>
+                    <span>Actualiser</span>
                 </button>
             </div>
         </header>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-            <!-- 1. CARTE RECETTES -->
-            <div class="glass p-10 rounded-[3rem] relative overflow-hidden flex flex-col justify-center min-h-[240px] group animate-fade-in">
-                <div class="absolute -right-10 -top-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition duration-700"></div>
-                <div class="flex justify-between items-center mb-4">
-                    <span class="text-slate-500 text-xs font-bold uppercase tracking-widest border-b border-emerald-500/30 pb-1">Recettes Totales</span>
-                    <i class="fa-solid fa-wallet text-emerald-500 text-2xl"></i>
+        <!-- KPI GRID -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+            <!-- CARTE RECETTES -->
+            <div class="card p-10 animate-reveal" style="animation-delay: 0.1s;">
+                <div class="flex justify-between items-center mb-8">
+                    <span class="stat-label">Chiffre d'Affaires</span>
+                    <i class="fa-solid fa-wallet text-slate-300 text-xl"></i>
                 </div>
-                <div id="val-revenue" class="text-7xl font-black leading-none mb-2 tabular-nums">0 €</div>
+                <div id="val-revenue" class="text-6xl kpi-value mb-4">0 €</div>
                 
-                <!-- DONS (SOUS-TITRE) -->
-                <div id="donations-line" class="opacity-0 transition-opacity duration-700">
-                    <p class="text-sm text-emerald-400 font-medium italic">
-                        Dont <span id="val-donations" class="font-bold">0 €</span> de dons
-                    </p>
+                <div id="donations-line" class="opacity-0 transition-all duration-500 flex items-center gap-2">
+                    <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 italic">Dons : <span id="val-donations">0 €</span></span>
                 </div>
 
-                <!-- OBJECTIF -->
-                <div id="goal-container" class="mt-8 hidden">
-                    <div class="w-full bg-slate-900/60 rounded-full h-2 overflow-hidden border border-white/5">
-                        <div id="goal-bar" class="bg-emerald-500 h-full w-0 transition-all duration-1000 shadow-[0_0_15px_rgba(16,185,129,0.5)]"></div>
+                <div id="goal-container" class="mt-10 hidden">
+                    <div class="flex justify-between mb-3 text-[11px] font-bold text-slate-500">
+                        <span id="goal-text">Objectif : 0 €</span>
+                        <span id="goal-percent" class="text-blue-600">0%</span>
                     </div>
-                    <div class="flex justify-between mt-3 text-[11px] font-mono text-slate-500 uppercase tracking-widest">
-                        <span>Progression</span>
-                        <span id="goal-text">Objectif: -- €</span>
+                    <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                        <div id="goal-bar" class="bg-blue-600 h-full w-0 rounded-full transition-all duration-1000"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- 2. CARTE PARTICIPANTS -->
-            <div class="glass p-10 rounded-[3rem] flex flex-col justify-center min-h-[240px] border-l-8 border-purple-600 relative overflow-hidden group animate-fade-in" style="animation-delay: 0.1s;">
-                <div class="absolute -right-10 -top-10 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition duration-700"></div>
-                <div class="flex justify-between items-center mb-4">
-                    <span class="text-slate-500 text-xs font-bold uppercase tracking-widest border-b border-purple-500/30 pb-1">Inscriptions</span>
-                    <i class="fa-solid fa-users text-purple-500 text-2xl"></i>
+            <!-- CARTE INSCRIPTIONS -->
+            <div class="card p-10 animate-reveal border-l-4 border-l-blue-600" style="animation-delay: 0.2s;">
+                <div class="flex justify-between items-center mb-8">
+                    <span class="stat-label">Inscriptions</span>
+                    <i class="fa-solid fa-user-check text-slate-300 text-xl"></i>
                 </div>
-                <div id="val-participants" class="text-8xl font-black leading-none kpi-glow">0</div>
+                <div id="val-participants" class="text-6xl kpi-value mb-4">0</div>
                 
-                <!-- N-1 -->
-                <div id="n1-container" class="mt-6 hidden">
-                    <div class="inline-block px-5 py-2 rounded-full bg-slate-900 text-[11px] font-black border border-slate-700 uppercase tracking-widest">
-                        VS Année N-1 : <span id="val-n1" class="text-white ml-1">0</span>
+                <div id="n1-container" class="mt-10 hidden">
+                    <div class="flex items-center gap-3 py-3 px-4 rounded-xl bg-slate-50 border border-slate-100">
+                        <span class="stat-label !text-slate-400">Comparatif N-1</span>
+                        <span id="val-n1" class="text-lg font-extrabold text-slate-900">0</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 3. TIMELINE -->
-        <div class="glass p-10 rounded-[3rem] mb-10 border-t-4 border-blue-500 animate-fade-in" style="animation-delay: 0.2s;">
-            <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-[0.4em] mb-10 flex items-center gap-3">
-                <span class="bg-blue-500/20 p-2 rounded-lg"><i class="fa-solid fa-chart-line text-blue-400"></i></span> 
-                Rythme des Ventes & Inscriptions
-            </h3>
+        <!-- TIMELINE SECTION -->
+        <div class="card p-10 mb-12 animate-reveal" style="animation-delay: 0.3s;">
+            <div class="flex items-center justify-between mb-10">
+                <h3 class="stat-label flex items-center gap-2">
+                    <i class="fa-solid fa-chart-area text-blue-500"></i> Rythme de croissance
+                </h3>
+            </div>
             <div class="h-80 w-full"><canvas id="timelineChart"></canvas></div>
         </div>
 
-        <!-- 4. GRAPHIQUES DYNAMIQUES -->
-        <div id="charts-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-10"></div>
+        <!-- GRAPHS GRID -->
+        <div id="charts-grid" class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12"></div>
 
-        <!-- 5. FIL D'ACTU -->
-        <div class="glass p-10 rounded-[3rem] animate-fade-in shadow-2xl" style="animation-delay: 0.3s;">
-            <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-[0.4em] mb-10 flex items-center justify-between">
-                <span><i class="fa-solid fa-clock text-pink-500 mr-3"></i> Activités Récentes</span>
-                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></span>
-            </h3>
-            <div id="recent-list" class="space-y-4 font-mono text-sm"></div>
+        <!-- ACTIVITY FEED -->
+        <div class="card p-10 animate-reveal" style="animation-delay: 0.4s;">
+            <div class="flex justify-between items-center mb-10">
+                <h3 class="stat-label flex items-center gap-2">
+                    <i class="fa-solid fa-list-ul text-blue-500"></i> Activités Récentes
+                </h3>
+            </div>
+            <div id="recent-list" class="divide-y divide-slate-100"></div>
         </div>
     </div>
 
     <script>
     const State = { tChart: null };
 
-    /**
-     * Formate un montant en euros, sans décimales si c'est un nombre entier.
-     */
     function formatValue(val) {
-        const n = Number(val);
-        const hasDecimals = n % 1 !== 0;
         return new Intl.NumberFormat('fr-FR', { 
-            style: 'currency', 
-            currency: 'EUR',
-            minimumFractionDigits: hasDecimals ? 2 : 0,
-            maximumFractionDigits: 2
-        }).format(n);
+            style: 'currency', currency: 'EUR',
+            minimumFractionDigits: Number(val) % 1 !== 0 ? 2 : 0
+        }).format(val);
     }
 
     async function refresh() {
-        console.log("Démarrage du scan...");
         const icon = document.getElementById('refresh-icon');
         const refreshBtn = document.getElementById('refresh-btn');
         const originalIcon = icon.innerHTML;
-        
-        icon.innerHTML = '<div class="loader"></div>';
+        icon.innerHTML = '<div class="loader-spin"></div>';
         if(refreshBtn) refreshBtn.disabled = true;
 
         try {
             const response = await fetch(`api.php?campaign=<?= $campaignConfig['slug'] ?>`);
             const res = await response.json();
-            
-            console.log("Données reçues de l'API :", res);
-
-            if(!res.success) throw new Error(res.error || "Erreur lors du chargement.");
+            if(!res.success) throw new Error(res.error);
 
             const d = res.data;
             const meta = res.meta;
-            // On vérifie plusieurs noms de clés possibles pour les objectifs (n1 ou participants)
             const goals = meta.goals || { revenue: 0, n1: 0 };
 
-            // 1. KPIs
             document.getElementById('val-revenue').innerText = formatValue(d.kpi.revenue);
             document.getElementById('val-participants').innerText = d.kpi.participants;
 
-            // 2. Gestion des Dons
             const donLine = document.getElementById('donations-line');
             if (d.kpi.donations > 0) {
-                donLine.classList.remove('opacity-0');
-                donLine.classList.add('opacity-100');
+                donLine.style.opacity = '1';
                 document.getElementById('val-donations').innerText = formatValue(d.kpi.donations);
-            } else {
-                donLine.classList.add('opacity-0');
             }
 
-            // 3. Objectif de Recettes
-            const goalBox = document.getElementById('goal-container');
             const goalVal = parseFloat(goals.revenue);
-            console.log("Valeur de l'objectif recettes :", goalVal);
-
             if (goalVal > 0) {
-                goalBox.classList.remove('hidden');
+                document.getElementById('goal-container').classList.remove('hidden');
                 const pct = Math.min(100, (d.kpi.revenue / goalVal) * 100);
                 document.getElementById('goal-bar').style.width = pct + '%';
-                document.getElementById('goal-text').innerText = `Objectif: ${formatValue(goalVal)} (${Math.round(pct)}%)`;
-            } else {
-                goalBox.classList.add('hidden');
+                document.getElementById('goal-text').innerText = `Objectif : ${formatValue(goalVal)}`;
+                document.getElementById('goal-percent').innerText = Math.round(pct) + '%';
             }
 
-            // 4. Comparaison N-1
-            const n1Box = document.getElementById('n1-container');
-            const n1Val = parseInt(goals.n1 || goals.participants || 0);
+            const n1Val = parseInt(goals.n1 || 0);
             if (n1Val > 0) {
-                n1Box.classList.remove('hidden');
+                document.getElementById('n1-container').classList.remove('hidden');
                 document.getElementById('val-n1').innerText = n1Val;
-            } else {
-                n1Box.classList.add('hidden');
             }
 
-            // 5. Graphiques Dynamiques
             renderDynamicCharts(d.charts || []);
-
-            // 6. Timeline
             if(d.timeline) renderTimeline(d.timeline);
 
-            // 7. Liste Récente
             if(d.recent) {
                 document.getElementById('recent-list').innerHTML = d.recent.map(r => `
-                    <div class="flex justify-between items-center border-b border-white/5 pb-3 last:border-0 group animate-fade-in">
-                        <div class="flex items-center gap-4 min-w-0">
-                            <span class="text-slate-600 text-[10px] uppercase tracking-tighter w-14 shrink-0">${r.date || ''}</span>
-                            <span class="font-bold text-white group-hover:text-pink-400 transition truncate">${r.name || 'Anonyme'}</span>
+                    <div class="flex justify-between items-center py-5 group transition">
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center border border-slate-100 text-slate-400 group-hover:text-blue-600 transition">
+                                <i class="fa-solid fa-user text-xs"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-slate-900">${r.name || 'Anonyme'}</p>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase">${r.date}</p>
+                            </div>
                         </div>
-                        <span class="text-pink-300 text-[10px] font-black uppercase tracking-widest bg-pink-900/20 px-3 py-1.5 rounded-full border border-pink-500/10 shrink-0 ml-2">
-                            ${r.desc || ''}
+                        <span class="px-3 py-1.5 rounded-lg bg-slate-50 text-slate-600 text-[10px] font-bold border border-slate-100 group-hover:bg-blue-50 group-hover:text-blue-700 transition">
+                            ${r.desc}
                         </span>
                     </div>
                 `).join('');
             }
+            document.getElementById('last-update').innerText = meta.lastUpdated ? ('MAJ ' + meta.lastUpdated) : '';
 
-            document.getElementById('last-update').innerText = meta.lastUpdated ? ('Scan : ' + meta.lastUpdated) : '';
-
-        } catch (e) { 
-            console.error("Erreur Dashboard:", e);
-        } finally { 
+        } catch (e) { console.error(e); } finally { 
             icon.innerHTML = originalIcon;
             if(refreshBtn) refreshBtn.disabled = false;
         }
@@ -246,35 +248,20 @@
     function renderDynamicCharts(chartsData) {
         const grid = document.getElementById('charts-grid');
         grid.innerHTML = ''; 
-
-        if (!chartsData || chartsData.length === 0) {
-            grid.innerHTML = '<div class="col-span-full p-10 text-center text-slate-600 italic">Aucun bloc configuré.</div>';
-            return;
-        }
-
         chartsData.forEach((c, i) => {
             const chartId = `chart-${i}`;
             const div = document.createElement('div');
-            div.className = 'glass p-10 rounded-[3rem] border-t-4 border-indigo-500 shadow-2xl transition hover:border-indigo-400 animate-fade-in';
+            div.className = 'card p-10 animate-reveal';
             div.style.animationDelay = (0.2 + (i * 0.1)) + 's';
-            
             div.innerHTML = `
-                <h4 class="text-[11px] font-bold text-slate-400 uppercase tracking-[0.4em] mb-10 flex items-center gap-3">
-                    <i class="fa-solid fa-chart-pie text-indigo-400"></i> ${c.title}
-                </h4>
-                <div class="h-64"><canvas id="${chartId}"></canvas></div>
+                <h4 class="stat-label mb-8">${c.title}</h4>
+                <div class="${c.type === 'bar' ? 'h-80' : 'h-64'}"><canvas id="${chartId}"></canvas></div>
             `;
             grid.appendChild(div);
 
-            // Gestion formats données (Tableau ou Objet)
-            let labels, values;
-            if (Array.isArray(c.data)) {
-                labels = c.data.map(item => item.label);
-                values = c.data.map(item => item.count);
-            } else {
-                labels = Object.keys(c.data);
-                values = Object.values(c.data);
-            }
+            let labels = Array.isArray(c.data) ? c.data.map(x => x.label) : Object.keys(c.data);
+            let values = Array.isArray(c.data) ? c.data.map(x => x.count) : Object.values(c.data);
+            const isBar = c.type === 'bar';
 
             new Chart(document.getElementById(chartId), {
                 type: c.type || 'doughnut',
@@ -282,23 +269,27 @@
                     labels: labels, 
                     datasets: [{ 
                         data: values, 
-                        backgroundColor: ['#818cf8', '#e879f9', '#facc15', '#34d399', '#f43f5e', '#3b82f6', '#fb923c'], 
+                        backgroundColor: isBar ? '#3b82f6' : ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#64748b', '#ef4444'], 
+                        borderRadius: isBar ? 4 : 0,
                         borderWidth: 0,
-                        borderRadius: 5
+                        hoverOffset: 10
                     }] 
                 },
                 options: { 
+                    indexAxis: isBar ? 'y' : 'x',
                     maintainAspectRatio: false, 
                     responsive: true,
                     plugins: { 
                         legend: { 
-                            position: 'right', 
-                            labels: { color: '#94a3b8', font: {family:'Outfit', size: 11}, usePointStyle: true, padding: 15 } 
-                        } 
+                            display: !isBar,
+                            position: 'bottom', 
+                            labels: { color: '#64748b', font: {size: 10, weight: '700'}, padding: 20, usePointStyle: true } 
+                        },
+                        tooltip: { backgroundColor: '#1e293b', padding: 12, cornerRadius: 8 }
                     },
-                    scales: (c.type === 'bar') ? { 
-                        x: { ticks:{color:'#94a3b8'}, grid:{display:false} }, 
-                        y: { ticks:{color:'#e2e8f0'}, grid:{color:'rgba(255,255,255,0.05)'} } 
+                    scales: isBar ? { 
+                        x: { ticks:{color:'#94a3b8'}, grid:{color:'#f1f5f9'} }, 
+                        y: { ticks:{color:'#1e293b', font:{weight:'700'}}, grid:{display:false} } 
                     } : {}
                 }
             });
@@ -309,59 +300,54 @@
         const ctx = document.getElementById('timelineChart').getContext('2d');
         if (State.tChart) State.tChart.destroy();
         
+        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+        gradient.addColorStop(0, 'rgba(37, 99, 235, 0.1)');
+        gradient.addColorStop(1, 'rgba(37, 99, 235, 0)');
+
         State.tChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: data.map(x => x.date),
                 datasets: [
                     { 
-                        label: 'Cumul (€)', 
+                        label: 'Ventes Cumulées', 
                         data: data.map(x => x.cumulative), 
-                        borderColor: '#fbbf24', 
-                        backgroundColor: 'rgba(251, 191, 36, 0.05)', 
+                        borderColor: '#2563eb', 
+                        backgroundColor: gradient, 
                         fill: true, 
-                        tension: 0.4, 
+                        tension: 0.3, 
                         yAxisID: 'y',
-                        pointRadius: 2,
-                        pointHoverRadius: 6
+                        pointRadius: 0,
+                        borderWidth: 3
                     },
                     { 
                         label: 'Inscriptions', 
                         data: data.map(x => x.participants), 
-                        type: 'bar', 
-                        backgroundColor: '#3b82f6', 
-                        borderRadius: 4, 
-                        barThickness: 12, 
-                        yAxisID: 'y1' 
+                        borderColor: '#10b981',
+                        tension: 0.3, 
+                        yAxisID: 'y1',
+                        pointRadius: 4,
+                        pointBackgroundColor: '#fff',
+                        pointBorderWidth: 2,
+                        borderWidth: 2
                     }
                 ]
             },
             options: { 
-                responsive: true, 
-                maintainAspectRatio: false, 
-                plugins: { legend: { position: 'top', labels: { color: '#94a3b8', font: {family:'Outfit'} } } },
+                responsive: true, maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
+                plugins: { legend: { display: false } },
                 scales: { 
-                    x: { ticks:{color:'#64748b'}, grid:{display:false} }, 
-                    y: { 
-                        position: 'left',
-                        ticks:{color:'#fbbf24', font:{weight:'bold'}}, 
-                        grid:{color:'rgba(255,255,255,0.05)'} 
-                    },
-                    y1: { 
-                        display:true, 
-                        position:'right', 
-                        grid:{display:false}, 
-                        ticks:{color:'#3b82f6', stepSize: 1} 
-                    }
+                    x: { ticks:{color:'#94a3b8'}, grid:{display:false} }, 
+                    y: { position:'left', ticks:{color:'#2563eb', font:{weight:'700'}}, grid:{color:'#f1f5f9'} },
+                    y1: { position:'right', grid:{display:false}, ticks:{color:'#10b981', font:{weight:'700'}, stepSize: 1} }
                 } 
             }
         });
     }
 
-    Chart.defaults.font.family = 'Outfit';
+    Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
     refresh();
-    
-    // Auto-refresh toutes les 5 minutes
     setInterval(refresh, 5 * 60 * 1000);
     </script>
 </body>

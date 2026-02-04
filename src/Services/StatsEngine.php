@@ -23,7 +23,6 @@ class StatsEngine {
         $groups = [];
         $recentList = [];
         
-        // 1. Ordre des blocs défini par l'admin
         $groupOrder = [];
         $idx = 0;
         foreach ($this->rules as $rule) {
@@ -31,7 +30,6 @@ class StatsEngine {
             if (!isset($groupOrder[$gn])) $groupOrder[$gn] = $idx++;
         }
 
-        // 2. Tri pour la timeline
         usort($orders, function($a, $b) {
             return strtotime($a['date']) - strtotime($b['date']);
         });
@@ -49,7 +47,6 @@ class StatsEngine {
                 $amount = (isset($item['amount']) ? $item['amount'] : 0) / 100;
                 $rawName = isset($item['name']) ? trim($item['name']) : 'Inconnu';
 
-                // Gestion des Dons
                 if ($this->isDonation($item)) {
                     $stats['kpi']['donations'] += $amount;
                     $stats['kpi']['revenue'] += $amount;
@@ -59,14 +56,18 @@ class StatsEngine {
 
                 $rule = $this->matchRule($rawName);
                 
-                if ($rule && !in_array($rule['type'], ['Ignorer', 'Info'])) {
+                if ($rule && $rule['type'] !== 'Ignorer') {
                     $stats['kpi']['revenue'] += $amount;
                     $dailyStats[$dateKey]['rev'] += $amount;
 
                     if ($rule['type'] === 'Billet') {
                         $stats['kpi']['participants']++;
                         $dailyStats[$dateKey]['pax']++;
-                        $this->addToGroup($groups, $rule, $rule['displayLabel'] ?: $rawName, 1);
+                        
+                        // On n'ajoute au graphique QUE si non masqué
+                        if (!($rule['hidden'] ?? false)) {
+                            $this->addToGroup($groups, $rule, $rule['displayLabel'] ?: $rawName, 1);
+                        }
                         
                         $recentList[] = [
                             'date' => date('d/m H:i', strtotime($order['date'])),
@@ -85,7 +86,8 @@ class StatsEngine {
                         if (empty($a)) continue;
 
                         $optRule = $this->matchRule($q);
-                        if ($optRule && $optRule['type'] === 'Option') {
+                        // Ajout au graphique si c'est une Option ET non masquée
+                        if ($optRule && $optRule['type'] === 'Option' && !($optRule['hidden'] ?? false)) {
                             $label = $this->applyTransform($a, $optRule['transform'] ?? '');
                             $this->addToGroup($groups, $optRule, $label, 1);
                         }
@@ -94,7 +96,6 @@ class StatsEngine {
             }
         }
 
-        // Timeline
         foreach ($dailyStats as $day => $val) {
             $cumulativeRevenue += $val['rev'];
             $stats['timeline'][] = [
@@ -105,7 +106,6 @@ class StatsEngine {
             ];
         }
 
-        // Formatage Graphiques
         uksort($groups, function($a, $b) use ($groupOrder) {
             return (isset($groupOrder[$a]) ? $groupOrder[$a] : 99) - (isset($groupOrder[$b]) ? $groupOrder[$b] : 99);
         });

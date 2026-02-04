@@ -4,85 +4,86 @@ require_once __DIR__ . '/../src/Services/Storage.php';
 $campaigns = Storage::listCampaigns();
 $currentCampaignId = $_GET['campaign'] ?? null;
 
-// Si une campagne est sélectionnée, on charge le template du dashboard
 if ($currentCampaignId) {
     $campaignConfig = null;
     foreach ($campaigns as $c) {
-        if ($c['slug'] === $currentCampaignId) {
-            $campaignConfig = $c;
-            break;
-        }
+        if ($c['slug'] === $currentCampaignId) { $campaignConfig = $c; break; }
     }
-    
-    if ($campaignConfig) {
-        include __DIR__ . '/../templates/dashboard.php';
-        exit;
-    }
+    if ($campaignConfig) { include __DIR__ . '/../templates/dashboard.php'; exit; }
 }
-
-// Sinon, on affiche la liste des campagnes disponibles
 ?>
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HelloBoard - APEL Saint Joseph</title>
+    <title>HelloBoard — APEL Saint Joseph</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&display=swap');
-        body { font-family: 'Outfit', sans-serif; background-color: #0f172a; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; color: #0f172a; }
+        .hero-title {
+            letter-spacing: -0.05em;
+            background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
     </style>
 </head>
-<body class="text-slate-200 min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col">
 
-    <nav class="p-6 border-b border-slate-800 bg-[#1e1b4b]/50 backdrop-blur-md sticky top-0 z-50">
+    <nav class="py-6 px-8 bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-3">
-                <img src="assets/img/logo.svg" alt="Logo" class="w-10 h-10">
-                <span class="text-xl font-black tracking-tight uppercase">HelloBoard</span>
+                <img src="assets/img/logo.svg" alt="Logo" class="w-8 h-8" onerror="this.innerHTML='<i class=\'fa-solid fa-chart-simple text-blue-600 text-xl\'></i>'; this.type='icon';">
+                <span class="text-lg font-extrabold tracking-tight text-slate-900">HelloBoard</span>
             </div>
-            <a href="admin.php" class="text-slate-400 hover:text-white transition text-sm font-bold">
-                <i class="fa-solid fa-gear mr-1"></i> Admin
+            <a href="admin.php" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 transition">
+                Console Administration
             </a>
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-6 py-12 flex-1 w-full">
-        <div class="mb-12 text-center">
-            <h1 class="text-4xl font-black text-white mb-4">Tableaux de Bord</h1>
-            <p class="text-slate-400">Sélectionnez une campagne de l'APEL Saint Joseph pour suivre les ventes en direct.</p>
+    <main class="max-w-6xl mx-auto px-6 py-20 flex-1 w-full">
+        <div class="mb-20">
+            <h1 class="text-6xl font-extrabold hero-title mb-4">Tableaux de Bord</h1>
+            <p class="text-slate-500 text-lg max-w-2xl">
+                Visualisez les inscriptions et les revenus de vos événements HelloAsso en temps réel.
+            </p>
         </div>
 
         <?php if (empty($campaigns)): ?>
-            <div class="bg-slate-800/50 rounded-3xl p-12 text-center border border-slate-700 max-w-2xl mx-auto">
-                <div class="bg-slate-900 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <i class="fa-solid fa-folder-open text-slate-600 text-2xl"></i>
+            <div class="bg-white rounded-[2rem] p-16 text-center border border-slate-200 shadow-sm">
+                <div class="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-8 border border-slate-100">
+                    <i class="fa-solid fa-folder-plus text-slate-300 text-3xl"></i>
                 </div>
-                <h2 class="text-xl font-bold mb-2">Aucune campagne configurée</h2>
-                <p class="text-slate-500 mb-8 text-sm">Commencez par ajouter votre première campagne HelloAsso dans l'espace d'administration.</p>
-                <a href="admin.php?action=new" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-8 rounded-full transition">
-                    Créer une campagne
+                <h2 class="text-xl font-extrabold mb-3">Aucune campagne configurée</h2>
+                <p class="text-slate-500 mb-8">Rendez-vous dans l'administration pour scanner votre compte HelloAsso.</p>
+                <a href="admin.php?action=new" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-10 rounded-xl transition shadow-lg shadow-blue-100">
+                    Ajouter une campagne <i class="fa-solid fa-plus"></i>
                 </a>
             </div>
         <?php else: ?>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <?php foreach ($campaigns as $campaign): ?>
                     <a href="?campaign=<?= htmlspecialchars($campaign['slug']) ?>" 
-                       class="group bg-slate-800/40 border border-slate-700 p-8 rounded-3xl hover:border-purple-500/50 hover:bg-slate-800/60 transition duration-300">
-                        <div class="flex justify-between items-start mb-6">
-                            <div class="bg-purple-600/20 p-3 rounded-2xl text-purple-400 group-hover:scale-110 transition duration-300">
-                                <i class="fa-solid fa-<?= $campaign['icon'] ?? 'mask' ?> text-2xl"></i>
+                       class="group bg-white border border-slate-200 p-8 rounded-[1.5rem] shadow-sm hover:shadow-xl hover:border-blue-200 transition-all duration-300">
+                        
+                        <div class="flex justify-between items-start mb-12">
+                            <div class="bg-slate-50 p-4 rounded-xl text-slate-400 border border-slate-100 group-hover:bg-blue-50 group-hover:text-blue-600 transition duration-300">
+                                <i class="fa-solid fa-<?= $campaign['icon'] ?? 'calendar' ?> text-xl"></i>
                             </div>
-                            <span class="text-[10px] font-black uppercase tracking-widest bg-slate-900 px-3 py-1 rounded-full text-slate-500 border border-slate-700">
+                            <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
                                 <?= $campaign['formType'] ?? 'Event' ?>
                             </span>
                         </div>
-                        <h3 class="text-xl font-black text-white mb-2"><?= htmlspecialchars($campaign['title']) ?></h3>
-                        <p class="text-sm text-slate-500 mb-6">Suivi des inscriptions et statistiques en temps réel.</p>
-                        <div class="flex items-center text-purple-400 font-bold text-sm uppercase tracking-wider">
-                            Ouvrir le Board <i class="fa-solid fa-arrow-right ml-2 group-hover:translate-x-2 transition"></i>
+                        
+                        <h3 class="text-xl font-extrabold text-slate-900 mb-2 group-hover:text-blue-600 transition"><?= htmlspecialchars($campaign['title']) ?></h3>
+                        <p class="text-sm text-slate-400 mb-8 font-medium">Analyses live & KPIs financiers.</p>
+                        
+                        <div class="flex items-center gap-2 text-blue-600 font-bold text-xs uppercase tracking-wider">
+                            Ouvrir le board <i class="fa-solid fa-arrow-right-long transition-all group-hover:translate-x-2"></i>
                         </div>
                     </a>
                 <?php endforeach; ?>
@@ -90,8 +91,9 @@ if ($currentCampaignId) {
         <?php endif; ?>
     </main>
 
-    <footer class="p-8 text-center text-slate-600 text-xs border-t border-slate-900">
-        &copy; <?= date('Y') ?> HelloBoard - APEL Saint Joseph. Respect strict du RGPD : aucune donnée personnelle stockée localement.
+    <footer class="p-12 text-center bg-white border-t border-slate-200 mt-20">
+        <p class="text-xs text-slate-400 font-bold uppercase tracking-[0.3em] mb-3">HelloBoard &middot; APEL Saint Joseph</p>
+        <p class="text-[10px] text-slate-300 italic font-medium">Propulsé par le moteur de synchronisation HelloAsso V5</p>
     </footer>
 
 </body>
