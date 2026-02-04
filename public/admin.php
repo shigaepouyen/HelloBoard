@@ -11,6 +11,12 @@ $action = $_GET['action'] ?? 'list';
 $localCampaigns = Storage::listCampaigns();
 $client = new HelloAssoClient($globals['clientId']??'', $globals['clientSecret']??'');
 
+// GESTION DU SCAN (DÉCOUVERTE)
+$discovery = null;
+if ($action === 'new' && !empty($globals['orgSlug'])) {
+    $discovery = $client->discoverCampaigns($globals['orgSlug']);
+}
+
 if (isset($_POST['delete_campaign'])) {
     Storage::deleteCampaign($_POST['slug']);
     header('Location: admin.php?msg=deleted'); exit;
@@ -26,7 +32,10 @@ if ($action === 'analyze') {
     header('Content-Type: application/json');
     try {
         $form = $_GET['form'];
-        $orders = $client->fetchAllOrders($_GET['org'], $form, $_GET['type'] ?? 'Event');
+        $org = $_GET['org'];
+        $type = $_GET['type'] ?? 'Event';
+        
+        $orders = $client->fetchAllOrders($org, $form, $type);
         $apiItems = [];
         foreach(array_slice($orders, 0, 100) as $o) {
             foreach($o['items'] ?? [] as $i) {
@@ -35,14 +44,17 @@ if ($action === 'analyze') {
             }
         }
         $apiItems = array_unique($apiItems);
+        
         $configFile = __DIR__ . "/../config/campaigns/$form.json";
         $existing = file_exists($configFile) ? json_decode(file_get_contents($configFile), true) : [];
         $finalRules = isset($existing['rules']) ? $existing['rules'] : [];
+        
         foreach ($apiItems as $item) {
             $found = false;
             foreach($finalRules as $r) if($r['pattern'] === $item) $found = true;
             if (!$found) $finalRules[] = ['pattern' => $item, 'displayLabel' => $item, 'type' => 'Option', 'group' => 'Divers', 'chartType' => 'doughnut', 'transform' => '', 'hidden' => false];
         }
+        
         echo json_encode(['rules' => $finalRules, 'goals' => isset($existing['goals']) ? $existing['goals'] : ['revenue'=>0, 'n1'=>0]]);
     } catch(Exception $e) { echo json_encode(['error' => $e->getMessage()]); }
     exit;
@@ -52,186 +64,247 @@ if ($action === 'analyze') {
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Admin HelloBoard</title>
+    <title>Admin Studio — HelloBoard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
-        body { background-color: #f8fafc; color: #1e293b; font-family: 'Plus Jakarta Sans', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         
-        input, select { 
-            background-color: #fff; 
-            border: 1px solid #e2e8f0; 
-            color: #1e293b; 
-            padding: 8px 12px; 
-            border-radius: 10px; 
-            font-size: 0.85rem;
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #ffffff; 
+            color: #000000;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .studio-input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid transparent;
+            padding: 4px 0;
+            font-weight: 500;
             transition: all 0.2s;
         }
-        input:focus { border-color: #2563eb; outline: none; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+        .studio-input:hover { border-bottom-color: #e2e8f0; }
+        .studio-input:focus { border-bottom-color: #000; outline: none; }
 
-        .card-admin { background: #fff; border: 1px solid #e2e8f0; border-radius: 1.5rem; }
-
-        .tooltip { position: relative; cursor: help; }
-        .tooltip:hover::after {
-            content: attr(data-tip);
-            position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
-            background: #1e293b; color: #fff; padding: 10px 14px; border-radius: 10px;
-            font-size: 11px; width: 200px; z-index: 50; line-height: 1.5; font-weight: 500;
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        .studio-select {
+            background: #f8fafc;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
         }
 
-        .sortable-ghost { opacity: 0.3; background: #eff6ff !important; border: 1px dashed #2563eb !important; }
-        .loader-spin { border: 2px solid #f1f5f9; border-top: 2px solid #2563eb; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.8s linear infinite; }
+        .rule-row { border-bottom: 1px solid #f8fafc; transition: background 0.2s; }
+        .rule-row:hover { background-color: #fafafa; }
+        .sortable-ghost { opacity: 0.2; background: #000 !important; }
+
+        .loader-studio {
+            width: 16px; height: 16px;
+            border: 2px solid #f1f5f9; border-top: 2px solid #000;
+            border-radius: 50%; animation: spin 0.6s linear infinite;
+        }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .toggle-hidden {
+            width: 32px; height: 18px;
+            background: #e2e8f0; border-radius: 20px;
+            position: relative; cursor: pointer;
+            transition: background 0.3s;
+        }
+        .toggle-hidden.active { background: #000; }
+        .toggle-hidden::after {
+            content: ''; position: absolute;
+            top: 2px; left: 2px;
+            width: 14px; height: 14px;
+            background: white; border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        .toggle-hidden.active::after { transform: translateX(14px); }
     </style>
 </head>
-<body class="p-4 md:p-8 lg:p-12">
-    <div class="max-w-7xl mx-auto">
-        
-        <header class="flex justify-between items-center mb-16">
+<body class="min-h-screen">
+
+    <nav class="sticky top-0 bg-white/90 backdrop-blur-md z-50 border-b border-slate-100">
+        <div class="max-w-6xl mx-auto px-8 py-4 flex items-center justify-between">
             <div class="flex items-center gap-4">
-                <img src="assets/img/logo.svg" alt="Logo" class="w-10 h-10" onerror="this.innerHTML='<i class=\'fa-solid fa-gear text-slate-400 text-2xl\'></i>'; this.type='icon';">
-                <div>
-                    <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Console d'Administration</h1>
-                    <p class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">Configuration & Moteur de règles</p>
-                </div>
+                <img src="assets/img/logo.svg" alt="Logo" class="w-6 h-6" onerror="this.style.display='none'">
+                <span class="text-xs font-bold uppercase tracking-widest">Console <span class="text-slate-300">/ Admin</span></span>
             </div>
-            <a href="index.php" class="bg-white border border-slate-200 px-6 py-3 rounded-xl text-xs font-bold hover:bg-slate-50 transition flex items-center gap-2">
-                <i class="fa-solid fa-house"></i> Accueil
-            </a>
-        </header>
-
-        <!-- DASHBOARD STATUS -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div class="card-admin p-6 border-l-4 border-l-blue-500">
-                <h4 class="text-slate-400 font-bold text-[10px] uppercase mb-1">Billets</h4>
-                <p class="text-xs text-slate-600">Comptabilisés comme inscriptions réelles.</p>
-            </div>
-            <div class="card-admin p-6 border-l-4 border-l-emerald-500">
-                <h4 class="text-slate-400 font-bold text-[10px] uppercase mb-1">Options</h4>
-                <p class="text-xs text-slate-600">Analysées sous forme de graphiques.</p>
-            </div>
-            <div class="card-admin p-6 border-l-4 border-l-amber-500">
-                <h4 class="text-slate-400 font-bold text-[10px] uppercase mb-1">Transform</h4>
-                <p class="text-xs text-slate-600">Nettoyage par Regex ou Mots-clés.</p>
+            <div class="flex items-center gap-6">
+                <a href="index.php" class="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-black transition">Quitter</a>
             </div>
         </div>
+    </nav>
 
-        <div class="card-admin p-8 mb-12 shadow-sm">
-            <h2 class="text-lg font-extrabold mb-8 flex items-center gap-2 text-slate-900"><i class="fa-solid fa-layer-group text-blue-500"></i> Vos Boards Actifs</h2>
-            <div class="grid gap-3">
-                <?php foreach($localCampaigns as $c): ?>
-                <div class="bg-slate-50 p-6 rounded-xl border border-slate-100 flex justify-between items-center hover:border-blue-200 transition group">
-                    <div class="flex items-center gap-5">
-                         <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-slate-200 text-slate-300 group-hover:text-blue-500 transition">
-                            <i class="fa-solid fa-<?= $c['icon'] ?? 'file-lines' ?>"></i>
+    <main class="max-w-6xl mx-auto px-8 py-16">
+        
+        <?php if ($action === 'new'): ?>
+            <header class="mb-16">
+                <h1 class="text-3xl font-extrabold tracking-tight mb-2 uppercase">Scanner HelloAsso</h1>
+                <p class="text-slate-400 font-medium">Sélectionnez le formulaire à importer pour créer un nouveau board.</p>
+            </header>
+
+            <section class="mb-32">
+                <?php if ($discovery && !empty($discovery['forms'])): ?>
+                    <div class="grid grid-cols-1 gap-1">
+                        <?php foreach($discovery['forms'] as $f): ?>
+                        <div class="flex items-center justify-between py-6 group border-b border-slate-50">
+                            <div>
+                                <h3 class="font-bold text-lg"><?= htmlspecialchars($f['name']) ?></h3>
+                                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5"><?= $f['type'] ?> • <?= $f['slug'] ?></p>
+                            </div>
+                            <button onclick='editCamp("<?= $discovery["orgSlug"] ?>", "<?= $f["slug"] ?>", "<?= $f["type"] ?>", <?= htmlspecialchars(json_encode($f["name"])) ?>)' 
+                                    class="bg-black text-white px-6 py-2 rounded-lg text-xs font-bold active:scale-95 transition">
+                                Configurer
+                            </button>
                         </div>
-                        <div>
-                            <div class="font-bold text-slate-900"><?= htmlspecialchars($c['title']) ?></div>
-                            <div class="text-[9px] text-slate-400 font-bold tracking-widest uppercase"><?= $c['slug'] ?></div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="py-20 text-center border-2 border-dashed border-slate-100 rounded-2xl">
+                        <p class="text-slate-400 font-medium mb-6">Aucun formulaire trouvé. Vérifiez votre Slug Organisation dans les paramètres.</p>
+                        <a href="admin.php" class="text-xs font-bold uppercase tracking-widest underline underline-offset-8">Retour</a>
+                    </div>
+                <?php endif; ?>
+            </section>
+
+        <?php else: ?>
+            <header class="mb-20">
+                <h1 class="text-3xl font-extrabold tracking-tight mb-2 uppercase italic">Vos Boards</h1>
+                <p class="text-slate-400 font-medium">Gérez vos campagnes actives ou créez-en de nouvelles.</p>
+            </header>
+
+            <section class="mb-32">
+                <div class="grid grid-cols-1 gap-1">
+                    <?php if (empty($localCampaigns)): ?>
+                         <div class="py-10 text-center text-slate-300 italic text-sm">Aucun board configuré.</div>
+                    <?php endif; ?>
+                    <?php foreach($localCampaigns as $c): ?>
+                    <div class="flex items-center justify-between py-6 group border-b border-slate-50">
+                        <div class="flex items-center gap-6">
+                            <div class="text-[10px] font-bold text-slate-200">0<?= array_search($c, $localCampaigns) + 1 ?></div>
+                            <div>
+                                <h3 class="font-bold text-lg"><?= htmlspecialchars($c['title']) ?></h3>
+                                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5"><?= $c['slug'] ?></p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick='editCamp("<?= $c["orgSlug"] ?>", "<?= $c["slug"] ?>", "<?= $c["formType"] ?>", <?= htmlspecialchars(json_encode($c["title"])) ?>)' 
+                                    class="text-xs font-bold px-4 py-2 hover:bg-slate-50 rounded-lg transition">Éditer</button>
+                            <form method="POST" onsubmit="return confirm('Supprimer ce board ?');" class="inline">
+                                <input type="hidden" name="delete_campaign" value="1"><input type="hidden" name="slug" value="<?= $c['slug'] ?>">
+                                <button class="p-2 text-slate-300 hover:text-red-500 transition"><i class="fa-solid fa-trash-can text-sm"></i></button>
+                            </form>
                         </div>
                     </div>
-                    <div class="flex gap-2">
-                        <button onclick="editCamp('<?= $c['orgSlug'] ?>','<?= $c['slug'] ?>','<?= $c['formType'] ?>','<?= addslashes($c['title']) ?>')" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition">Configurer</button>
-                        <form method="POST" onsubmit="return confirm('Confirmer la suppression ?');">
-                            <input type="hidden" name="delete_campaign" value="1"><input type="hidden" name="slug" value="<?= $c['slug'] ?>">
-                            <button class="bg-white hover:bg-red-50 text-slate-300 hover:text-red-500 px-4 py-2.5 rounded-xl transition border border-slate-200 hover:border-red-200"><i class="fa-solid fa-trash-can"></i></button>
-                        </form>
-                    </div>
+                    <?php endforeach; ?>
+                    
+                    <a href="admin.php?action=new" class="mt-8 flex items-center justify-center py-10 border-2 border-dashed border-slate-100 rounded-2xl text-slate-400 hover:text-black hover:border-slate-300 transition group">
+                        <span class="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                            <i class="fa-solid fa-plus group-hover:rotate-90 transition-transform"></i> Nouveau Board
+                        </span>
+                    </a>
                 </div>
-                <?php endforeach; ?>
-                <a href="admin.php?action=new" class="mt-4 border-2 border-dashed border-slate-200 p-8 rounded-2xl text-center text-slate-400 hover:border-blue-300 hover:text-blue-500 transition font-bold text-xs uppercase tracking-widest">
-                    <i class="fa-solid fa-magnifying-glass mr-2"></i> Scanner HelloAsso pour un nouveau board
-                </a>
-            </div>
-        </div>
+            </section>
+        <?php endif; ?>
 
         <div id="config-zone"></div>
-    </div>
+    </main>
 
     <script>
     async function editCamp(org, slug, type, name) {
         const zone = document.getElementById('config-zone');
+        zone.innerHTML = '<div class="py-20 flex justify-center"><div class="loader-studio"></div></div>';
         zone.scrollIntoView({ behavior: 'smooth' });
-        zone.innerHTML = '<div class="p-20 text-center"><div class="loader-spin mx-auto mb-4"></div><p class="text-blue-600 font-bold uppercase tracking-widest text-xs">Analyse des articles HelloAsso...</p></div>';
 
-        const res = await fetch(`admin.php?action=analyze&org=${org}&form=${slug}&type=${type}`);
-        const data = await res.json();
+        try {
+            const res = await fetch(`admin.php?action=analyze&org=${org}&form=${slug}&type=${type}`);
+            const data = await res.json();
 
-        zone.innerHTML = `
-            <div class="card-admin p-10 mt-10 shadow-xl border-t-4 border-t-blue-600 animate-reveal">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
-                    <div>
-                        <h3 class="text-2xl font-extrabold text-slate-900">${name}</h3>
-                        <p class="text-slate-400 text-xs font-bold mt-1 uppercase tracking-widest">Configuration des règles d'affichage</p>
+            if (data.error) throw new Error(data.error);
+
+            let rulesHtml = '';
+            if (data.rules.length === 0) {
+                rulesHtml = '<div class="py-12 px-6 text-center bg-slate-50 rounded-xl text-slate-400 text-sm italic">Aucune commande détectée pour le moment. Vendez au moins un billet sur HelloAsso pour voir les options s\'afficher ici.</div>';
+            } else {
+                rulesHtml = data.rules.map(r => `
+                <div class="rule-row flex items-center py-4 px-2 group" data-item="${r.pattern}">
+                    <div class="w-8 cursor-grab text-slate-200 group-hover:text-slate-400 transition"><i class="fa-solid fa-grip-lines text-xs"></i></div>
+                    <div class="w-12 flex justify-center">
+                        <div class="toggle-hidden ${r.hidden ? '' : 'active'}" onclick="this.classList.toggle('active')"></div>
                     </div>
-                    <div class="flex gap-3">
-                        <button onclick="location.reload()" class="px-6 py-3 text-slate-400 font-bold hover:text-slate-900 transition text-xs">ANNULER</button>
-                        <button onclick="save('${org}','${slug}','${type}','${name.replace(/'/g, "\\'")}')" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold text-xs shadow-lg shadow-blue-100 transition transform active:scale-95 uppercase tracking-wider">
-                            Sauvegarder
-                        </button>
+                    <div class="w-48 px-4">
+                        <p class="text-[9px] font-bold text-slate-300 uppercase truncate" title="${r.pattern}">${r.pattern}</p>
+                    </div>
+                    <div class="flex-1 px-4">
+                        <input type="text" class="display-label w-full studio-input text-sm" value="${r.displayLabel}" placeholder="Label">
+                    </div>
+                    <div class="flex items-center gap-3 px-4">
+                        <select class="rule-type studio-select">
+                            <option value="Billet" ${r.type==='Billet'?'selected':''}>BILLET</option>
+                            <option value="Option" ${r.type==='Option'?'selected':''}>OPTION</option>
+                            <option value="Ignorer" ${r.type==='Ignorer'?'selected':''}>CACHER</option>
+                        </select>
+                        <input type="text" class="rule-group studio-select w-20" value="${r.group || 'Divers'}">
+                        <select class="rule-chart studio-select">
+                            <option value="doughnut" ${r.chartType==='doughnut'?'selected':''}>CERCLE</option>
+                            <option value="bar" ${r.chartType==='bar'?'selected':''}>BARRES</option>
+                        </select>
+                    </div>
+                    <div class="w-32 px-4 text-right">
+                        <input type="text" class="rule-transform studio-input text-[10px] font-mono text-slate-400 text-right" value="${r.transform || ''}" placeholder="TRANSFORM">
+                    </div>
+                </div>`).join('');
+            }
+
+            zone.innerHTML = `
+                <div class="animate-reveal py-20 border-t border-slate-100 mt-20">
+                    <div class="flex items-center justify-between mb-12">
+                        <div>
+                            <h2 class="text-xl font-bold tracking-tight uppercase">${name}</h2>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Configuration du board</p>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <button onclick="location.reload()" class="text-xs font-bold text-slate-400 hover:text-black transition uppercase">Annuler</button>
+                            <button id="save-main-btn" class="bg-black text-white px-8 py-3 rounded-xl text-xs font-bold shadow-xl shadow-slate-200 active:scale-95 transition uppercase">Enregistrer</button>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-12 mb-20">
+                        <div class="flex flex-col">
+                            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Objectif Recettes (€)</label>
+                            <input type="number" id="goal-rev" class="text-2xl font-extrabold tracking-tighter w-40 studio-input" value="${data.goals.revenue || 0}">
+                        </div>
+                        <div class="flex flex-col">
+                            <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Référence N-1</label>
+                            <input type="number" id="goal-n1" class="text-2xl font-extrabold tracking-tighter w-40 studio-input" value="${data.goals.n1 || 0}">
+                        </div>
+                    </div>
+
+                    <div id="rules-list-container">
+                        <div class="flex items-center gap-3 mb-6">
+                            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Items détectés sur HelloAsso</span>
+                            <div class="h-[1px] flex-1 bg-slate-100"></div>
+                        </div>
+                        <div id="rules-list">${rulesHtml}</div>
                     </div>
                 </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16 p-8 bg-slate-50 rounded-2xl border border-slate-100">
-                    <div>
-                        <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3">Objectif Recettes (€)</label>
-                        <input type="number" id="goal-rev" class="w-full text-xl font-bold py-3 px-5 shadow-sm" value="${data.goals.revenue}">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3">Participants Année N-1</label>
-                        <input type="number" id="goal-n1" class="w-full text-xl font-bold py-3 px-5 shadow-sm" value="${data.goals.n1}">
-                    </div>
-                </div>
+            `;
 
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm border-separate border-spacing-y-2">
-                        <thead>
-                            <tr class="text-slate-400 uppercase text-[9px] font-extrabold tracking-widest">
-                                <th class="px-4 pb-4">Ordre</th>
-                                <th class="px-4 pb-4">Visible</th>
-                                <th class="px-4 pb-4">Source</th>
-                                <th class="px-4 pb-4">Label Board</th>
-                                <th class="px-4 pb-4">Type</th>
-                                <th class="px-4 pb-4">Bloc</th>
-                                <th class="px-4 pb-4">Graphe</th>
-                                <th class="px-4 pb-4">Transform</th>
-                            </tr>
-                        </thead>
-                        <tbody id="rules-list">
-                            ${data.rules.map(r => `
-                            <tr class="rule-row bg-slate-50/50 hover:bg-slate-50 transition" data-item="${r.pattern}">
-                                <td class="py-4 px-4 cursor-grab text-slate-300 hover:text-blue-500 transition"><i class="fa-solid fa-grip-lines"></i></td>
-                                <td class="py-4 px-4 text-center">
-                                    <input type="checkbox" class="rule-visible w-5 h-5 accent-blue-600" ${r.hidden ? '' : 'checked'}>
-                                </td>
-                                <td class="py-4 px-4 font-mono text-[9px] text-slate-400 truncate max-w-[100px] italic">${r.pattern}</td>
-                                <td class="py-4 px-4"><input type="text" class="display-label w-full font-bold" value="${r.displayLabel}"></td>
-                                <td class="py-4 px-4">
-                                    <select class="rule-type w-full font-semibold">
-                                        <option value="Billet" ${r.type==='Billet'?'selected':''}>Billet</option>
-                                        <option value="Option" ${r.type==='Option'?'selected':''}>Option</option>
-                                        <option value="Ignorer" ${r.type==='Ignorer'?'selected':''}>Ignorer</option>
-                                    </select>
-                                </td>
-                                <td class="py-4 px-4"><input type="text" class="rule-group w-full" value="${r.group || 'Divers'}"></td>
-                                <td class="py-4 px-4">
-                                    <select class="rule-chart w-full">
-                                        <option value="doughnut" ${r.chartType==='doughnut'?'selected':''}>Cercle</option>
-                                        <option value="bar" ${r.chartType==='bar'?'selected':''}>Barres</option>
-                                    </select>
-                                </td>
-                                <td class="py-4 px-4"><input type="text" class="rule-transform w-full font-mono text-[9px] text-blue-600" value="${r.transform || ''}" placeholder="REGEX:..."></td>
-                            </tr>`).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        `;
+            document.getElementById('save-main-btn').onclick = () => save(org, slug, type, name);
+            if (data.rules.length > 0) {
+                new Sortable(document.getElementById('rules-list'), { animation: 150, handle: '.cursor-grab' });
+            }
 
-        new Sortable(document.getElementById('rules-list'), { animation: 150, handle: '.cursor-grab' });
+        } catch (e) {
+            console.error(e);
+            zone.innerHTML = `<div class="py-20 text-center"><p class="text-red-500 font-bold">Erreur : ${e.message}</p><button onclick="location.reload()" class="mt-4 text-xs underline">Réessayer</button></div>`;
+        }
     }
 
     async function save(org, slug, type, name) {
@@ -244,20 +317,24 @@ if ($action === 'analyze') {
                 group: row.querySelector('.rule-group').value,
                 chartType: row.querySelector('.rule-chart').value,
                 transform: row.querySelector('.rule-transform').value,
-                hidden: !row.querySelector('.rule-visible').checked
+                hidden: !row.querySelector('.toggle-hidden').classList.contains('active')
             });
         });
         
         const config = {
             slug, title: name, orgSlug: org, formSlug: slug, formType: type,
             rules,
-            goals: { revenue: parseFloat(document.getElementById('goal-rev').value), n1: parseInt(document.getElementById('goal-n1').value) }
+            goals: { 
+                revenue: parseFloat(document.getElementById('goal-rev').value) || 0, 
+                n1: parseInt(document.getElementById('goal-n1').value) || 0 
+            }
         };
 
-        const btn = document.querySelector('button[onclick^="save"]');
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Enregistrement...';
+        const btn = document.getElementById('save-main-btn');
+        btn.innerText = 'PATIENCE...';
+        btn.disabled = true;
 
-        await fetch('admin.php', { method:'POST', body: new URLSearchParams({save_campaign: 1, config: JSON.stringify(config)}) });
+        const res = await fetch('admin.php', { method:'POST', body: new URLSearchParams({save_campaign: 1, config: JSON.stringify(config)}) });
         window.location.href = 'index.php?campaign=' + slug;
     }
     </script>
