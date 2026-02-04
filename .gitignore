@@ -1,0 +1,16 @@
+#Configuration sensible (contient clientId et clientSecret)
+config/settings.json
+
+#Fichiers de configuration des campagnes (générés via l'admin)
+config/campaigns/*.json
+
+#Logs et fichiers temporaires
+*.log
+tmp/
+
+#Métadonnées système
+.DS_Store
+Thumbs.db
+
+#Dépendances (si vous utilisez composer plus tard)
+vendor/
