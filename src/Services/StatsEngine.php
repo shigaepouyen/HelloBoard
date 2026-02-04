@@ -64,7 +64,6 @@ class StatsEngine {
                         $stats['kpi']['participants']++;
                         $dailyStats[$dateKey]['pax']++;
                         
-                        // On n'ajoute au graphique QUE si non masqué
                         if (!($rule['hidden'] ?? false)) {
                             $this->addToGroup($groups, $rule, $rule['displayLabel'] ?: $rawName, 1);
                         }
@@ -86,7 +85,6 @@ class StatsEngine {
                         if (empty($a)) continue;
 
                         $optRule = $this->matchRule($q);
-                        // Ajout au graphique si c'est une Option ET non masquée
                         if ($optRule && $optRule['type'] === 'Option' && !($optRule['hidden'] ?? false)) {
                             $label = $this->applyTransform($a, $optRule['transform'] ?? '');
                             $this->addToGroup($groups, $optRule, $label, 1);
@@ -99,22 +97,22 @@ class StatsEngine {
         foreach ($dailyStats as $day => $val) {
             $cumulativeRevenue += $val['rev'];
             $stats['timeline'][] = [
-                'date' => $day,
-                'participants' => $val['pax'],
-                'revenue' => $val['rev'],
+                'date' => date('d/m', strtotime($day)),
+                'pax' => $val['pax'],
+                'rev' => $val['rev'],
                 'cumulative' => $cumulativeRevenue
             ];
         }
 
         uksort($groups, function($a, $b) use ($groupOrder) {
-            return (isset($groupOrder[$a]) ? $groupOrder[$a] : 99) - (isset($groupOrder[$b]) ? $groupOrder[$b] : 99);
+            return ($groupOrder[$a] ?? 99) - ($groupOrder[$b] ?? 99);
         });
 
         foreach ($groups as $name => $g) {
             arsort($g['data']); 
             $stats['charts'][] = [
-                'title' => isset($g['config']['displayLabel']) ? $g['config']['displayLabel'] : $name,
-                'type' => strtolower(isset($g['config']['chartType']) ? $g['config']['chartType'] : 'doughnut'),
+                'title' => $name,
+                'type' => strtolower($g['config']['chartType'] ?? 'doughnut'),
                 'data' => $g['data']
             ];
         }
@@ -134,17 +132,17 @@ class StatsEngine {
     private function matchRule($text) {
         $text = mb_strtolower($text, 'UTF-8');
         foreach ($this->rules as $r) {
-            $pattern = mb_strtolower($r['pattern'], 'UTF-8');
-            if (strpos($text, $pattern) !== false) return $r;
+            if (strpos($text, mb_strtolower($r['pattern'], 'UTF-8')) !== false) return $r;
         }
         return null;
     }
 
     private function applyTransform($val, $trans) {
         $trans = strtoupper(trim($trans));
+        if (empty($trans)) return $val;
         if ($trans === 'FIRST_LETTER') return mb_substr($val, 0, 1);
         if ($trans === 'UPPER') return mb_strtoupper($val);
-        if (str_starts_with($trans, 'REGEX:')) {
+        if (strpos($trans, 'REGEX:') === 0) {
             $p = substr($trans, 6);
             if (@preg_match("/$p/iu", $val, $m)) return $m[1] ?? $m[0];
         }
