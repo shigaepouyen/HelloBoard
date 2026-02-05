@@ -7,6 +7,23 @@ require_once $srcPath . 'HelloAssoClient.php';
 $globals = Storage::getGlobalSettings();
 $adminPassword = $globals['adminPassword'] ?? null;
 
+// --- AJOUT : Traitement du Scan et des Paramètres ---
+$scanResults = null;
+if (isset($_POST['run_scan'])) {
+    // 1. Sauvegarde des réglages
+    $newSettings = [
+        'clientId' => trim($_POST['clientId']),
+        'clientSecret' => trim($_POST['clientSecret']),
+        'orgSlug' => trim($_POST['orgSlug']),
+        'adminPassword' => $adminPassword // On garde le mot de passe admin
+    ];
+    Storage::saveGlobalSettings($newSettings);
+    $globals = $newSettings; // Mise à jour immédiate pour l'affichage
+
+    // 2. Lancement du scan HelloAsso
+    $client = new HelloAssoClient($globals['clientId'], $globals['clientSecret']);
+}
+
 if (isset($_GET['logout'])) { session_destroy(); header('Location: index.php'); exit; }
 if (isset($_POST['login'])) {
     if ($_POST['password'] === $adminPassword) { $_SESSION['authenticated'] = true; } else { $loginError = "Mot de passe incorrect"; }
@@ -54,17 +71,91 @@ if ($action === 'analyze') {
 <!DOCTYPE html>
 <html lang="fr"><head><meta charset="UTF-8"><title>Admin — HelloBoard</title><script src="https://cdn.tailwindcss.com"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"><style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap');body{font-family:'Plus Jakarta Sans',sans-serif;background:#f8fafc;}.admin-card{background:white;border-radius:2rem;border:1px solid #edf2f7;}.input-soft{background:#f1f5f9;border:2px solid transparent;border-radius:1.25rem;padding:12px 16px;font-weight:700;width:100%;}.toggle-btn{width:44px;height:24px;background:#cbd5e1;border-radius:20px;position:relative;cursor:pointer;}.toggle-btn.active{background:#2563eb;}.toggle-btn::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;background:white;border-radius:50%;transition:0.3s;}.toggle-btn.active::after{transform:translateX(20px);}</style></head>
 <body class="pb-32">
-    <nav class="p-6 bg-white border-b border-slate-100 sticky top-0 z-50 flex justify-between items-center"><h1 class="font-black italic uppercase">Console Admin</h1><a href="index.php" class="text-xs font-bold text-slate-400">Sortir</a></nav>
+    <nav class="p-6 bg-white border-b border-slate-100 sticky top-0 z-50 flex justify-between items-center">
+        <h1 class="font-black italic uppercase">Console Admin</h1>
+        <a href="index.php" class="text-xs font-bold text-slate-400">Sortir</a>
+    </nav>
+
     <main class="max-w-5xl mx-auto px-4 py-12">
-        <h2 class="text-2xl font-black mb-8 italic uppercase">Boards Configurés</h2>
-        <div class="grid gap-4 mb-20">
-            <?php foreach($localCampaigns as $c): ?>
-                <div class="admin-card p-6 flex justify-between items-center"><div><h3 class="font-black"><?= htmlspecialchars($c['title']) ?></h3></div><button onclick='editCamp("<?= $c["orgSlug"] ?>", "<?= $c["slug"] ?>", "<?= $c["formType"] ?>", <?= htmlspecialchars(json_encode($c["title"])) ?>)' class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black">Réglages</button></div>
-            <?php endforeach; ?>
-            <a href="admin.php?action=new" class="mt-4 flex items-center justify-center p-10 border-2 border-dashed border-slate-200 rounded-[2.5rem] text-slate-400 font-black hover:text-blue-600 uppercase text-xs italic">+ Scanner mon compte</a>
-        </div>
+        
+        <?php if ($action === 'new' || isset($scanResults)): ?>
+            <div class="mb-10">
+                <a href="admin.php" class="text-slate-400 text-xs font-bold uppercase mb-4 inline-block"><i class="fa-solid fa-arrow-left"></i> Retour</a>
+                <h2 class="text-2xl font-black italic uppercase mb-6">Configuration HelloAsso</h2>
+                
+                <div class="admin-card p-8 mb-10">
+                    <form method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="col-span-2 md:col-span-1">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase block mb-2">Client ID</label>
+                            <input type="text" name="clientId" value="<?= htmlspecialchars($globals['clientId']??'') ?>" class="input-soft" required placeholder="Ex: 4421...">
+                        </div>
+                        <div class="col-span-2 md:col-span-1">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase block mb-2">Client Secret</label>
+                            <input type="password" name="clientSecret" value="<?= htmlspecialchars($globals['clientSecret']??'') ?>" class="input-soft" required placeholder="••••••••">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase block mb-2">Slug de l'organisation</label>
+                            <div class="flex gap-4">
+                                <input type="text" name="orgSlug" value="<?= htmlspecialchars($globals['orgSlug']??'') ?>" class="input-soft" required placeholder="Ex: mon-asso-sportive">
+                                <button type="submit" name="run_scan" class="bg-blue-600 text-white px-8 rounded-2xl font-black uppercase text-xs whitespace-nowrap">
+                                    <i class="fa-solid fa-sync-alt mr-2"></i> Scanner
+                                </button>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-2 italic">Le slug est la partie de l'URL HelloAsso après /associations/ (ex: helloasso.com/associations/<strong>mon-asso</strong>)</p>
+                        </div>
+                    </form>
+                </div>
+
+                <?php if (isset($scanResults) && is_array($scanResults)): ?>
+                    <h3 class="text-xl font-black italic uppercase mb-6">Campagnes détectées</h3>
+                    <div class="grid gap-4">
+                        <?php if(empty($scanResults['forms'])): ?>
+                            <div class="p-4 bg-orange-50 text-orange-500 rounded-xl font-bold text-sm">Aucun formulaire trouvé pour cette organisation.</div>
+                        <?php else: ?>
+                            <?php foreach($scanResults['forms'] as $form): ?>
+                                <div class="admin-card p-6 flex justify-between items-center animate-fade-in">
+                                    <div>
+                                        <h4 class="font-black text-lg"><?= htmlspecialchars($form['name']) ?></h4>
+                                        <span class="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded uppercase"><?= $form['type'] ?></span>
+                                    </div>
+                                    <button onclick="configureForm('<?= $scanResults['orgSlug'] ?>', '<?= $form['slug'] ?>', '<?= $form['type'] ?>', '<?= htmlspecialchars(addslashes($form['name'])) ?>')" 
+                                            class="bg-emerald-500 text-white px-6 py-3 rounded-xl text-xs font-black shadow-lg shadow-emerald-200">
+                                        Configurer
+                                    </button>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+        <?php else: ?>
+            <h2 class="text-2xl font-black mb-8 italic uppercase">Boards Configurés</h2>
+            <div class="grid gap-4 mb-20">
+                <?php if(empty($localCampaigns)): ?>
+                    <div class="text-center py-10 text-slate-400">Aucun board configuré. Commencez par scanner votre compte.</div>
+                <?php endif; ?>
+                
+                <?php foreach($localCampaigns as $c): ?>
+                    <div class="admin-card p-6 flex justify-between items-center">
+                        <div>
+                            <h3 class="font-black"><?= htmlspecialchars($c['title']) ?></h3>
+                            <a href="index.php?campaign=<?= $c['slug'] ?>" target="_blank" class="text-[10px] text-blue-500 font-bold uppercase hover:underline">Voir le board <i class="fa-solid fa-external-link-alt"></i></a>
+                        </div>
+                        <button onclick='editCamp("<?= $c["orgSlug"] ?>", "<?= $c["slug"] ?>", "<?= $c["formType"] ?>", <?= htmlspecialchars(json_encode($c["title"])) ?>)' class="bg-blue-600 text-white px-6 py-3 rounded-xl text-xs font-black">Réglages</button>
+                    </div>
+                <?php endforeach; ?>
+                
+                <a href="admin.php?action=new" class="mt-4 flex items-center justify-center p-10 border-2 border-dashed border-slate-200 rounded-[2.5rem] text-slate-400 font-black hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 transition uppercase text-xs italic">
+                    <i class="fa-solid fa-plus-circle text-2xl mr-3"></i> Scanner mon compte / Nouveau Board
+                </a>
+            </div>
+        <?php endif; ?>
+
         <div id="config-zone"></div>
     </main>
+
+    <script>
 
     <script>
     async function editCamp(org, slug, type, name) {
@@ -171,4 +262,6 @@ if ($action === 'analyze') {
         window.location.href = 'index.php?campaign=' + slug;
     }
     </script>
+    
+    <?php require_once __DIR__ . '/../templates/admin_form.php'; ?>
 </body></html>

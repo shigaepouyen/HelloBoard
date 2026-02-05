@@ -13,7 +13,10 @@ class StatsEngine {
                 'revenue' => 0,
                 'participants' => 0,
                 'donations' => 0,
-                'orderCount' => count($orders)
+                'orderCount' => count($orders),
+                'orders_with_tickets' => 0, // Nouveau : Compteur de commandes avec billets
+                'orders_with_both' => 0,    // Nouveau : Commandes avec Billet + Don
+                'attachment_rate' => 0      // Nouveau : % de générosité
             ],
             'charts' => [],
             'timeline' => [],
@@ -56,11 +59,15 @@ class StatsEngine {
 
             if (!isset($dailyStats[$dateKey])) $dailyStats[$dateKey] = ['rev' => 0, 'pax' => 0];
             
+            $hasTicketInOrder = false;
+            $hasDonationInOrder = false;
+
             foreach ($order['items'] ?? [] as $item) {
                 $amount = ($item['amount'] ?? 0) / 100;
                 $rawName = trim($item['name'] ?? 'Inconnu');
                 
                 if ($this->isDonation($item)) {
+                    $hasDonationInOrder = true;
                     $stats['kpi']['donations'] += $amount;
                     $stats['kpi']['revenue'] += $amount;
                     $dailyStats[$dateKey]['rev'] += $amount;
@@ -73,6 +80,7 @@ class StatsEngine {
                     $dailyStats[$dateKey]['rev'] += $amount;
 
                     if ($rule['type'] === 'Billet') {
+                        $hasTicketInOrder = true;
                         $stats['kpi']['participants']++;
                         $dailyStats[$dateKey]['pax']++;
                         $stats['heatmap'][$dayOfWeek][$hour]++;
@@ -91,6 +99,7 @@ class StatsEngine {
                     }
                 }
 
+                // Gestion des options (champs personnalisés)
                 foreach ($item['customFields'] ?? [] as $field) {
                     $q = trim($field['name'] ?? '');
                     $a = trim((string)($field['answer'] ?? ''));
@@ -103,9 +112,22 @@ class StatsEngine {
                     }
                 }
             }
+
+            // Calcul intelligent de l'attachement au niveau de la commande
+            if ($hasTicketInOrder) {
+                $stats['kpi']['orders_with_tickets']++;
+                if ($hasDonationInOrder) {
+                    $stats['kpi']['orders_with_both']++;
+                }
+            }
+        }
+
+        // Calcul final du taux de générosité
+        if ($stats['kpi']['orders_with_tickets'] > 0) {
+            $stats['kpi']['attachment_rate'] = round(($stats['kpi']['orders_with_both'] / $stats['kpi']['orders_with_tickets']) * 100, 1);
         }
         
-        // PACING
+        // PACING (Logique de projection et tendances)
         $now = time();
         if (!empty($dailyStats)) {
             $firstDate = strtotime(min(array_keys($dailyStats)));

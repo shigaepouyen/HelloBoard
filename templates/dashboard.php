@@ -48,8 +48,15 @@
             <div class="sexy-card p-10 reveal" style="animation-delay: 0.1s;">
                 <div class="flex justify-between items-start mb-4"><span class="kpi-label text-emerald-500/70">Recettes Totales</span><i class="fa-solid fa-euro-sign text-emerald-400 text-xl"></i></div>
                 <div id="val-revenue" class="kpi-value text-emerald-600">0 €</div>
-                <div id="donations-box" class="mt-2 text-xs font-bold text-emerald-500/60 opacity-0 italic">Dont <span id="val-donations">0 €</span> de dons</div>
-                
+                <div id="donations-box-container" class="mt-2 flex justify-between items-center opacity-0 transition-opacity">
+                    <span class="text-xs font-bold text-emerald-500/60 italic">
+                        Dont <span id="val-donations">0 €</span> de dons
+                    </span>
+                    <span id="val-attachment-container" class="bg-emerald-50 text-emerald-600 text-[10px] font-black px-2 py-1 rounded-lg">
+                        <i class="fa-solid fa-heart mr-1"></i> <span id="val-attachment">0</span>% de générosité
+                    </span>
+                </div>
+
                 <div id="pacing-container" class="mt-4 flex items-center gap-3 hidden">
                     <div class="bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl flex flex-col leading-none">
                         <span class="text-[8px] font-black uppercase text-slate-400">Projection estimée</span>
@@ -180,12 +187,22 @@
             document.getElementById('val-participants').innerText = d.kpi.participants;
             
             if (d.kpi.donations > 0) {
-                const donationsBox = document.getElementById('donations-box');
-                donationsBox.classList.remove('opacity-0');
-                donationsBox.classList.add('opacity-100');
-                document.getElementById('val-donations').innerText = new Intl.NumberFormat('fr-FR', {style:'currency', currency:'EUR', minimumFractionDigits:0}).format(d.kpi.donations);
-            } else {
-                document.getElementById('donations-box').classList.replace('opacity-100', 'opacity-0');
+                const container = document.getElementById('donations-box-container');
+                if (container) {
+                    container.classList.remove('opacity-0');
+                    container.classList.add('opacity-100');
+                }
+                
+                document.getElementById('val-donations').innerText = new Intl.NumberFormat('fr-FR', {
+                    style: 'currency', 
+                    currency: 'EUR', 
+                    minimumFractionDigits: 0
+                }).format(d.kpi.donations);
+            }
+
+            if (d.kpi.attachment_rate !== undefined) {
+                const attachmentEl = document.getElementById('val-attachment');
+                if (attachmentEl) attachmentEl.innerText = d.kpi.attachment_rate;
             }
             
             // PACING
