@@ -143,7 +143,7 @@
             </div>
 
             <div class="sexy-card p-10 reveal border-l-8 border-l-blue-500" style="animation-delay: 0.2s;">
-                <div class="flex justify-between items-start mb-4"><span class="kpi-label text-blue-500/70">Inscriptions</span><i class="fa-solid fa-user-check text-blue-400 text-xl"></i></div>
+                <div class="flex justify-between items-start mb-4"><span id="label-participants" class="kpi-label text-blue-500/70">Inscriptions</span><i class="fa-solid fa-user-check text-blue-400 text-xl"></i></div>
                 <div id="val-participants" class="kpi-value text-blue-600">0</div>
                 <div id="n1-container" class="mt-2 text-[10px] font-bold text-slate-400 uppercase hidden italic">Vs <span id="val-n1">0</span> l'an passé</div>
 
@@ -166,7 +166,7 @@
 
         <section class="sexy-card p-6 md:p-10 reveal" style="animation-delay: 0.4s;">
             <div onclick="toggleSection('heatmap-wrap', this)" class="flex justify-between items-center mb-4 md:mb-8 cursor-pointer cursor-mobile-pointer select-none">
-                <h3 class="text-xs font-black uppercase text-slate-400 italic">Heatmap : Densité des inscriptions</h3>
+                <h3 id="label-heatmap" class="text-xs font-black uppercase text-slate-400 italic">Heatmap : Densité des inscriptions</h3>
                 <i class="fa-solid fa-chevron-down text-slate-300 md:hidden chevron-mobile"></i>
             </div>
             
@@ -197,7 +197,7 @@
             <div class="flex justify-between items-center mb-6 shrink-0">
                 <div>
                     <h2 class="text-xl font-black italic uppercase tracking-tighter">Historique complet</h2>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"><span id="modal-counter">0</span> inscriptions</p>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"><span id="modal-counter">0</span> <span id="label-modal-unit">inscriptions</span></p>
                 </div>
                 <button onclick="closeRecentModal()" class="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center active:scale-90 transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
@@ -253,6 +253,20 @@
             const d = res.data; const meta = res.meta;
             const goals = meta.goals || { revenue: 0, tickets: 0, n1: 0 };
 
+            const labelsMap = {
+                'Event': { main: 'Inscriptions', unit: 'billets', list: 'inscriptions', timeline: 'Inscr.' },
+                'Shop': { main: 'Ventes', unit: 'articles', list: 'ventes', timeline: 'Ventes' },
+                'Membership': { main: 'Adhésions', unit: 'adhésions', list: 'adhésions', timeline: 'Adh.' },
+                'Donation': { main: 'Dons', unit: 'dons', list: 'dons', timeline: 'Dons' },
+                'Crowdfunding': { main: 'Contributions', unit: 'contrib.', list: 'contributions', timeline: 'Contrib.' },
+                'PaymentForm': { main: 'Ventes', unit: 'articles', list: 'ventes', timeline: 'Ventes' }
+            };
+            const labels = labelsMap[meta.formType] || labelsMap['Event'];
+
+            document.getElementById('label-participants').innerText = labels.main;
+            document.getElementById('label-heatmap').innerText = `Heatmap : Densité des ${labels.list}`;
+            document.getElementById('label-modal-unit').innerText = labels.list;
+
             State.allRecent = d.recent || [];
 
             // KPIS
@@ -298,7 +312,7 @@
                 document.getElementById('goal-tickets-container').classList.remove('hidden');
                 const pct = Math.min(100, (d.kpi.participants / goals.tickets) * 100);
                 document.getElementById('goal-tickets-bar').style.width = pct + '%';
-                document.getElementById('goal-tickets-text').innerText = `Quotas : ${goals.tickets} billets`;
+                document.getElementById('goal-tickets-text').innerText = `Quotas : ${goals.tickets} ${labels.unit}`;
                 document.getElementById('goal-tickets-percent').innerText = Math.round(pct) + '%';
             }
             if (goals.n1 > 0) {
@@ -307,7 +321,7 @@
             }
 
             // RENDU
-            renderTimeline(d.timeline, meta.markers || []);
+            renderTimeline(d.timeline, meta.markers || [], labels.timeline);
             renderHeatmap(d.heatmap);
             renderCharts(d.charts);
             
@@ -358,7 +372,7 @@
         document.body.style.overflow = '';
     }
 
-    function renderTimeline(data, markers) {
+    function renderTimeline(data, markers, labelUnit) {
         const ctx = document.getElementById('timelineChart').getContext('2d');
         if (State.tChart) State.tChart.destroy();
         const annotations = markers.map(m => {
@@ -369,7 +383,7 @@
             };
         });
         State.tChart = new Chart(ctx, {
-            type: 'line', data: { labels: data.map(x => x.date), datasets: [{ label:'Inscr.', data:data.map(x=>x.pax), borderColor:'#2563eb', backgroundColor:'rgba(37, 99, 235, 0.1)', fill:true, tension:0.4, yAxisID:'y' }, { label:'Cumul €', data:data.map(x=>x.cumulative), borderColor:'#10b981', borderDash:[5,5], yAxisID:'y1', tension:0.4 }] },
+            type: 'line', data: { labels: data.map(x => x.date), datasets: [{ label:labelUnit, data:data.map(x=>x.pax), borderColor:'#2563eb', backgroundColor:'rgba(37, 99, 235, 0.1)', fill:true, tension:0.4, yAxisID:'y' }, { label:'Cumul €', data:data.map(x=>x.cumulative), borderColor:'#10b981', borderDash:[5,5], yAxisID:'y1', tension:0.4 }] },
             options: { responsive:true, maintainAspectRatio:false, plugins:{ annotation:{ annotations }, legend:{ display:false } }, scales:{ x:{ ticks:{color:'#94a3b8', font:{size:10, weight:'700'}}, grid:{display:false} }, y:{ ticks:{color:'#2563eb', font:{size:10, weight:'800'}}, grid:{color:'rgba(0,0,0,0.02)'} }, y1:{ position:'right', grid:{display:false}, ticks:{color:'#10b981', font:{size:10, weight:'800'}} } } }
         });
     }

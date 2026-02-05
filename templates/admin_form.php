@@ -2,6 +2,16 @@
 async function configureForm(org, form, type, name) {
     const btn = event.target;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analyse...';
+
+    const labelsMap = {
+        'Event': { main: '🎫 Billet' },
+        'Shop': { main: '📦 Produit' },
+        'Membership': { main: '🆔 Adhésion' },
+        'Donation': { main: '❤️ Don' },
+        'Crowdfunding': { main: '🚀 Contrib.' },
+        'PaymentForm': { main: '💳 Article' }
+    };
+    const labels = labelsMap[type] || labelsMap['Event'];
     
     try {
         const response = await fetch(`admin.php?action=analyze&org=${org}&form=${form}&type=${type}`);
@@ -39,7 +49,7 @@ async function configureForm(org, form, type, name) {
                     <td class="py-4 px-2"><input type="text" class="display-label w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5" value="${pattern}"></td>
                     <td class="py-4 px-2">
                         <select class="rule-type bg-slate-800 border border-slate-700 rounded px-1 py-1.5 w-full">
-                            <option value="Billet">🎫 Billet</option>
+                            <option value="Billet">${labels.main}</option>
                             <option value="Option" selected>📊 Option</option>
                             <option value="Ignorer">🚫 Ignorer</option>
                         </select>

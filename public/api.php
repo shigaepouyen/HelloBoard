@@ -42,6 +42,7 @@ try {
         'meta' => [
             'lastUpdated' => date('H:i:s'),
             'title' => $campaignConfig['title'] ?? 'Tableau de Bord',
+            'formType' => $campaignConfig['formType'] ?? 'Event',
             'goals' => $campaignConfig['goals'] ?? [],
             'markers' => $campaignConfig['markers'] ?? []
         ]
