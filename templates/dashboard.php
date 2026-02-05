@@ -62,7 +62,6 @@
 </head>
 <body class="min-h-screen pb-32">
 
-    <!-- NAVIGATION BAR -->
     <header class="p-4">
         <div class="max-w-4xl mx-auto bg-white/70 backdrop-blur-xl rounded-[2.5rem] border border-white/50 px-6 py-4 flex items-center justify-between shadow-sm">
             <div class="flex items-center gap-3">
@@ -71,7 +70,6 @@
             </div>
             <div class="flex items-center gap-2">
                 <p id="last-update" class="hidden sm:block text-[9px] font-black text-slate-400 uppercase tracking-widest"></p>
-                <!-- Bouton admin visible uniquement si non en lecture seule -->
                 <?php if (!isset($isReadOnly) || !$isReadOnly): ?>
                 <a href="admin.php" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-400 transition hover:bg-blue-50 hover:text-blue-600">
                     <i class="fa-solid fa-cog"></i>
@@ -83,9 +81,7 @@
 
     <main class="max-w-4xl mx-auto px-4 mt-6 space-y-6">
         
-        <!-- CARTES KPIs PRINCIPALES -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <!-- REVENUS -->
             <div class="sexy-card p-10 reveal" style="animation-delay: 0.1s;">
                 <div class="flex justify-between items-start mb-4">
                     <span class="kpi-label text-emerald-500/70">Volume Recettes</span>
@@ -96,6 +92,23 @@
                     Dont <span id="val-donations">0 €</span> de dons
                 </div>
                 
+                <div id="pacing-container" class="mt-4 flex items-center gap-3 hidden">
+                    <div class="bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl flex items-center gap-2">
+                        <i class="fa-solid fa-flag-checkered text-emerald-500 text-xs"></i>
+                        <div class="flex flex-col leading-none">
+                            <span class="text-[8px] font-black uppercase text-slate-400">Objectif estimé le</span>
+                            <span id="pacing-date" class="text-xs font-black text-slate-700">--/--</span>
+                        </div>
+                    </div>
+                    
+                    <div id="alert-slowdown" class="hidden w-8 h-8 rounded-full bg-red-50 text-red-500 flex items-center justify-center animate-pulse" title="Ralentissement détecté (48h < Moyenne)">
+                        <i class="fa-solid fa-arrow-trend-down"></i>
+                    </div>
+                    
+                    <div id="alert-speedup" class="hidden w-8 h-8 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center" title="Forte accélération">
+                        <i class="fa-solid fa-fire"></i>
+                    </div>
+                </div>
                 <div id="goal-revenue-container" class="hidden">
                     <div class="gauge-track">
                         <div id="goal-revenue-bar" class="gauge-bar bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]"></div>
@@ -107,7 +120,6 @@
                 </div>
             </div>
 
-            <!-- INSCRIPTIONS -->
             <div class="sexy-card p-10 reveal border-l-8 border-l-blue-500" style="animation-delay: 0.2s;">
                 <div class="flex justify-between items-start mb-4">
                     <span class="kpi-label text-blue-500/70">Inscriptions</span>
@@ -130,7 +142,6 @@
             </div>
         </div>
 
-        <!-- TIMELINE HYBRIDE (STYLE IMAGE FOURNIE) -->
         <section class="sexy-card p-10 reveal" style="animation-delay: 0.3s;">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
                 <h3 class="text-xs font-black uppercase tracking-widest text-slate-400">Performance Quotidienne</h3>
@@ -142,10 +153,8 @@
             <div class="h-80"><canvas id="timelineChart"></canvas></div>
         </section>
 
-        <!-- GRAPHIQUES DE RÉPARTITION (NON CREUX) -->
         <div id="charts-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
 
-        <!-- ACTIVITÉS RÉCENTES -->
         <section class="sexy-card p-10 reveal" style="animation-delay: 0.4s;">
             <div class="flex justify-between items-center mb-8">
                 <h3 class="text-xs font-black uppercase tracking-widest text-slate-400">Dernières commandes</h3>
@@ -156,7 +165,6 @@
 
     </main>
 
-    <!-- BOUTON REFRESH MOBILE FLOTTANT -->
     <div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
         <button onclick="refresh()" id="refresh-btn" class="btn-refresh flex items-center gap-3 shadow-2xl">
             <span id="refresh-icon"><i class="fa-solid fa-sync-alt"></i></span>
@@ -164,7 +172,6 @@
         </button>
     </div>
 
-    <!-- MODALE "VOIR TOUT" AVEC RECHERCHE -->
     <div id="recent-modal" class="fixed inset-0 z-[100] hidden items-end sm:items-center justify-center">
         <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-md" onclick="closeRecentModal()"></div>
         <div class="modal-content relative w-full sm:max-w-2xl bg-white sm:rounded-[3rem] rounded-t-[3rem] shadow-2xl p-8 max-h-[90vh] flex flex-col">
@@ -182,8 +189,7 @@
             </div>
 
             <div id="modal-recent-list" class="overflow-y-auto space-y-3 pr-2 custom-scrollbar flex-1 pb-10">
-                <!-- Rempli par JavaScript -->
-            </div>
+                </div>
         </div>
     </div>
 
@@ -234,6 +240,35 @@
                 document.getElementById('donations-box').classList.replace('opacity-0', 'opacity-100');
                 document.getElementById('val-donations').innerText = formatValue(d.kpi.donations);
             }
+
+            // --- NOUVEAU : GESTION PACING & ALERTES ---
+            if (d.pacing && goals.revenue > 0) {
+                const pacingContainer = document.getElementById('pacing-container');
+                if(pacingContainer) {
+                    pacingContainer.classList.remove('hidden');
+                    
+                    // Date de projection
+                    const pDate = document.getElementById('pacing-date');
+                    pDate.innerText = d.pacing.projectedDate || 'Incalculable';
+                    
+                    // Alertes visuelles
+                    const alertSlow = document.getElementById('alert-slowdown');
+                    const alertFast = document.getElementById('alert-speedup');
+                    
+                    // Reset visuel
+                    alertSlow.classList.add('hidden');
+                    alertFast.classList.add('hidden');
+                    pDate.classList.remove('text-red-500');
+
+                    if (d.pacing.isSlowingDown) {
+                        alertSlow.classList.remove('hidden');
+                        pDate.classList.add('text-red-500');
+                    } else if (d.pacing.trend === 'up') {
+                        alertFast.classList.remove('hidden');
+                    }
+                }
+            }
+            // --- FIN PACING ---
 
             // 2. JAUGE REVENU (Carte 1)
             const gRev = parseFloat(goals.revenue);
@@ -348,7 +383,7 @@
             const isBar = c.type === 'bar';
 
             new Chart(document.getElementById(chartId), {
-                type: isBar ? 'bar' : 'pie', // Pie pour des disques pleins
+                type: isBar ? 'bar' : 'pie', 
                 data: { 
                     labels: labels, 
                     datasets: [{ 

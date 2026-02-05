@@ -34,7 +34,10 @@ try {
     $client = new HelloAssoClient($globals['clientId'], $globals['clientSecret']);
     $orders = $client->fetchAllOrders($campaignConfig['orgSlug'], $campaignConfig['formSlug'], $campaignConfig['formType']);
     $engine = new StatsEngine($campaignConfig['rules']);
-    $stats = $engine->process($orders);
+
+    // MODIFICATION ICI : On passe les objectifs
+    $goals = $campaignConfig['goals'] ?? [];
+    $stats = $engine->process($orders, $goals);
 
     echo json_encode([
         'success' => true,

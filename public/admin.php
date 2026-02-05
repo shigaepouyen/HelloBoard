@@ -25,7 +25,7 @@ if (isset($_POST['login'])) {
     }
 }
 
-// PROTECTION : On n'affiche le login QUE si un mot de passe a été défini au préalable
+// PROTECTION : On n'affiche le login QUE si un mot de passe a été défini
 if ($adminPassword && !isset($_SESSION['authenticated'])) {
     ?>
     <!DOCTYPE html>
@@ -48,7 +48,7 @@ if ($adminPassword && !isset($_SESSION['authenticated'])) {
         <div class="w-full max-w-md login-card p-10 md:p-14 text-center">
             <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-inner"><i class="fa-solid fa-lock text-3xl"></i></div>
             <h2 class="text-3xl font-black italic uppercase tracking-tighter mb-2">Console Admin</h2>
-            <p class="text-slate-400 font-bold mb-10 text-sm">Entrez le mot de passe maître pour modifier les réglages.</p>
+            <p class="text-slate-400 font-bold mb-10 text-sm">Entrez le mot de passe maître.</p>
             <form method="POST" class="space-y-4">
                 <input type="password" name="password" class="w-full input-sexy text-2xl" placeholder="••••••" required autofocus>
                 <button type="submit" name="login" class="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black uppercase tracking-widest text-xs shadow-xl shadow-blue-200 transition-all">Accéder</button>
@@ -65,7 +65,7 @@ $action = $_GET['action'] ?? 'list';
 $localCampaigns = Storage::listCampaigns();
 $client = new HelloAssoClient($globals['clientId']??'', $globals['clientSecret']??'');
 
-// ACTIONS
+// ACTIONS DE SAUVEGARDE
 if (isset($_POST['save_globals'])) {
     $globals['clientId'] = $_POST['clientId'];
     $globals['clientSecret'] = $_POST['clientSecret'];
@@ -89,12 +89,15 @@ if (isset($_POST['save_campaign'])) {
     echo json_encode(['success' => true]); exit;
 }
 
+// ANALYSE DU FORMULAIRE VIA API
 if ($action === 'analyze') {
     header('Content-Type: application/json');
     try {
         $form = $_GET['form']; $org = $_GET['org'];
         $orders = $client->fetchAllOrders($org, $form, $_GET['type'] ?? 'Event');
         $apiItems = [];
+        
+        // Récupération de tous les items uniques
         foreach(array_slice($orders, 0, 100) as $o) {
             foreach($o['items'] ?? [] as $i) {
                 if(!empty($i['name'])) $apiItems[] = trim($i['name']);
@@ -102,15 +105,23 @@ if ($action === 'analyze') {
             }
         }
         $apiItems = array_unique($apiItems);
+        
+        // Fusion avec la config existante
         $configFile = __DIR__ . "/../config/campaigns/$form.json";
         $existing = file_exists($configFile) ? json_decode(file_get_contents($configFile), true) : [];
         $finalRules = $existing['rules'] ?? [];
+        
         foreach ($apiItems as $item) {
             $found = false;
             foreach($finalRules as $r) if($r['pattern'] === $item) $found = true;
             if (!$found) $finalRules[] = ['pattern' => $item, 'displayLabel' => $item, 'type' => 'Option', 'group' => 'Divers', 'chartType' => 'pie', 'transform' => '', 'hidden' => false];
         }
-        echo json_encode(['rules' => $finalRules, 'goals' => $existing['goals'] ?? ['revenue'=>0, 'tickets'=>0, 'n1'=>0], 'shareToken' => $existing['shareToken'] ?? bin2hex(random_bytes(16))]);
+        
+        echo json_encode([
+            'rules' => $finalRules, 
+            'goals' => $existing['goals'] ?? ['revenue'=>0, 'tickets'=>0, 'n1'=>0], 
+            'shareToken' => $existing['shareToken'] ?? bin2hex(random_bytes(16))
+        ]);
     } catch(Exception $e) { echo json_encode(['error' => $e->getMessage()]); }
     exit;
 }
@@ -184,7 +195,6 @@ if ($action === 'analyze') {
             <div class="grid gap-4">
                 <?php foreach($localCampaigns as $c): ?>
                 <?php 
-                // Correction du double slash ici via rtrim sur dirname
                 $baseDir = rtrim(dirname($_SERVER['PHP_SELF']), '/');
                 $shareUrl = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]" . $baseDir . "/index.php?campaign=$c[slug]&token=".($c['shareToken'] ?? ''); 
                 ?>
@@ -217,21 +227,47 @@ if ($action === 'analyze') {
         const el = document.createElement('textarea'); el.value = text; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
         alert('Lien copié ! Partagez-le avec votre équipe.');
     }
+
     async function editCamp(org, slug, type, name) {
         const zone = document.getElementById('config-zone');
-        zone.innerHTML = '<div class="py-20 text-center text-blue-600 font-bold animate-pulse">Sync...</div>';
+        zone.innerHTML = '<div class="py-20 text-center text-blue-600 font-bold animate-pulse">Chargement de la configuration...</div>';
         zone.scrollIntoView({ behavior: 'smooth' });
+        
         const res = await fetch(`admin.php?action=analyze&org=${org}&form=${slug}&type=${type}`);
         const data = await res.json();
+        const goals = data.goals || { revenue: 0, tickets: 0, n1: 0 };
+
         zone.innerHTML = `
             <div class="mt-20 pt-20 border-t border-slate-200 animate-reveal">
                 <div class="flex items-center justify-between mb-12">
                     <h2 class="text-2xl font-black italic uppercase">${name}</h2>
-                    <button id="save-main-btn" class="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs">Sauvegarder</button>
+                    <button id="save-main-btn" class="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs shadow-lg shadow-blue-200 hover:bg-blue-700 transition">Sauvegarder tout</button>
                 </div>
-                <div id="rules-list">${data.rules.map(r => `
+
+                <div class="admin-card p-8 mb-12">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-400 mb-6">Objectifs & Cibles</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Objectif Financier (€)</label>
+                            <input type="number" id="goal-rev" class="input-soft text-emerald-600" value="${goals.revenue || 0}">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Objectif Billets (Qté)</label>
+                            <input type="number" id="goal-tix" class="input-soft text-blue-600" value="${goals.tickets || 0}">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Référence N-1 (Comparatif)</label>
+                            <input type="number" id="goal-n1" class="input-soft text-slate-600" value="${goals.n1 || 0}">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="rules-list" class="space-y-3">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-400 mb-4 pl-2">Règles d'importation</h3>
+                    ${data.rules.map(r => `
                     <div class="rule-tile p-6 flex flex-col sm:flex-row items-center gap-6" data-item="${r.pattern}">
-                        <div class="cursor-grab text-slate-200 px-2"><i class="fa-solid fa-grip-lines"></i></div>
+                        <div class="cursor-grab text-slate-200 px-2 hover:text-slate-400"><i class="fa-solid fa-grip-lines"></i></div>
+                        
                         <div class="toggle-btn ${r.hidden ? '' : 'active'}" onclick="this.classList.toggle('active')"></div>
                         
                         <div class="flex-1 w-full">
@@ -255,16 +291,19 @@ if ($action === 'analyze') {
                                 <option value="bar" ${r.chartType==='bar'?'selected':''}>Barres</option>
                             </select>
                         </div>
+                        
                         <input type="text" class="rule-transform input-soft !py-2 !px-3 !w-32 !text-[10px] font-mono !text-blue-500" value="${r.transform || ''}" placeholder="TRANS">
-                    </div>`).join('')}</div>
+                    </div>`).join('')}
+                </div>
             </div>`;
+            
         document.getElementById('save-main-btn').onclick = () => save(org, slug, type, name, data.shareToken);
         if (data.rules.length > 0) new Sortable(document.getElementById('rules-list'), { animation: 150, handle: '.cursor-grab' });
     }
+
     async function save(org, slug, type, name, token) {
         const rules = [];
         document.querySelectorAll('.rule-tile').forEach(row => {
-            // On vérifie que les éléments existent avant de lire .value
             const displayLabel = row.querySelector('.display-label')?.value || '';
             const ruleType = row.querySelector('.rule-type')?.value || 'Option';
             const group = row.querySelector('.rule-group')?.value || 'Divers';
@@ -283,7 +322,7 @@ if ($action === 'analyze') {
             });
         });
 
-        // Récupération sécurisée des objectifs (évite l'erreur null reading value)
+        // Lecture des nouveaux champs objectifs
         const gRev = document.getElementById('goal-rev')?.value || 0;
         const gTix = document.getElementById('goal-tix')?.value || 0;
         const gN1 = document.getElementById('goal-n1')?.value || 0;
@@ -299,17 +338,23 @@ if ($action === 'analyze') {
         };
 
         const btn = document.getElementById('save-main-btn'); 
-        btn.innerText = 'Sync...';
+        const originalText = btn.innerText;
+        btn.innerText = 'Enregistrement...';
+        btn.disabled = true;
         
         try {
             await fetch('admin.php', { 
                 method: 'POST', 
                 body: new URLSearchParams({save_campaign: 1, config: JSON.stringify(config)}) 
             });
-            window.location.href = 'index.php?campaign=' + slug;
+            // Petit feedback visuel avant redirection
+            btn.innerText = 'Sauvegardé !';
+            btn.classList.replace('bg-blue-600', 'bg-green-500');
+            setTimeout(() => { window.location.href = 'index.php?campaign=' + slug; }, 500);
         } catch (e) {
             alert("Erreur lors de la sauvegarde");
-            btn.innerText = 'Sauvegarder';
+            btn.innerText = originalText;
+            btn.disabled = false;
         }
     }
     </script>
