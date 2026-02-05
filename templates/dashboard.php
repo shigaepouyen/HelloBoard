@@ -41,6 +41,7 @@
 
         /* SUR PC : On force l'ouverture et on cache les flèches */
         @media (min-width: 768px) {
+            .grid-heatmap { grid-template-columns: repeat(25, 1fr); }
             .mobile-collapse { max-height: none !important; overflow: visible !important; }
             .chevron-mobile { display: none !important; }
             .cursor-mobile-pointer { cursor: default !important; }
@@ -171,7 +172,6 @@
             </div>
         </section>
 
-        <?php if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true): ?>
         <section class="sexy-card p-10 reveal" style="animation-delay: 0.45s;">
             <div onclick="toggleSection('recent-wrap', this)" class="flex justify-between items-center mb-4 md:mb-8 cursor-pointer cursor-mobile-pointer select-none">
                 <div class="flex items-center gap-3">
@@ -185,13 +185,11 @@
                 <div id="recent-list" class="space-y-3 pt-2"></div>
             </div>
         </section>
-        <?php endif; ?>
 
     </main>
 
     <div id="recent-modal" class="fixed inset-0 z-[100] hidden items-end sm:items-center justify-center">
         <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-md" onclick="closeRecentModal()"></div>
-        <?php if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true): ?>
         <div class="modal-content relative w-full sm:max-w-2xl bg-white sm:rounded-[3rem] rounded-t-[3rem] shadow-2xl p-8 max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 shrink-0">
                 <div>
@@ -205,7 +203,6 @@
             </div>
             <div id="modal-recent-list" class="overflow-y-auto space-y-3 pr-2 custom-scrollbar flex-1 pb-10"></div>
         </div>
-        <?php endif; ?>
     </div>
 
     <div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
