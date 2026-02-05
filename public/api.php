@@ -31,6 +31,12 @@ try {
     $engine = new StatsEngine($campaignConfig['rules']);
     $stats = $engine->process($orders, $campaignConfig['goals'] ?? []);
 
+    // --- AJOUT SÉCURITÉ ---
+    // Si l'utilisateur n'est pas admin, on supprime la liste détaillée des activités (noms, etc.)
+    if (!$isAdmin) {
+        $stats['recent'] = [];
+    }
+
     echo json_encode([
         'success' => true,
         'data' => $stats,

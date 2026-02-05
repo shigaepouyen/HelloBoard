@@ -34,17 +34,27 @@
 </head>
 <body class="min-h-screen pb-32">
 
-    <header class="p-4">
-        <div class="max-w-4xl mx-auto bg-white/70 backdrop-blur-xl rounded-[2.5rem] border border-white px-6 py-4 flex items-center justify-between shadow-sm">
-            <h1 class="text-sm font-black italic uppercase tracking-tighter"><?= htmlspecialchars($campaignConfig['title']) ?></h1>
-            <p id="last-update" class="text-[9px] font-black text-slate-400 uppercase tracking-widest"></p>
+    <header class="p-4 sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto bg-white/80 backdrop-blur-xl rounded-[2.5rem] border border-white px-6 py-4 flex items-center justify-between shadow-sm">
+            <div class="flex items-center gap-3">
+                <h1 class="text-sm font-black italic uppercase tracking-tighter"><?= htmlspecialchars($campaignConfig['title']) ?></h1>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <p id="last-update" class="text-[9px] font-black text-slate-400 uppercase tracking-widest hidden sm:block"></p>
+                
+                <?php if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true): ?>
+                    <a href="index.php" class="bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-slate-300 transition">Liste</a>
+                    <a href="admin.php" class="bg-slate-900 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-colors">Admin</a>
+                    <a href="index.php?logout=1" class="w-10 h-10 flex items-center justify-center rounded-full bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all"><i class="fa-solid fa-power-off"></i></a>
+                <?php endif; ?>
+            </div>
         </div>
     </header>
 
     <main class="max-w-4xl mx-auto px-4 mt-6 space-y-6">
         
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <!-- KPIS REVENUS -->
             <div class="sexy-card p-10 reveal" style="animation-delay: 0.1s;">
                 <div class="flex justify-between items-start mb-4"><span class="kpi-label text-emerald-500/70">Recettes Totales</span><i class="fa-solid fa-euro-sign text-emerald-400 text-xl"></i></div>
                 <div id="val-revenue" class="kpi-value text-emerald-600">0 €</div>
@@ -72,7 +82,6 @@
                 </div>
             </div>
 
-            <!-- KPIS INSCRIPTIONS (AVEC JAUGE RESTAURÉE) -->
             <div class="sexy-card p-10 reveal border-l-8 border-l-blue-500" style="animation-delay: 0.2s;">
                 <div class="flex justify-between items-start mb-4"><span class="kpi-label text-blue-500/70">Inscriptions</span><i class="fa-solid fa-user-check text-blue-400 text-xl"></i></div>
                 <div id="val-participants" class="kpi-value text-blue-600">0</div>
@@ -88,7 +97,6 @@
             </div>
         </div>
 
-        <!-- TIMELINE & HEATMAP -->
         <section class="sexy-card p-10 reveal" style="animation-delay: 0.3s;">
             <h3 class="text-xs font-black uppercase text-slate-400 mb-8">Performance & Événements (Email/Com)</h3>
             <div class="h-80"><canvas id="timelineChart"></canvas></div>
@@ -101,10 +109,9 @@
             </div>
         </section>
 
-        <!-- GRAPHIQUES DYNAMIQUES -->
         <div id="charts-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
 
-        <!-- ACTIVITES RECENTES AVEC BOUTON RESTAURÉ -->
+        <?php if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true): ?>
         <section class="sexy-card p-10 reveal" style="animation-delay: 0.4s;">
             <div class="flex justify-between items-center mb-8">
                 <h3 class="text-xs font-black uppercase tracking-widest text-slate-400">Activités Récentes</h3>
@@ -112,12 +119,13 @@
             </div>
             <div id="recent-list" class="space-y-3"></div>
         </section>
+        <?php endif; ?>
 
     </main>
 
-    <!-- FENETRE MODALE HISTORIQUE COMPLET -->
     <div id="recent-modal" class="fixed inset-0 z-[100] hidden items-end sm:items-center justify-center">
         <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-md" onclick="closeRecentModal()"></div>
+        <?php if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true): ?>
         <div class="modal-content relative w-full sm:max-w-2xl bg-white sm:rounded-[3rem] rounded-t-[3rem] shadow-2xl p-8 max-h-[90vh] flex flex-col">
             <div class="flex justify-between items-center mb-6 shrink-0">
                 <div>
@@ -131,6 +139,7 @@
             </div>
             <div id="modal-recent-list" class="overflow-y-auto space-y-3 pr-2 custom-scrollbar flex-1 pb-10"></div>
         </div>
+        <?php endif; ?>
     </div>
 
     <div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
@@ -143,9 +152,6 @@
     <script>
     const State = { tChart: null, allRecent: [] };
 
-    /**
-     * Met à jour une liste d'activités (Dashboard ou Modale)
-     */
     function updateListView(container, data) {
         if (!data || data.length === 0) {
             container.innerHTML = '<p class="text-center text-slate-300 text-sm py-8 italic">Aucune donnée trouvée.</p>';
@@ -174,6 +180,7 @@
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const token = urlParams.get('token') || '';
+            
             const res = await (await fetch(`api.php?campaign=<?= $campaignConfig['slug'] ?>&token=${token}`)).json();
             
             if(!res.success) throw new Error(res.error);
@@ -238,19 +245,20 @@
             renderHeatmap(d.heatmap);
             renderCharts(d.charts);
             
-            // On affiche les 5 derniers sur le dashboard
-            updateListView(document.getElementById('recent-list'), State.allRecent.slice(0, 5));
+            const recentListEl = document.getElementById('recent-list');
+            if (recentListEl) {
+                updateListView(recentListEl, State.allRecent.slice(0, 5));
+            }
 
             document.getElementById('last-update').innerText = 'MAJ : ' + meta.lastUpdated;
         } catch (e) { console.error(e); } 
         finally { icon.innerHTML = '<i class="fa-solid fa-sync-alt"></i>'; btn.disabled = false; }
     }
 
-    /**
-     * Gestion de la modale d'historique
-     */
     function openRecentModal() {
         const modal = document.getElementById('recent-modal');
+        if (!modal) return;
+        
         document.getElementById('modal-search').value = '';
         document.getElementById('modal-counter').innerText = State.allRecent.length;
         updateListView(document.getElementById('modal-recent-list'), State.allRecent);
