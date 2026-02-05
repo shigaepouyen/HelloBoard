@@ -150,7 +150,6 @@ if ($action === 'analyze') {
 
     <main class="max-w-4xl mx-auto px-4 py-12">
         
-        <!-- CONFIGURATIONS GLOBALES -->
         <section class="mb-16">
             <h2 class="text-2xl font-black mb-8 italic uppercase tracking-tight">Paramètres API</h2>
             <form method="POST" class="admin-card p-10 space-y-6">
@@ -167,11 +166,13 @@ if ($action === 'analyze') {
             </form>
         </section>
 
-        <!-- MES CAMPAGNES -->
         <?php if ($action === 'new'): ?>
             <header class="mb-12"><h2 class="text-3xl font-extrabold tracking-tight uppercase italic">Scanner HelloAsso</h2></header>
             <div class="space-y-4">
-                <?php if ($discovery && !empty($discovery['forms'])): foreach($discovery['forms'] as $f): ?>
+                <?php 
+                $discovery = $client->discoverCampaigns($globals['orgSlug'] ?? '');
+                if ($discovery && !empty($discovery['forms'])): foreach($discovery['forms'] as $f): 
+                ?>
                     <div class="admin-card p-8 flex items-center justify-between">
                         <div><h3 class="font-extrabold text-lg"><?= htmlspecialchars($f['name']) ?></h3><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"><?= $f['type'] ?></p></div>
                         <button onclick='editCamp("<?= $discovery["orgSlug"] ?>", "<?= $f["slug"] ?>", "<?= $f["type"] ?>", <?= htmlspecialchars(json_encode($f["name"])) ?>)' class="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px]">Configurer</button>
@@ -182,7 +183,11 @@ if ($action === 'analyze') {
             <h2 class="text-2xl font-black mb-8 italic uppercase tracking-tight">Mes Boards</h2>
             <div class="grid gap-4">
                 <?php foreach($localCampaigns as $c): ?>
-                <?php $shareUrl = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]".dirname($_SERVER['PHP_SELF'])."/index.php?campaign=$c[slug]&token=".($c['shareToken'] ?? ''); ?>
+                <?php 
+                // Correction du double slash ici via rtrim sur dirname
+                $baseDir = rtrim(dirname($_SERVER['PHP_SELF']), '/');
+                $shareUrl = (isset($_SERVER['HTTPS']) ? "https" : "http") . "://$_SERVER[HTTP_HOST]" . $baseDir . "/index.php?campaign=$c[slug]&token=".($c['shareToken'] ?? ''); 
+                ?>
                 <div class="admin-card p-8 group">
                     <div class="flex items-center justify-between mb-6">
                         <div class="flex items-center gap-4">

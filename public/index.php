@@ -11,19 +11,20 @@ $campaigns = Storage::listCampaigns();
  * Nettoie et construit une URL sans double slash et sans paramètres vides
  */
 function getCleanUrl($campaignSlug = null, $token = null) {
-    // On récupère le protocole et l'hôte
     $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'];
-    $script = $_SERVER['SCRIPT_NAME']; // ex: /index.php ou /sous-dossier/index.php
+    $script = $_SERVER['SCRIPT_NAME']; 
     
-    // On nettoie le script pour éviter les doubles slashes éventuels
-    $script = '/' . ltrim($script, '/');
-    $baseUrl = $protocol . '://' . $host . $script;
+    // 1. On construit l'URL brute
+    $url = $protocol . '://' . $host . $script;
+
+    // 2. On remplace tous les "//" par "/" sauf celui du protocole (le lookbehind ?<!:)
+    $baseUrl = preg_replace('/(?<!:)\/\//', '/', $url);
 
     if (!$campaignSlug) return $baseUrl;
 
     $params = ['campaign' => $campaignSlug];
-    if ($token) {
+    if (!empty($token)) {
         $params['token'] = $token;
     }
 
