@@ -18,9 +18,33 @@
         .gauge-bar { height: 100%; border-radius: 20px; transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
         .reveal { animation: reveal 0.8s forwards; opacity: 0; }
         @keyframes reveal { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .grid-heatmap { display: grid; grid-template-columns: repeat(25, 1fr); gap: 2px; }
+        
         .loader-friendly { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top: 3px solid #fff; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* LOADER GLOBAL */
+        #global-loader { transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        #global-loader.fade-out { opacity: 0; pointer-events: none; }
+        .loader-lg { width: 60px; height: 60px; border-width: 5px; }
+
+        /* HEATMAP RESPONSIVE */
+        .grid-heatmap { display: grid; gap: 2px; }
+        /* MOBILE : On inverse les axes (Transposition) */
+        @media (max-width: 768px) {
+            .grid-heatmap { grid-template-rows: repeat(25, auto); grid-template-columns: repeat(8, 1fr); grid-auto-flow: column; }
+        }
+        /* ACCORDEON MOBILE */
+        .mobile-collapse { max-height: 0; overflow: hidden; transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .mobile-collapse.open { max-height: 1000px; } /* Valeur arbitraire suffisante */
+        .chevron-mobile { transition: transform 0.3s; }
+        .chevron-mobile.rotate { transform: rotate(180deg); }
+
+        /* SUR PC : On force l'ouverture et on cache les flèches */
+        @media (min-width: 768px) {
+            .mobile-collapse { max-height: none !important; overflow: visible !important; }
+            .chevron-mobile { display: none !important; }
+            .cursor-mobile-pointer { cursor: default !important; }
+        }
 
         /* MODALE ACTIVITÉS */
         #recent-modal.active { display: flex; }
@@ -34,17 +58,49 @@
 </head>
 <body class="min-h-screen pb-32">
 
+    <div id="global-loader" class="fixed inset-0 z-[100] bg-slate-50/80 backdrop-blur-md flex items-center justify-center">
+        <div class="flex flex-col items-center gap-6">
+            <div class="loader-friendly loader-lg border-blue-200 border-t-blue-600"></div>
+            <div class="text-center">
+                <p class="text-xs font-black uppercase tracking-[0.3em] text-blue-600 animate-pulse">Chargement</p>
+                <p class="text-[9px] font-bold text-slate-400 mt-2">Récupération des données HelloAsso...</p>
+            </div>
+        </div>
+    </div>
+
     <header class="p-4 sticky top-0 z-50">
         <div class="max-w-4xl mx-auto bg-white/80 backdrop-blur-xl rounded-[2.5rem] border border-white px-6 py-4 flex items-center justify-between shadow-sm">
-            <div class="flex items-center gap-3">
-                <h1 class="text-sm font-black italic uppercase tracking-tighter"><?= htmlspecialchars($campaignConfig['title']) ?></h1>
+            
+            <div class="flex items-center gap-3 relative min-w-0">
+                <?php if (count($campaigns) > 1): ?>
+                    <div class="relative group max-w-full">
+                        <select onchange="window.location.href=this.value" class="appearance-none bg-transparent pl-0 pr-6 py-1 text-sm font-black italic uppercase tracking-tighter cursor-pointer focus:outline-none text-slate-900 hover:text-blue-600 transition truncate max-w-[200px] sm:max-w-md">
+                            <?php foreach ($campaigns as $c): 
+                                // Si admin, on utilise le lien propre (session active). 
+                                // Si visiteur, on injecte le token du board cible pour l'autoriser.
+                                $targetToken = $isAdmin ? null : ($c['shareToken'] ?? null);
+                                $url = getCleanUrl($c['slug'], $targetToken);
+                                $isSelected = ($c['slug'] === $campaignConfig['slug']);
+                            ?>
+                                <option value="<?= $url ?>" <?= $isSelected ? 'selected' : '' ?> class="text-slate-700 not-italic font-bold">
+                                    <?= htmlspecialchars($c['title']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                            <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <h1 class="text-sm font-black italic uppercase tracking-tighter truncate"><?= htmlspecialchars($campaignConfig['title']) ?></h1>
+                <?php endif; ?>
             </div>
 
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-4 shrink-0">
                 <p id="last-update" class="text-[9px] font-black text-slate-400 uppercase tracking-widest hidden sm:block"></p>
                 
                 <?php if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true): ?>
-                    <a href="index.php" class="bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-slate-300 transition">Liste</a>
+                    <a href="index.php" class="bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-slate-300 transition hidden sm:inline-block">Liste</a>
                     <a href="admin.php" class="bg-slate-900 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-colors">Admin</a>
                     <a href="index.php?logout=1" class="w-10 h-10 flex items-center justify-center rounded-full bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all"><i class="fa-solid fa-power-off"></i></a>
                 <?php endif; ?>
@@ -102,22 +158,32 @@
             <div class="h-80"><canvas id="timelineChart"></canvas></div>
         </section>
 
-        <section class="sexy-card p-10 reveal" style="animation-delay: 0.35s;">
-            <h3 class="text-xs font-black uppercase text-slate-400 mb-8 italic">Heatmap : Densité des inscriptions par heure</h3>
-            <div class="overflow-x-auto">
-                <div id="heatmap-container" class="min-w-[650px] grid-heatmap text-center"></div>
+        <div id="charts-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+
+        <section class="sexy-card p-6 md:p-10 reveal" style="animation-delay: 0.4s;">
+            <div onclick="toggleSection('heatmap-wrap', this)" class="flex justify-between items-center mb-4 md:mb-8 cursor-pointer cursor-mobile-pointer select-none">
+                <h3 class="text-xs font-black uppercase text-slate-400 italic">Heatmap : Densité des inscriptions</h3>
+                <i class="fa-solid fa-chevron-down text-slate-300 md:hidden chevron-mobile"></i>
+            </div>
+            
+            <div id="heatmap-wrap" class="mobile-collapse">
+                <div id="heatmap-container" class="w-full grid-heatmap text-center"></div>
             </div>
         </section>
 
-        <div id="charts-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
-
         <?php if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true): ?>
-        <section class="sexy-card p-10 reveal" style="animation-delay: 0.4s;">
-            <div class="flex justify-between items-center mb-8">
-                <h3 class="text-xs font-black uppercase tracking-widest text-slate-400">Activités Récentes</h3>
-                <button onclick="openRecentModal()" class="text-[10px] font-black text-blue-600 bg-blue-50 px-4 py-2 rounded-full uppercase tracking-widest active:scale-95 transition">Tout voir</button>
+        <section class="sexy-card p-10 reveal" style="animation-delay: 0.45s;">
+            <div onclick="toggleSection('recent-wrap', this)" class="flex justify-between items-center mb-4 md:mb-8 cursor-pointer cursor-mobile-pointer select-none">
+                <div class="flex items-center gap-3">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-slate-400">Activités Récentes</h3>
+                    <i class="fa-solid fa-chevron-down text-slate-300 md:hidden chevron-mobile"></i>
+                </div>
+                <button onclick="event.stopPropagation(); openRecentModal()" class="text-[10px] font-black text-blue-600 bg-blue-50 px-4 py-2 rounded-full uppercase tracking-widest active:scale-95 transition">Tout voir</button>
             </div>
-            <div id="recent-list" class="space-y-3"></div>
+
+            <div id="recent-wrap" class="mobile-collapse">
+                <div id="recent-list" class="space-y-3 pt-2"></div>
+            </div>
         </section>
         <?php endif; ?>
 
@@ -245,6 +311,15 @@
             renderHeatmap(d.heatmap);
             renderCharts(d.charts);
             
+            // MASQUER LE LOADER
+            const loader = document.getElementById('global-loader');
+            if (loader) {
+                setTimeout(() => {
+                    loader.classList.add('fade-out');
+                    setTimeout(() => loader.remove(), 500);
+                }, 300);
+            }
+
             const recentListEl = document.getElementById('recent-list');
             if (recentListEl) {
                 updateListView(recentListEl, State.allRecent.slice(0, 5));
@@ -302,10 +377,17 @@
     function renderHeatmap(data) {
         const container = document.getElementById('heatmap-container');
         const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+        
+        // Coin supérieur gauche
         let html = '<div class="h-6"></div>';
-        for(let h=0; h<24; h++) html += `<div class="text-[8px] font-black text-slate-300">${h}h</div>`;
+        
+        // En-tête des heures (0h - 23h)
+        for(let h=0; h<24; h++) html += `<div class="text-[8px] font-black text-slate-300 self-center">${h}h</div>`;
+        
         data.forEach((hours, dayIdx) => {
-            html += `<div class="text-[10px] font-black text-slate-400 uppercase text-right pr-2 self-center">${days[dayIdx]}</div>`;
+            // text-center sur mobile, text-right sur desktop
+            html += `<div class="text-[10px] font-black text-slate-400 uppercase text-center md:text-right md:pr-2 self-center">${days[dayIdx]}</div>`;
+            
             hours.forEach(count => {
                 const intensity = count === 0 ? 'bg-slate-50' : (count < 3 ? 'bg-blue-100' : (count < 8 ? 'bg-blue-300' : 'bg-blue-600'));
                 html += `<div class="${intensity} h-7 rounded-sm flex items-center justify-center text-[9px] font-bold ${count > 5 ? 'text-white' : 'text-blue-900/20'}">${count || ''}</div>`;
@@ -334,6 +416,17 @@
                 } 
             });
         });
+    }
+
+    function toggleSection(id, btn) {
+        // Sécurité : ne rien faire sur PC (même si le CSS bloque déjà)
+        if (window.innerWidth >= 768) return; 
+
+        const content = document.getElementById(id);
+        const icon = btn.querySelector('.chevron-mobile');
+        
+        content.classList.toggle('open');
+        if (icon) icon.classList.toggle('rotate');
     }
 
     refresh(); setInterval(refresh, 5 * 60 * 1000);

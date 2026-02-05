@@ -20,8 +20,9 @@ if (isset($_POST['run_scan'])) {
     Storage::saveGlobalSettings($newSettings);
     $globals = $newSettings; // Mise à jour immédiate pour l'affichage
 
-    // 2. Lancement du scan HelloAsso
+    // 2. Lancement du scan HelloAsso (CORRECTION ICI)
     $client = new HelloAssoClient($globals['clientId'], $globals['clientSecret']);
+    $scanResults = $client->discoverCampaigns($globals['orgSlug']);
 }
 
 if (isset($_GET['logout'])) { session_destroy(); header('Location: index.php'); exit; }
@@ -39,6 +40,7 @@ if ($adminPassword && !isset($_SESSION['authenticated'])) {
 
 $action = $_GET['action'] ?? 'list';
 $localCampaigns = Storage::listCampaigns();
+// Initialisation standard (hors scan)
 $client = new HelloAssoClient($globals['clientId']??'', $globals['clientSecret']??'');
 
 if (isset($_POST['save_campaign'])) {
@@ -154,8 +156,6 @@ if ($action === 'analyze') {
 
         <div id="config-zone"></div>
     </main>
-
-    <script>
 
     <script>
     async function editCamp(org, slug, type, name) {
