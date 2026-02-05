@@ -26,7 +26,12 @@ try {
 
     if (!$isAdmin && !$isValidToken) throw new Exception("Accès non autorisé.");
 
-    $client = new HelloAssoClient($globals['clientId'], $globals['clientSecret']);
+    // On passe le booléen debugMode (false par défaut)
+    $client = new HelloAssoClient(
+        $globals['clientId'], 
+        $globals['clientSecret'], 
+        $globals['debugMode'] ?? false
+    );
     $orders = $client->fetchAllOrders($campaignConfig['orgSlug'], $campaignConfig['formSlug'], $campaignConfig['formType']);
     $engine = new StatsEngine($campaignConfig['rules']);
     $stats = $engine->process($orders, $campaignConfig['goals'] ?? []);

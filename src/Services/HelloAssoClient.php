@@ -3,36 +3,34 @@
 class HelloAssoClient {
     private $clientId;
     private $clientSecret;
-    private $logs = [];
+    private $debug = false; // NOUVEAU
+    private $logFile; // NOUVEAU
 
-    public function __construct($id, $secret) {
+    // On ajoute le paramètre $debug au constructeur
+    public function __construct($id, $secret, $debug = false) {
         $this->clientId = $id;
         $this->clientSecret = $secret;
+        $this->debug = $debug;
+        // Le fichier sera stocké dans un dossier "logs" à la racine
+        $this->logFile = __DIR__ . '/../../logs/debug_helloasso.log';
     }
 
-    private function log($type, $msg, $data = null) {
-        $entry = "[" . date('H:i:s') . "] [$type] $msg";
+    // NOUVELLE FONCTION PRIVÉE : ÉCRITURE SUR DISQUE
+    private function writeToDisk($type, $msg, $data = null) {
+        if (!$this->debug) return;
+
+        if (!is_dir(dirname($this->logFile))) mkdir(dirname($this->logFile), 0755, true);
+
+        $entry = "========================================\n";
+        $entry .= "[" . date('Y-m-d H:i:s') . "] [$type] $msg\n";
         if ($data !== null) {
-            $cleanData = $data;
-            if (is_string($data) && (str_starts_with(trim($data), '{') || str_starts_with(trim($data), '['))) {
-                $decoded = json_decode($data, true);
-                if (json_last_error() === JSON_ERROR_NONE) $cleanData = $decoded;
-            }
-            
-            if (is_array($cleanData)) {
-                $keysToHide = ['access_token', 'refresh_token', 'client_secret', 'client_id'];
-                array_walk_recursive($cleanData, function(&$v, $k) use ($keysToHide) {
-                    if (in_array($k, $keysToHide)) $v = '***MASQUÉ***';
-                });
-                $entry .= " >> JSON: " . json_encode($cleanData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-            } else {
-                $entry .= " >> RAW: " . $cleanData;
-            }
+            $entry .= is_string($data) ? $data : json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            $entry .= "\n";
         }
-        $this->logs[] = $entry;
-    }
+        $entry .= "========================================\n\n";
 
-    public function getLogs() { return $this->logs; }
+        file_put_contents($this->logFile, $entry, FILE_APPEND);
+    }
 
     private function request($method, $url, $params = [], $token = null) {
         $ch = curl_init();
@@ -45,7 +43,6 @@ class HelloAssoClient {
         
         $headers = ['Accept: application/json'];
         
-        // --- CORRECTIF ICI : On envoie le token COMPLET ---
         if ($token) {
             $headers[] = "Authorization: Bearer " . $token;
         }
@@ -64,7 +61,8 @@ class HelloAssoClient {
         $opts[CURLOPT_HTTPHEADER] = $headers;
         curl_setopt_array($ch, $opts);
 
-        $this->log('API_REQ', "$method $url", $method === 'POST' ? $params : null);
+        // --- LOG DE LA REQUÊTE ---
+        $this->writeToDisk('REQUEST', "$method $url", $params);
         
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -72,20 +70,20 @@ class HelloAssoClient {
         curl_close($ch);
 
         if ($curlError) {
-            $this->log('API_ERR', "Erreur cURL: $curlError");
+            // --- LOG ERREUR CURL ---
+            $this->writeToDisk('CURL_ERROR', $curlError);
             return ['code' => 0, 'body' => null];
         }
 
-        $this->log('API_RES', "Code HTTP: $httpCode", $response);
+        // --- LOG DE LA RÉPONSE ---
+        $decoded = json_decode($response, true);
+        $this->writeToDisk('RESPONSE', "Code: $httpCode", $decoded ?: $response);
 
-        return ['code' => $httpCode, 'body' => json_decode($response, true)];
+        return ['code' => $httpCode, 'body' => $decoded];
     }
 
     public function getAccessToken() {
-        if (empty($this->clientId)) {
-            $this->log('ERROR', "Client ID manquant");
-            return null;
-        }
+        if (empty($this->clientId)) return null;
 
         $res = $this->request('POST', "https://api.helloasso.com/oauth2/token", [
             'client_id' => $this->clientId,
@@ -96,58 +94,18 @@ class HelloAssoClient {
         if ($res['code'] === 200 && isset($res['body']['access_token'])) {
             return $res['body']['access_token'];
         }
-        
-        $this->log('ERROR', "Echec Token", $res['body']);
         return null;
-    }
-
-    public function testConnection($orgSlug = null) {
-        $token = $this->getAccessToken();
-        if (!$token) return ['success' => false, 'message' => "Echec Token"];
-
-        if (empty($orgSlug)) {
-            $this->log('ERROR', "Arrêt : Aucun slug fourni.");
-            return ['success' => false, 'message' => "Slug manquant."];
-        }
-
-        $this->log('INFO', "Test ciblé sur le slug : $orgSlug");
-        
-        // Test sur les formulaires (Route autorisée pour les assos)
-        $url = "https://api.helloasso.com/v5/organizations/$orgSlug/forms";
-        $res = $this->request('GET', $url, [], $token);
-        
-        if ($res['code'] === 200) {
-            // Succès !
-            $count = isset($res['body']['data']) ? count($res['body']['data']) : 0;
-            return ['success' => true, 'name' => "$orgSlug ($count formulaires)", 'slug' => $orgSlug];
-        }
-        
-        if ($res['code'] === 403) {
-            return ['success' => false, 'message' => "Accès refusé (403). Vérifiez le slug: '$orgSlug'"];
-        }
-        
-        if ($res['code'] === 404) {
-            return ['success' => false, 'message' => "Association introuvable (404). Vérifiez le slug."];
-        }
-
-        return ['success' => false, 'message' => "Erreur " . $res['code']];
     }
 
     public function discoverCampaigns($orgSlug) {
         $token = $this->getAccessToken();
-        if (!$token || !$orgSlug) {
-            return null;
-        }
+        if (!$token || !$orgSlug) return null;
 
         $res = $this->request('GET', "https://api.helloasso.com/v5/organizations/$orgSlug/forms", [], $token);
         
-        if ($res['code'] !== 200) {
-            $this->log('ERROR', "Erreur récupération formulaires", $res['body']);
-            return null;
-        }
+        if ($res['code'] !== 200) return null;
 
         $data = $res['body']['data'] ?? $res['body'] ?? [];
-        $this->log('INFO', count($data) . " formulaires trouvés.");
 
         return [
             'orgSlug' => $orgSlug,
