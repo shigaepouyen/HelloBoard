@@ -2,7 +2,6 @@
 session_start();
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
-
 header('Content-Type: application/json');
 
 try {
@@ -17,27 +16,20 @@ try {
 
     if (!$campaignId) throw new Exception("Paramètres manquants.");
 
-    // Chargement Config Campagne
     $configPath = __DIR__ . "/../config/campaigns/$campaignId.json";
     if (!file_exists($configPath)) throw new Exception("Board introuvable.");
     
     $campaignConfig = json_decode(file_get_contents($configPath), true);
     
-    // VERIFICATION SECURITE
     $isAdmin = isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true;
     $isValidToken = ($providedToken && $providedToken === ($campaignConfig['shareToken'] ?? ''));
 
-    if (!$isAdmin && !$isValidToken) {
-        throw new Exception("Accès non autorisé.");
-    }
+    if (!$isAdmin && !$isValidToken) throw new Exception("Accès non autorisé.");
 
     $client = new HelloAssoClient($globals['clientId'], $globals['clientSecret']);
     $orders = $client->fetchAllOrders($campaignConfig['orgSlug'], $campaignConfig['formSlug'], $campaignConfig['formType']);
     $engine = new StatsEngine($campaignConfig['rules']);
-
-    // MODIFICATION ICI : On passe les objectifs
-    $goals = $campaignConfig['goals'] ?? [];
-    $stats = $engine->process($orders, $goals);
+    $stats = $engine->process($orders, $campaignConfig['goals'] ?? []);
 
     echo json_encode([
         'success' => true,
@@ -45,10 +37,8 @@ try {
         'meta' => [
             'lastUpdated' => date('H:i:s'),
             'title' => $campaignConfig['title'] ?? 'Tableau de Bord',
-            'goals' => $campaignConfig['goals'] ?? ['revenue' => 0, 'tickets' => 0, 'n1' => 0]
+            'goals' => $campaignConfig['goals'] ?? [],
+            'markers' => $campaignConfig['markers'] ?? []
         ]
     ]);
-
-} catch (Exception $e) {
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-}
+} catch (Exception $e) { echo json_encode(['success' => false, 'error' => $e->getMessage()]); }
