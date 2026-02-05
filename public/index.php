@@ -118,6 +118,9 @@ if ($isAdmin) {
             <?php else: ?>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <?php foreach ($campaigns as $c): 
+                        // --- AJOUT : Si le board est archivé, on ne l'affiche pas ici ---
+                        if (!empty($c['archived'])) continue; 
+                        
                         $tokenLink = getCleanUrl($c['slug'], $c['shareToken']);
                     ?>
                     <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 group hover:border-blue-500 transition relative">

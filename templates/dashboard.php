@@ -77,6 +77,9 @@
                     <div class="relative group max-w-full">
                         <select onchange="window.location.href=this.value" class="appearance-none bg-transparent pl-0 pr-6 py-1 text-sm font-black italic uppercase tracking-tighter cursor-pointer focus:outline-none text-slate-900 hover:text-blue-600 transition truncate max-w-[200px] sm:max-w-md">
                             <?php foreach ($campaigns as $c): 
+                                // --- CORRECTION ICI : MASQUER ARCHIVÉS ---
+                                if (!empty($c['archived'])) continue; 
+                                
                                 // Si admin, on utilise le lien propre (session active). 
                                 // Si visiteur, on injecte le token du board cible pour l'autoriser.
                                 $targetToken = $isAdmin ? null : ($c['shareToken'] ?? null);

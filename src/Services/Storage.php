@@ -6,10 +6,8 @@ class Storage {
     private static $campaignsPath = __DIR__ . '/../../config/campaigns/';
 
     public static function saveGlobalSettings($settings) {
-        // Création du dossier si inexistant (sécurité)
         $dir = dirname(self::$configPath);
         if (!is_dir($dir)) mkdir($dir, 0755, true);
-        
         return file_put_contents(self::$configPath, json_encode($settings, JSON_PRETTY_PRINT));
     }
 
@@ -27,7 +25,6 @@ class Storage {
 
     public static function listCampaigns() {
         if (!is_dir(self::$campaignsPath)) return array();
-        
         $files = glob(self::$campaignsPath . '*.json');
         $campaigns = array();
         if ($files) {
@@ -39,5 +36,14 @@ class Storage {
             }
         }
         return $campaigns;
+    }
+
+    // --- NOUVEAU : SUPPRESSION ---
+    public static function deleteCampaign($slug) {
+        $filename = self::$campaignsPath . basename($slug) . '.json';
+        if (file_exists($filename)) {
+            return unlink($filename);
+        }
+        return false;
     }
 }
