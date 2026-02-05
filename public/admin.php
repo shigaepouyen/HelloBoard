@@ -229,19 +229,31 @@ if ($action === 'analyze') {
                     <h2 class="text-2xl font-black italic uppercase">${name}</h2>
                     <button id="save-main-btn" class="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs">Sauvegarder</button>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
-                    <div class="admin-card p-6"><label class="text-[10px] font-black text-slate-400 uppercase mb-3 block">Obj. Recettes (€)</label><input type="number" id="goal-rev" class="input-soft" value="${data.goals.revenue || 0}"></div>
-                    <div class="admin-card p-6"><label class="text-[10px] font-black text-slate-400 uppercase mb-3 block">Obj. Billets (Nb)</label><input type="number" id="goal-tix" class="input-soft" value="${data.goals.tickets || 0}"></div>
-                    <div class="admin-card p-6"><label class="text-[10px] font-black text-slate-400 uppercase mb-3 block">Réf. Année N-1</label><input type="number" id="goal-n1" class="input-soft" value="${data.goals.n1 || 0}"></div>
-                </div>
                 <div id="rules-list">${data.rules.map(r => `
                     <div class="rule-tile p-6 flex flex-col sm:flex-row items-center gap-6" data-item="${r.pattern}">
                         <div class="cursor-grab text-slate-200 px-2"><i class="fa-solid fa-grip-lines"></i></div>
                         <div class="toggle-btn ${r.hidden ? '' : 'active'}" onclick="this.classList.toggle('active')"></div>
-                        <div class="flex-1 w-full"><input type="text" class="display-label input-soft !py-2 !text-sm" value="${r.displayLabel}"><p class="text-[9px] font-bold text-slate-300 uppercase mt-1 truncate italic">Source : ${r.pattern}</p></div>
+                        
+                        <div class="flex-1 w-full">
+                            <input type="text" class="display-label input-soft !py-2 !text-sm" value="${r.displayLabel}">
+                            <p class="text-[9px] font-bold text-slate-300 uppercase mt-1 truncate italic">Source : ${r.pattern}</p>
+                        </div>
+
+                        <div class="w-32">
+                            <input type="text" class="rule-group input-soft !py-2 !px-3 !text-[10px] uppercase border-blue-50" 
+                                value="${r.group || 'Divers'}" placeholder="NOM DU BLOC">
+                        </div>
+
                         <div class="flex gap-2">
-                            <select class="rule-type input-soft !py-2 !px-3 !w-auto !text-[10px] uppercase font-black"><option value="Billet" ${r.type==='Billet'?'selected':''}>Billet</option><option value="Option" ${r.type==='Option'?'selected':''}>Option</option><option value="Ignorer" ${r.type==='Ignorer'?'selected':''}>Cacher</option></select>
-                            <select class="rule-chart input-soft !py-2 !px-3 !w-auto !text-[10px] uppercase font-black"><option value="pie" ${r.chartType==='pie'?'selected':''}>Disque</option><option value="bar" ${r.chartType==='bar'?'selected':''}>Barres</option></select>
+                            <select class="rule-type input-soft !py-2 !px-3 !w-auto !text-[10px] uppercase font-black">
+                                <option value="Billet" ${r.type==='Billet'?'selected':''}>Billet</option>
+                                <option value="Option" ${r.type==='Option'?'selected':''}>Option</option>
+                                <option value="Ignorer" ${r.type==='Ignorer'?'selected':''}>Cacher</option>
+                            </select>
+                            <select class="rule-chart input-soft !py-2 !px-3 !w-auto !text-[10px] uppercase font-black">
+                                <option value="pie" ${r.chartType==='pie'?'selected':''}>Disque</option>
+                                <option value="bar" ${r.chartType==='bar'?'selected':''}>Barres</option>
+                            </select>
                         </div>
                         <input type="text" class="rule-transform input-soft !py-2 !px-3 !w-32 !text-[10px] font-mono !text-blue-500" value="${r.transform || ''}" placeholder="TRANS">
                     </div>`).join('')}</div>
@@ -252,12 +264,53 @@ if ($action === 'analyze') {
     async function save(org, slug, type, name, token) {
         const rules = [];
         document.querySelectorAll('.rule-tile').forEach(row => {
-            rules.push({ pattern: row.dataset.item, displayLabel: row.querySelector('.display-label').value, type: row.querySelector('.rule-type').value, group: 'Divers', chartType: row.querySelector('.rule-chart').value, transform: row.querySelector('.rule-transform').value, hidden: !row.querySelector('.toggle-btn').classList.contains('active') });
+            // On vérifie que les éléments existent avant de lire .value
+            const displayLabel = row.querySelector('.display-label')?.value || '';
+            const ruleType = row.querySelector('.rule-type')?.value || 'Option';
+            const group = row.querySelector('.rule-group')?.value || 'Divers';
+            const chartType = row.querySelector('.rule-chart')?.value || 'pie';
+            const transform = row.querySelector('.rule-transform')?.value || '';
+            const hidden = !row.querySelector('.toggle-btn').classList.contains('active');
+
+            rules.push({ 
+                pattern: row.dataset.item, 
+                displayLabel, 
+                type: ruleType, 
+                group, 
+                chartType, 
+                transform, 
+                hidden 
+            });
         });
-        const config = { slug, title: name, orgSlug: org, formSlug: slug, formType: type, rules, shareToken: token, goals: { revenue: parseFloat(document.getElementById('goal-rev').value) || 0, tickets: parseInt(document.getElementById('goal-tix').value) || 0, n1: parseInt(document.getElementById('goal-n1').value) || 0 } };
-        const btn = document.getElementById('save-main-btn'); btn.innerText = 'Sync...';
-        await fetch('admin.php', { method:'POST', body: new URLSearchParams({save_campaign: 1, config: JSON.stringify(config)}) });
-        window.location.href = 'index.php?campaign=' + slug;
+
+        // Récupération sécurisée des objectifs (évite l'erreur null reading value)
+        const gRev = document.getElementById('goal-rev')?.value || 0;
+        const gTix = document.getElementById('goal-tix')?.value || 0;
+        const gN1 = document.getElementById('goal-n1')?.value || 0;
+
+        const config = { 
+            slug, title: name, orgSlug: org, formSlug: slug, formType: type, 
+            rules, shareToken: token, 
+            goals: { 
+                revenue: parseFloat(gRev), 
+                tickets: parseInt(gTix), 
+                n1: parseInt(gN1) 
+            } 
+        };
+
+        const btn = document.getElementById('save-main-btn'); 
+        btn.innerText = 'Sync...';
+        
+        try {
+            await fetch('admin.php', { 
+                method: 'POST', 
+                body: new URLSearchParams({save_campaign: 1, config: JSON.stringify(config)}) 
+            });
+            window.location.href = 'index.php?campaign=' + slug;
+        } catch (e) {
+            alert("Erreur lors de la sauvegarde");
+            btn.innerText = 'Sauvegarder';
+        }
     }
     </script>
 </body>
