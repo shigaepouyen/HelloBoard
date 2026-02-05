@@ -30,6 +30,7 @@ class StatsEngine {
             if (!isset($groupOrder[$gn])) $groupOrder[$gn] = $idx++;
         }
 
+        // Tri chronologique pour la timeline
         usort($orders, function($a, $b) {
             return strtotime($a['date']) - strtotime($b['date']);
         });
@@ -112,13 +113,16 @@ class StatsEngine {
             arsort($g['data']); 
             $stats['charts'][] = [
                 'title' => $name,
-                'type' => strtolower($g['config']['chartType'] ?? 'doughnut'),
+                'type' => strtolower($g['config']['chartType'] ?? 'pie'),
                 'data' => $g['data']
             ];
         }
         
+        // Tri décroissant (plus récent en haut)
         usort($recentList, function($a, $b) { return $b['ts'] - $a['ts']; });
-        $stats['recent'] = array_slice($recentList, 0, 10);
+        
+        // --- MODIFICATION ICI : On renvoie TOUT ---
+        $stats['recent'] = $recentList;
 
         return $stats;
     }
