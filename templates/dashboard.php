@@ -258,32 +258,36 @@
             const labelsMap = {
                 'Event': { main: 'Inscriptions', unit: 'billets', list: 'inscriptions', timeline: 'Inscr.' },
                 'Shop': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' },
-                'product': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' },
                 'Membership': { main: 'Adhésions', unit: 'adhésions', list: 'adhésions', timeline: 'Adh.' },
-                'Donation': { main: 'Dons', unit: 'dons', list: 'dons', timeline: 'Dons' },
-                'Crowdfunding': { main: 'Contributions', unit: 'contrib.', list: 'contributions', timeline: 'Contrib.' },
+                'Donation': { main: 'Dons', unit: 'donateurs', list: 'dons', timeline: 'Dons' },
+                'Crowdfunding': { main: 'Contributions', unit: 'contributeurs', list: 'contributions', timeline: 'Contrib.' },
                 'PaymentForm': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' },
                 'Checkout': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' }
             };
-            const labels = labelsMap[meta.formType] || labelsMap['Event'];
+            const formTypeKey = meta.formType ? (meta.formType.charAt(0).toUpperCase() + meta.formType.slice(1)) : 'Event';
+            const labels = labelsMap[formTypeKey] || labelsMap['Event'];
 
             if (document.getElementById('label-participants')) document.getElementById('label-participants').innerText = labels.main;
             if (document.getElementById('label-heatmap')) document.getElementById('label-heatmap').innerText = `Heatmap : Densité des ${labels.list}`;
-            if (document.getElementById('label-modal-unit')) document.getElementById('label-modal-unit').innerText = labels.list;
+            if (document.getElementById('label-modal-unit')) {
+                const count = (d.recent || []).length;
+                document.getElementById('label-modal-unit').innerText = labels.list + (count > 1 ? 's' : '');
+            }
 
             State.allRecent = d.recent || [];
 
             // KPIS
             if (document.getElementById('val-revenue')) document.getElementById('val-revenue').innerText = new Intl.NumberFormat('fr-FR', {style:'currency', currency:'EUR', minimumFractionDigits:0}).format(d.kpi.revenue);
 
-            const isShop = (meta.formType === 'Shop' || meta.formType === 'Checkout' || meta.formType === 'product');
+            const isShop = (['Shop', 'Checkout', 'PaymentForm', 'Product', 'product'].includes(formTypeKey));
             if (document.getElementById('val-participants')) document.getElementById('val-participants').innerText = isShop ? d.kpi.orderCount : d.kpi.participants;
 
             const n1Container = document.getElementById('n1-container');
             if (n1Container) {
                 if (isShop) {
                     n1Container.classList.remove('hidden');
-                    n1Container.innerHTML = `<i class="fa-solid fa-box-open mr-1"></i> ${d.kpi.participants} articles vendus`;
+                    const artCount = d.kpi.participants || 0;
+                    n1Container.innerHTML = `<i class="fa-solid fa-box-open mr-1"></i> ${artCount} article${artCount > 1 ? 's' : ''} vendu${artCount > 1 ? 's' : ''}`;
                 } else if (goals.n1 > 0) {
                     n1Container.classList.remove('hidden');
                     n1Container.innerHTML = `Vs ${goals.n1} l'an passé`;

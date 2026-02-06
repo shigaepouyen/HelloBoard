@@ -296,8 +296,8 @@ if ($action === 'analyze') {
             'Event': { main: 'Billet', quota: 'Quota Billets' },
             'Shop': { main: 'Produit', quota: 'Quota Articles' },
             'Membership': { main: 'Adhésion', quota: 'Quota Adhésions' },
-            'Donation': { main: 'Don', quota: 'Objectif Dons' },
-            'Crowdfunding': { main: 'Contribution', quota: 'Objectif Contrib.' },
+            'Donation': { main: 'Donateur', quota: 'Objectif Dons' },
+            'Crowdfunding': { main: 'Contributeur', quota: 'Objectif Contrib.' },
             'PaymentForm': { main: 'Article', quota: 'Quota Articles' },
             'Checkout': { main: 'Produit', quota: 'Quota Articles' }
         };

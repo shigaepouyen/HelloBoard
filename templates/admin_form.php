@@ -8,11 +8,10 @@ async function configureForm(org, form, type, name) {
         'Event': { main: '🎫 Billet' },
         'Shop': { main: '📦 Produit' },
         'Membership': { main: '🆔 Adhésion' },
-        'Donation': { main: '❤️ Don' },
-        'Crowdfunding': { main: '🚀 Contrib.' },
+        'Donation': { main: '❤️ Donateur' },
+        'Crowdfunding': { main: '🚀 Contributeur' },
         'PaymentForm': { main: '💳 Article' },
-        'Checkout': { main: '📦 Produit' },
-        'product': { main: '📦 Produit' }
+        'Checkout': { main: '📦 Produit' }
     };
     const labels = labelsMap[type] || labelsMap['Event'];
     

@@ -2,9 +2,11 @@
 
 class StatsEngine {
     private $rules;
+    private $formType;
 
-    public function __construct($rules) {
+    public function __construct($rules, $formType = 'Event') {
         $this->rules = $rules;
+        $this->formType = $formType;
     }
 
     public function process($orders, $goals = []) {
@@ -69,53 +71,66 @@ class StatsEngine {
                 $amount = ($item['amount'] ?? 0) / 100;
                 $rawName = trim($item['name'] ?? 'Inconnu');
                 
+                $rule = $this->matchRule($rawName);
+                $isIgnored = ($rule && $rule['type'] === 'Ignorer');
+                if ($isIgnored) continue;
+
                 if ($this->isDonation($item)) {
                     $hasDonationInOrder = true;
                     $stats['kpi']['donations'] += $amount;
                     $stats['kpi']['revenue'] += $amount;
                     $dailyStats[$dateKey]['rev'] += $amount;
-                    continue; 
-                }
-                
-                $rule = $this->matchRule($rawName);
-                $isIgnored = ($rule && $rule['type'] === 'Ignorer');
 
-                if (!$isIgnored) {
-                    $stats['kpi']['revenue'] += $amount;
-                    $dailyStats[$dateKey]['rev'] += $amount;
-
-                    // On compte comme "participant" (ou vente) si c'est marqué Billet
-                    // OU si c'est un item payant non catégorisé (pour ne pas rater de ventes par défaut)
-                    if (($rule && $rule['type'] === 'Billet') || (!$rule && $amount > 0)) {
-                        $hasTicketInOrder = true;
+                    // Si c'est un formulaire de Don ou Crowdfunding, on compte chaque don comme une "pax"
+                    if (in_array($this->formType, ['Donation', 'Crowdfunding'])) {
                         $stats['kpi']['participants']++;
                         $dailyStats[$dateKey]['pax']++;
                         $stats['heatmap'][$dayOfWeek][$hour]++;
+                    }
+                    continue; 
+                }
+                
+                $stats['kpi']['revenue'] += $amount;
+                $dailyStats[$dateKey]['rev'] += $amount;
+
+                // On compte comme "main item" (Billet, Produit, Adhésion...)
+                $isMainItem = ($rule && $rule['type'] === 'Billet') || (!$rule && $amount > 0);
+
+                if ($isMainItem) {
+                    $hasTicketInOrder = true;
+                    $stats['kpi']['participants']++;
+                    $dailyStats[$dateKey]['pax']++;
+                    $stats['heatmap'][$dayOfWeek][$hour]++;
+
+                    $displayLabel = ($rule && $rule['displayLabel']) ? $rule['displayLabel'] : $rawName;
+
+                    if (!$rule || !($rule['hidden'] ?? false)) {
+                        $this->addToGroup($groups, $rule ?: ['group' => 'Divers'], $displayLabel, 1);
                         
-                        $displayLabel = ($rule && $rule['displayLabel']) ? $rule['displayLabel'] : $rawName;
-
-                        if (!$rule || !($rule['hidden'] ?? false)) {
-                            $this->addToGroup($groups, $rule ?: ['group' => 'Divers'], $displayLabel, 1);
-
-                            // Aggregate all main items (tickets/products) for a global breakdown
-                            if (!isset($stats['kpi']['productBreakdown'][$displayLabel])) {
-                                $stats['kpi']['productBreakdown'][$displayLabel] = [
-                                    'count' => 0,
-                                    'revenue' => 0,
-                                    'costPrice' => (float)($rule['costPrice'] ?? 0)
-                                ];
-                            }
-                            $stats['kpi']['productBreakdown'][$displayLabel]['count']++;
-                            $stats['kpi']['productBreakdown'][$displayLabel]['revenue'] += $amount;
+                        // Aggregate for global breakdown
+                        if (!isset($stats['kpi']['productBreakdown'][$displayLabel])) {
+                            $stats['kpi']['productBreakdown'][$displayLabel] = [
+                                'count' => 0,
+                                'revenue' => 0,
+                                'costPrice' => (float)($rule ? ($rule['costPrice'] ?? 0) : 0)
+                            ];
                         }
+                        $stats['kpi']['productBreakdown'][$displayLabel]['count']++;
+                        $stats['kpi']['productBreakdown'][$displayLabel]['revenue'] += $amount;
+                    }
 
-                        $recentList[] = [
-                            'date' => date('d/m H:i', $ts),
-                            'ts' => $ts,
-                            'name' => $this->getPayerName($order, $item),
-                            'desc' => $displayLabel,
-                            'amount' => $amount
-                        ];
+                    $recentList[] = [
+                        'date' => date('d/m H:i', $ts),
+                        'ts' => $ts,
+                        'name' => $this->getPayerName($order, $item),
+                        'desc' => $displayLabel,
+                        'amount' => $amount
+                    ];
+                } else if ($rule && $rule['type'] === 'Option') {
+                    // TOP-LEVEL ITEM AS OPTION (common in Shop forms)
+                    if (!($rule['hidden'] ?? false)) {
+                        $displayLabel = $rule['displayLabel'] ?: $rawName;
+                        $this->addToGroup($groups, $rule, $displayLabel, 1);
                     }
                 }
 

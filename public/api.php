@@ -33,7 +33,7 @@ try {
         $globals['debugMode'] ?? false
     );
     $orders = $client->fetchAllOrders($campaignConfig['orgSlug'], $campaignConfig['formSlug'], $campaignConfig['formType']);
-    $engine = new StatsEngine($campaignConfig['rules']);
+    $engine = new StatsEngine($campaignConfig['rules'], $campaignConfig['formType'] ?? 'Event');
     $stats = $engine->process($orders, $campaignConfig['goals'] ?? []);
 
     echo json_encode([
