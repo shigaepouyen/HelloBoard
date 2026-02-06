@@ -162,6 +162,8 @@
             <div class="h-80"><canvas id="timelineChart"></canvas></div>
         </section>
 
+        <div id="shop-breakdown-grid" class="hidden"></div>
+
         <div id="charts-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
 
         <section class="sexy-card p-6 md:p-10 reveal" style="animation-delay: 0.4s;">
@@ -255,13 +257,13 @@
 
             const labelsMap = {
                 'Event': { main: 'Inscriptions', unit: 'billets', list: 'inscriptions', timeline: 'Inscr.' },
-                'Shop': { main: 'Ventes', unit: 'articles', list: 'ventes', timeline: 'Ventes' },
-                'product': { main: 'Ventes', unit: 'articles', list: 'ventes', timeline: 'Ventes' },
+                'Shop': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' },
+                'product': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' },
                 'Membership': { main: 'Adhésions', unit: 'adhésions', list: 'adhésions', timeline: 'Adh.' },
                 'Donation': { main: 'Dons', unit: 'dons', list: 'dons', timeline: 'Dons' },
                 'Crowdfunding': { main: 'Contributions', unit: 'contrib.', list: 'contributions', timeline: 'Contrib.' },
-                'PaymentForm': { main: 'Ventes', unit: 'articles', list: 'ventes', timeline: 'Ventes' },
-                'Checkout': { main: 'Ventes', unit: 'articles', list: 'ventes', timeline: 'Ventes' }
+                'PaymentForm': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' },
+                'Checkout': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' }
             };
             const labels = labelsMap[meta.formType] || labelsMap['Event'];
 
@@ -273,8 +275,21 @@
 
             // KPIS
             document.getElementById('val-revenue').innerText = new Intl.NumberFormat('fr-FR', {style:'currency', currency:'EUR', minimumFractionDigits:0}).format(d.kpi.revenue);
-            document.getElementById('val-participants').innerText = d.kpi.participants;
             
+            const isShop = (meta.formType === 'Shop' || meta.formType === 'Checkout' || meta.formType === 'product');
+            document.getElementById('val-participants').innerText = isShop ? d.kpi.orderCount : d.kpi.participants;
+
+            const n1Container = document.getElementById('n1-container');
+            if (isShop) {
+                n1Container.classList.remove('hidden');
+                n1Container.innerHTML = `<i class="fa-solid fa-box-open mr-1"></i> ${d.kpi.participants} articles vendus`;
+            } else if (goals.n1 > 0) {
+                n1Container.classList.remove('hidden');
+                n1Container.innerHTML = `Vs ${goals.n1} l'an passé`;
+            } else {
+                n1Container.classList.add('hidden');
+            }
+
             if (d.kpi.donations > 0) {
                 const container = document.getElementById('donations-box-container');
                 if (container) {
@@ -314,7 +329,8 @@
                 document.getElementById('goal-tickets-container').classList.remove('hidden');
                 const pct = Math.min(100, (d.kpi.participants / goals.tickets) * 100);
                 document.getElementById('goal-tickets-bar').style.width = pct + '%';
-                document.getElementById('goal-tickets-text').innerText = `Quotas : ${goals.tickets} ${labels.unit}`;
+                const unitLabel = isShop ? 'articles' : labels.unit;
+                document.getElementById('goal-tickets-text').innerText = `Quotas : ${goals.tickets} ${unitLabel}`;
                 document.getElementById('goal-tickets-percent').innerText = Math.round(pct) + '%';
             }
             if (goals.n1 > 0) {
@@ -325,6 +341,36 @@
             // RENDU
             renderTimeline(d.timeline, meta.markers || [], labels.timeline);
             renderHeatmap(d.heatmap);
+
+            // Shop specific: Product breakdown card
+            const shopBreakdownGrid = document.getElementById('shop-breakdown-grid');
+            if (isShop && d.kpi.productBreakdown && Object.keys(d.kpi.productBreakdown).length > 0) {
+                shopBreakdownGrid.classList.remove('hidden');
+                shopBreakdownGrid.innerHTML = `
+                    <section class="sexy-card p-10 reveal">
+                        <div class="flex justify-between items-center mb-8">
+                            <h3 class="text-xs font-black uppercase text-slate-400 italic">Répartition des quantités par produit</h3>
+                            <span class="bg-blue-50 text-blue-600 text-[10px] font-black px-3 py-1 rounded-full uppercase italic">Inventaire</span>
+                        </div>
+                        <div class="space-y-4">
+                            ${Object.entries(d.kpi.productBreakdown).sort((a,b) => b[1] - a[1]).map(([name, qty]) => `
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm font-bold text-slate-600 truncate mr-4">${name}</span>
+                                    <div class="flex items-center gap-3 shrink-0">
+                                        <div class="h-1.5 w-24 bg-slate-100 rounded-full overflow-hidden">
+                                            <div class="h-full bg-blue-500 rounded-full" style="width: ${(qty / d.kpi.participants * 100)}%"></div>
+                                        </div>
+                                        <span class="text-sm font-black text-slate-900 w-8 text-right">${qty}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </section>
+                `;
+            } else {
+                shopBreakdownGrid.classList.add('hidden');
+            }
+
             renderCharts(d.charts);
             
             // MASQUER LE LOADER

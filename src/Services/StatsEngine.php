@@ -16,7 +16,8 @@ class StatsEngine {
                 'orderCount' => count($orders),
                 'orders_with_tickets' => 0,
                 'orders_with_both' => 0,
-                'attachment_rate' => 0
+                'attachment_rate' => 0,
+                'productBreakdown' => []
             ],
             'charts' => [],
             'timeline' => [],
@@ -95,6 +96,9 @@ class StatsEngine {
 
                         if (!$rule || !($rule['hidden'] ?? false)) {
                             $this->addToGroup($groups, $rule ?: ['group' => 'Divers'], $displayLabel, 1);
+
+                            // Aggregate all main items (tickets/products) for a global breakdown
+                            $stats['kpi']['productBreakdown'][$displayLabel] = ($stats['kpi']['productBreakdown'][$displayLabel] ?? 0) + 1;
                         }
 
                         $recentList[] = [
