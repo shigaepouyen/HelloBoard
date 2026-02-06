@@ -66,7 +66,7 @@ async function configureForm(org, form, type, name) {
                         <input type="text" class="display-label input-soft !py-2 !text-sm border-transparent focus:border-blue-500" value="${pattern}">
                     </td>
                     <td class="py-3 px-4 bg-slate-50">
-                        <select class="rule-type input-soft !py-2 !text-xs font-black uppercase">
+                        <select class="rule-type input-soft !py-2 !text-xs font-black uppercase" title="${type === 'Shop' ? 'Les Produits ne créent pas de cartes graphiques (uniquement les Options)' : ''}">
                             <option value="Billet" ${isMain ? 'selected' : ''}>${labels.main}</option>
                             <option value="Option" ${!isMain ? 'selected' : ''}>📊 Option</option>
                             <option value="Ignorer">🚫 Masquer</option>

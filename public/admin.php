@@ -386,7 +386,7 @@ if ($action === 'analyze') {
                                         <input type="text" class="rule-group input-soft !py-2 !px-3 !text-[10px] uppercase" value="${r.group || 'Divers'}" placeholder="BLOC">
                                     </div>
                                     <div class="lg:w-24">
-                                        <select class="rule-type input-soft !py-2 !px-3 !text-[10px] uppercase font-black">
+                                        <select class="rule-type input-soft !py-2 !px-3 !text-[10px] uppercase font-black" title="${type === 'Shop' ? 'Les Produits ne créent pas de cartes graphiques (uniquement les Options)' : ''}">
                                             <option value="Billet" ${r.type==='Billet'?'selected':''}>${labels.main}</option>
                                             <option value="Option" ${r.type==='Option'?'selected':''}>Option</option>
                                             <option value="Ignorer" ${r.type==='Ignorer'?'selected':''}>Masquer</option>

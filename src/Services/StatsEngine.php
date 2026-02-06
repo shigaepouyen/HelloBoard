@@ -105,7 +105,11 @@ class StatsEngine {
                     $displayLabel = ($rule && $rule['displayLabel']) ? $rule['displayLabel'] : $rawName;
 
                     if (!$rule || !($rule['hidden'] ?? false)) {
-                        $this->addToGroup($groups, $rule ?: ['group' => 'Divers'], $displayLabel, 1);
+                        // Pour les boutiques, on ne met pas les produits principaux dans les cartes de regroupement (pie/bar)
+                        // car ils sont déjà détaillés dans les tableaux de performance et d'inventaire.
+                        if ($this->formType !== 'Shop') {
+                            $this->addToGroup($groups, $rule ?: ['group' => 'Divers'], $displayLabel, 1);
+                        }
                         
                         // Aggregate for global breakdown
                         if (!isset($stats['kpi']['productBreakdown'][$displayLabel])) {
