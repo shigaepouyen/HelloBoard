@@ -218,7 +218,7 @@
     </div>
 
     <script>
-    const State = { tChart: null, allRecent: [] };
+    const State = { tChart: null, mChart: null, allRecent: [] };
 
     function updateListView(container, data) {
         if (!data || data.length === 0) {
@@ -409,7 +409,23 @@
                     </section>
                 `;
 
-                shopBreakdownGrid.innerHTML = `<div class="grid grid-cols-1 gap-6">${inventoryHtml}${performanceHtml}</div>`;
+                let matrixHtml = `
+                    <section class="sexy-card p-10 reveal">
+                        <div class="flex justify-between items-center mb-8">
+                            <h3 class="text-xs font-black uppercase text-slate-400 italic">Matrice Rentabilité (Volume vs Bénéfice)</h3>
+                            <span class="bg-indigo-50 text-indigo-600 text-[10px] font-black px-3 py-1 rounded-full uppercase italic">Analyse</span>
+                        </div>
+                        <div class="h-80 w-full">
+                            <canvas id="matrixChart"></canvas>
+                        </div>
+                        <p class="text-center text-[10px] font-bold text-slate-400 mt-6 italic">
+                            Plus un point est haut et à droite, meilleur est le produit !
+                        </p>
+                    </section>
+                `;
+
+                shopBreakdownGrid.innerHTML = `${inventoryHtml}${performanceHtml}${matrixHtml}`;
+                setTimeout(() => renderMatrix(d.kpi.productBreakdown), 100);
             } else {
                 shopBreakdownGrid.classList.add('hidden');
             }
@@ -461,6 +477,58 @@
         modal.classList.remove('active');
         modal.classList.add('hidden');
         document.body.style.overflow = '';
+    }
+
+    function renderMatrix(productBreakdown) {
+        const ctx = document.getElementById('matrixChart').getContext('2d');
+        if (State.mChart) State.mChart.destroy();
+
+        const dataPoints = Object.entries(productBreakdown).map(([name, data]) => ({
+            x: data.count,
+            y: data.benefit,
+            r: Math.max(5, Math.min(25, Math.sqrt(data.revenue) * 2)),
+            label: name
+        }));
+
+        State.mChart = new Chart(ctx, {
+            type: 'bubble',
+            data: {
+                datasets: [{
+                    label: 'Produits',
+                    data: dataPoints,
+                    backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                    borderColor: 'rgb(16, 185, 129)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const p = context.raw;
+                                return `${p.label}: ${p.x} vendus, ${Math.round(p.y)}€ bénéfice`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Volume Vendu (Qté)', font: { size: 10, weight: '800' } },
+                        beginAtZero: true,
+                        ticks: { font: { size: 10, weight: '700' } }
+                    },
+                    y: {
+                        title: { display: true, text: 'Bénéfice Généré (€)', font: { size: 10, weight: '800' } },
+                        beginAtZero: true,
+                        ticks: { font: { size: 10, weight: '700' } }
+                    }
+                }
+            }
+        });
     }
 
     function renderTimeline(data, markers, labelUnit) {
