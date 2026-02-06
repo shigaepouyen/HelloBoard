@@ -162,7 +162,7 @@
             <div class="h-80"><canvas id="timelineChart"></canvas></div>
         </section>
 
-        <div id="shop-breakdown-grid" class="hidden"></div>
+        <div id="shop-breakdown-grid" class="hidden space-y-6"></div>
 
         <div id="charts-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
 
