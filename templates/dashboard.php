@@ -256,10 +256,12 @@
             const labelsMap = {
                 'Event': { main: 'Inscriptions', unit: 'billets', list: 'inscriptions', timeline: 'Inscr.' },
                 'Shop': { main: 'Ventes', unit: 'articles', list: 'ventes', timeline: 'Ventes' },
+                'product': { main: 'Ventes', unit: 'articles', list: 'ventes', timeline: 'Ventes' },
                 'Membership': { main: 'Adhésions', unit: 'adhésions', list: 'adhésions', timeline: 'Adh.' },
                 'Donation': { main: 'Dons', unit: 'dons', list: 'dons', timeline: 'Dons' },
                 'Crowdfunding': { main: 'Contributions', unit: 'contrib.', list: 'contributions', timeline: 'Contrib.' },
-                'PaymentForm': { main: 'Ventes', unit: 'articles', list: 'ventes', timeline: 'Ventes' }
+                'PaymentForm': { main: 'Ventes', unit: 'articles', list: 'ventes', timeline: 'Ventes' },
+                'Checkout': { main: 'Ventes', unit: 'articles', list: 'ventes', timeline: 'Ventes' }
             };
             const labels = labelsMap[meta.formType] || labelsMap['Event'];
 

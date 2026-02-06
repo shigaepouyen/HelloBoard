@@ -77,25 +77,31 @@ class StatsEngine {
                 }
                 
                 $rule = $this->matchRule($rawName);
-                if ($rule && $rule['type'] !== 'Ignorer') {
+                $isIgnored = ($rule && $rule['type'] === 'Ignorer');
+
+                if (!$isIgnored) {
                     $stats['kpi']['revenue'] += $amount;
                     $dailyStats[$dateKey]['rev'] += $amount;
 
-                    if ($rule['type'] === 'Billet') {
+                    // On compte comme "participant" (ou vente) si c'est marqué Billet
+                    // OU si c'est un item payant non catégorisé (pour ne pas rater de ventes par défaut)
+                    if (($rule && $rule['type'] === 'Billet') || (!$rule && $amount > 0)) {
                         $hasTicketInOrder = true;
                         $stats['kpi']['participants']++;
                         $dailyStats[$dateKey]['pax']++;
                         $stats['heatmap'][$dayOfWeek][$hour]++;
                         
-                        if (!($rule['hidden'] ?? false)) {
-                            $this->addToGroup($groups, $rule, $rule['displayLabel'] ?: $rawName, 1);
+                        $displayLabel = ($rule && $rule['displayLabel']) ? $rule['displayLabel'] : $rawName;
+
+                        if (!$rule || !($rule['hidden'] ?? false)) {
+                            $this->addToGroup($groups, $rule ?: ['group' => 'Divers'], $displayLabel, 1);
                         }
 
                         $recentList[] = [
                             'date' => date('d/m H:i', $ts),
                             'ts' => $ts,
                             'name' => $this->getPayerName($order, $item),
-                            'desc' => $rule['displayLabel'] ?: $rawName,
+                            'desc' => $displayLabel,
                             'amount' => $amount
                         ];
                     }

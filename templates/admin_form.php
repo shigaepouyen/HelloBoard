@@ -9,14 +9,14 @@ async function configureForm(org, form, type, name) {
         'Membership': { main: '🆔 Adhésion' },
         'Donation': { main: '❤️ Don' },
         'Crowdfunding': { main: '🚀 Contrib.' },
-        'PaymentForm': { main: '💳 Article' }
+        'PaymentForm': { main: '💳 Article' },
+        'Checkout': { main: '📦 Produit' }
     };
     const labels = labelsMap[type] || labelsMap['Event'];
     
     try {
         const response = await fetch(`admin.php?action=analyze&org=${org}&form=${form}&type=${type}`);
         const data = await response.json();
-        const items = data.rules || data; // Gère les deux formats possibles
         
         let html = `
             <div id="editor-container" class="mt-8 p-10 bg-slate-900 rounded-[2rem] border border-blue-500/30 animate-fade-in shadow-2xl">
@@ -38,10 +38,11 @@ async function configureForm(org, form, type, name) {
                     <tbody id="rules-body">
         `;
 
-        const ruleList = Array.isArray(items) ? items : items.rules || [];
+        const ruleList = data.apiItems || [];
 
         ruleList.forEach((item, i) => {
-            const pattern = typeof item === 'string' ? item : item.pattern;
+            const pattern = item.pattern;
+            const isMain = item.isMain;
             html += `
                 <tr class="border-b border-slate-800/50 rule-row group hover:bg-white/5" data-pattern="${pattern}">
                     <td class="py-4 px-2"><input type="checkbox" class="rule-visible w-4 h-4 accent-emerald-500" checked></td>
@@ -49,8 +50,8 @@ async function configureForm(org, form, type, name) {
                     <td class="py-4 px-2"><input type="text" class="display-label w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5" value="${pattern}"></td>
                     <td class="py-4 px-2">
                         <select class="rule-type bg-slate-800 border border-slate-700 rounded px-1 py-1.5 w-full">
-                            <option value="Billet">${labels.main}</option>
-                            <option value="Option" selected>📊 Option</option>
+                            <option value="Billet" ${isMain ? 'selected' : ''}>${labels.main}</option>
+                            <option value="Option" ${!isMain ? 'selected' : ''}>📊 Option</option>
                             <option value="Ignorer">🚫 Ignorer</option>
                         </select>
                     </td>

@@ -77,11 +77,35 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
 
     if ($currentCamp) {
         $orders = $client->fetchAllOrders($currentCamp['orgSlug'], $currentCamp['formSlug'], $currentCamp['formType']);
+
+        // On pré-charge les règles pour filtrer le guestlist
+        $rules = $currentCamp['rules'] ?? [];
+        $matchRule = function($text) use ($rules) {
+            $text = mb_strtolower($text, 'UTF-8');
+            foreach ($rules as $r) {
+                if (strpos($text, mb_strtolower($r['pattern'], 'UTF-8')) !== false) return $r;
+            }
+            return null;
+        };
+
         $participants = [];
         foreach($orders as $order) {
             foreach($order['items'] as $item) {
                 if (isset($item['state']) && $item['state'] === 'Canceled') continue;
                 if($item['type'] === 'Donation') continue;
+
+                $rule = $matchRule($item['name']);
+                // Si on a une règle "Ignorer" ou "Option", on ne met pas l'item en ligne principale
+                // Sauf si aucune règle n'existe et que l'item a un montant > 0
+                $isMainItem = false;
+                if ($rule) {
+                    if ($rule['type'] === 'Billet') $isMainItem = true;
+                } else if (($item['amount'] ?? 0) > 0) {
+                    $isMainItem = true;
+                }
+
+                if (!$isMainItem) continue;
+
                 $options = []; foreach($item['customFields'] ?? [] as $field) $options[] = $field['name'] . ': ' . $field['answer'];
                 $participants[] = ['date' => substr($order['date'], 0, 10), 'nom' => strtoupper($item['user']['lastName'] ?? $order['payer']['lastName']), 'prenom' => $item['user']['firstName'] ?? $order['payer']['firstName'], 'formule' => $item['name'], 'options' => implode(' | ', $options), 'email' => $order['payer']['email'], 'ref_commande' => $order['id']];
             }
@@ -94,7 +118,8 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
             foreach ($participants as $p) fputcsv($output, $p); exit;
         }
         if ($action === 'guestlist') {
-            $unit = ($currentCamp['formType'] === 'Shop') ? 'articles' : 'inscrits';
+            $type = $currentCamp['formType'] ?? 'Event';
+            $unit = (in_array($type, ['Shop', 'Checkout', 'PaymentForm'])) ? 'articles' : 'inscrits';
             ?>
             <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Liste - <?= htmlspecialchars($currentCamp['title']) ?></title><script src="https://cdn.tailwindcss.com"></script><style>@media print{.no-print{display:none!important}body{background:white}.page-break{page-break-inside:avoid}}.checked-in{text-decoration:line-through;color:#cbd5e1;background:#f8fafc}</style></head><body class="bg-slate-50 text-slate-900 p-8 min-h-screen"><div class="max-w-4xl mx-auto bg-white p-8 rounded shadow-sm min-h-full print:shadow-none"><div class="flex justify-between items-center mb-8 border-b pb-4"><div><h1 class="text-2xl font-black uppercase"><?= htmlspecialchars($currentCamp['title']) ?></h1><p class="text-sm text-slate-500">Total : <?= count($participants) ?> <?= $unit ?></p></div><div class="flex gap-2 no-print"><button onclick="window.print()" class="bg-slate-900 text-white px-4 py-2 rounded font-bold text-xs uppercase">Imprimer</button><a href="admin.php" class="bg-slate-200 text-slate-600 px-4 py-2 rounded font-bold text-xs uppercase">Retour</a></div></div><div class="mb-4 no-print"><input type="text" id="search" placeholder="Rechercher un nom..." class="w-full bg-slate-100 p-3 rounded border border-transparent focus:border-blue-500 outline-none font-bold" onkeyup="filterList()"></div><table class="w-full text-left text-sm border-collapse"><thead class="bg-slate-100 text-slate-500 uppercase text-[10px] font-black"><tr><th class="p-3">Émargement</th><th class="p-3">Nom Prénom</th><th class="p-3">Article / Formule</th><th class="p-3">Options</th></tr></thead><tbody id="list-body"><?php foreach($participants as $idx=>$p): ?><tr class="border-b border-slate-100 hover:bg-slate-50 page-break cursor-pointer transition" onclick="toggleCheck(this,'<?= $p['ref_commande'].'_'.$idx ?>')"><td class="p-3 w-16 text-center"><div class="w-6 h-6 border-2 border-slate-300 rounded mx-auto check-box flex items-center justify-center text-transparent">✓</div></td><td class="p-3 font-bold search-target"><span class="block uppercase"><?= $p['nom'] ?></span><span class="text-slate-500 font-normal"><?= $p['prenom'] ?></span></td><td class="p-3 text-xs font-bold text-blue-600"><?= $p['formule'] ?></td><td class="p-3 text-xs text-slate-400 italic"><?= $p['options']?:'-' ?></td></tr><?php endforeach; ?></tbody></table></div><script>function filterList(){const t=document.getElementById('search').value.toLowerCase();document.querySelectorAll('#list-body tr').forEach(r=>{r.style.display=r.querySelector('.search-target').innerText.toLowerCase().includes(t)?'':'none'})}function toggleCheck(r,id){const c=r.classList.toggle('checked-in');r.querySelector('.check-box').classList.toggle('bg-emerald-500',c);r.querySelector('.check-box').classList.toggle('border-transparent',c);r.querySelector('.check-box').classList.toggle('text-white',c);let s=JSON.parse(localStorage.getItem('checkin_<?= $slug ?>')||'{}');if(c)s[id]=1;else delete s[id];localStorage.setItem('checkin_<?= $slug ?>',JSON.stringify(s))}window.onload=function(){let s=JSON.parse(localStorage.getItem('checkin_<?= $slug ?>')||'{}');}</script></body></html>
             <?php exit;
@@ -116,18 +141,37 @@ if ($action === 'analyze') {
     header('Content-Type: application/json');
     $form = $_GET['form']; $org = $_GET['org'];
     $orders = $client->fetchAllOrders($org, $form, $_GET['type'] ?? 'Event');
-    $apiItems = [];
+    $itemsFound = [];
     foreach(array_slice($orders, 0, 100) as $o) {
         foreach($o['items'] ?? [] as $i) {
-            if(!empty($i['name'])) $apiItems[] = trim($i['name']);
-            foreach($i['customFields'] ?? [] as $cf) if(!empty($cf['name'])) $apiItems[] = trim($cf['name']);
+            if(!empty($i['name'])) {
+                $name = trim($i['name']);
+                if (!isset($itemsFound[$name])) {
+                    // On détermine si c'est un item principal (Billet/Produit) ou une option
+                    // Si montant > 0 ou type non Donation, on tend vers Billet
+                    $isProbableMain = ($i['amount'] > 0);
+                    $itemsFound[$name] = ['pattern' => $name, 'category' => 'item', 'isMain' => $isProbableMain];
+                }
+            }
+            foreach($i['customFields'] ?? [] as $cf) {
+                if(!empty($cf['name'])) {
+                    $name = trim($cf['name']);
+                    if (!isset($itemsFound[$name])) {
+                        $itemsFound[$name] = ['pattern' => $name, 'category' => 'field', 'isMain' => false];
+                    }
+                }
+            }
         }
     }
-    $apiItems = array_unique($apiItems);
+
     $configFile = __DIR__ . "/../config/campaigns/$form.json";
     $existing = file_exists($configFile) ? json_decode(file_get_contents($configFile), true) : [];
     echo json_encode([
-        'rules' => $existing['rules'] ?? [], 'goals' => $existing['goals'] ?? ['revenue'=>0, 'tickets'=>0, 'n1'=>0], 'markers' => $existing['markers'] ?? [], 'shareToken' => $existing['shareToken'] ?? null, 'apiItems' => array_values($apiItems)
+        'rules' => $existing['rules'] ?? [],
+        'goals' => $existing['goals'] ?? ['revenue'=>0, 'tickets'=>0, 'n1'=>0],
+        'markers' => $existing['markers'] ?? [],
+        'shareToken' => $existing['shareToken'] ?? null,
+        'apiItems' => array_values($itemsFound)
     ]); exit;
 }
 ?>
@@ -254,14 +298,15 @@ if ($action === 'analyze') {
             'Membership': { main: 'Adhésion', quota: 'Quota Adhésions' },
             'Donation': { main: 'Don', quota: 'Objectif Dons' },
             'Crowdfunding': { main: 'Contribution', quota: 'Objectif Contrib.' },
-            'PaymentForm': { main: 'Article', quota: 'Quota Articles' }
+            'PaymentForm': { main: 'Article', quota: 'Quota Articles' },
+            'Checkout': { main: 'Produit', quota: 'Quota Articles' }
         };
         const labels = labelsMap[type] || labelsMap['Event'];
 
         const zone = document.getElementById('config-zone'); zone.innerHTML = '<div class="py-20 text-center animate-pulse">Chargement...</div>'; zone.scrollIntoView({ behavior: 'smooth' });
         const res = await fetch(`admin.php?action=analyze&org=${org}&form=${slug}&type=${type}`); const data = await res.json();
         const goals = data.goals || { revenue: 0, tickets: 0, n1: 0 }; const rules = data.rules || []; const token = data.shareToken || '';
-        (data.apiItems || []).forEach(pattern => { if(!rules.find(r => r.pattern === pattern)) rules.push({ pattern, displayLabel: pattern, type: 'Option', group: 'Divers', chartType: 'pie', transform: '', hidden: false }); });
+        (data.apiItems || []).forEach(item => { if(!rules.find(r => r.pattern === item.pattern)) rules.push({ pattern: item.pattern, displayLabel: item.pattern, type: item.isMain ? 'Billet' : 'Option', group: 'Divers', chartType: 'pie', transform: '', hidden: false }); });
         zone.innerHTML = `<div class="mt-20 pt-20 border-t border-slate-200"><div class="flex justify-between items-center mb-12"><h2 class="text-2xl font-black italic uppercase">${name}</h2><button id="save-main-btn" class="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs">Sauvegarder</button></div><div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10"><div class="admin-card p-8"><h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic">Objectifs financiers & Quotas</h3><div class="grid gap-4"><div><label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Cible Financière (€)</label><input type="number" id="goal-rev" class="input-soft" value="${goals.revenue}"></div><div><label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">${labels.quota} (Qté)</label><input type="number" id="goal-tix" class="input-soft" value="${goals.tickets}"></div><div><label class="text-[10px] font-bold text-slate-500 uppercase block mb-1">Ref N-1</label><input type="number" id="goal-n1" class="input-soft" value="${goals.n1}"></div></div></div><div class="admin-card p-8"><h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic">Marqueurs Timeline</h3><div id="markers-list" class="space-y-2 mb-4">${(data.markers || []).map(m => `<div class="flex gap-2 marker-row"><input type="text" placeholder="Action" class="marker-label input-soft !py-2 !text-xs" value="${m.label}"><input type="date" class="marker-date input-soft !py-2 !text-xs w-36" value="${m.date}"><button onclick="this.parentElement.remove()" class="text-red-400 px-2"><i class="fa-solid fa-times"></i></button></div>`).join('')}</div><button onclick="addMarkerRow()" class="text-[10px] font-black text-blue-600 uppercase">+ Nouveau marqueur</button></div></div><div id="rules-list" class="space-y-2"><h3 class="text-xs font-black uppercase text-slate-400 mb-4 pl-2">Configuration de l'importation</h3>${rules.map(r => `<div class="rule-tile admin-card p-6 flex flex-col md:flex-row items-center gap-4" data-item="${r.pattern}"><div class="cursor-grab text-slate-300"><i class="fa-solid fa-grip-lines"></i></div><div class="toggle-btn ${r.hidden ? '' : 'active'}" onclick="this.classList.toggle('active')"></div><div class="flex-1 w-full"><input type="text" class="display-label input-soft !py-2 !text-sm" value="${r.displayLabel}"><p class="text-[9px] font-bold text-slate-300 uppercase mt-1 truncate italic">Source : ${r.pattern}</p></div><div class="grid grid-cols-2 lg:grid-cols-4 gap-2 w-full lg:w-auto"><input type="text" class="rule-group input-soft !py-2 !px-3 !text-[10px] uppercase" value="${r.group || 'Divers'}" placeholder="NOM DU BLOC"><select class="rule-type input-soft !py-2 !px-3 !text-[10px] uppercase font-black"><option value="Billet" ${r.type==='Billet'?'selected':''}>${labels.main}</option><option value="Option" ${r.type==='Option'?'selected':''}>Option</option><option value="Ignorer" ${r.type==='Ignorer'?'selected':''}>Cacher</option></select><select class="rule-chart input-soft !py-2 !px-3 !text-[10px] uppercase font-black"><option value="pie" ${r.chartType==='pie'?'selected':''}>Secteurs</option><option value="bar" ${r.chartType==='bar'?'selected':''}>Barres</option></select><input type="text" class="rule-transform input-soft !py-2 !px-3 !text-[10px] font-mono text-blue-500" value="${r.transform || ''}" placeholder="REGEX/TRANS"></div></div>`).join('')}</div></div>`;
         document.getElementById('save-main-btn').onclick = () => save(org, slug, type, name, token);
         new Sortable(document.getElementById('rules-list'), { animation: 150, handle: '.cursor-grab' });
