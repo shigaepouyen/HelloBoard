@@ -32,16 +32,16 @@ async function configureForm(org, form, type, name) {
                     </div>
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-separate border-spacing-y-3">
+                <div class="overflow-x-auto pb-4">
+                    <table class="w-full text-left border-separate border-spacing-y-3 min-w-[800px]">
                         <thead>
-                            <tr class="text-slate-400 uppercase tracking-widest text-[10px] font-black">
-                                <th class="px-4 py-2">Visible</th>
-                                <th class="px-4 py-2">Source HelloAsso</th>
-                                <th class="px-4 py-2">Nom Affiché</th>
-                                <th class="px-4 py-2">Catégorie</th>
-                                <th class="px-4 py-2">Bloc</th>
-                                ${type === 'Shop' ? '<th class="px-4 py-2">Revient / Vente</th>' : ''}
+                            <tr class="text-slate-400 uppercase tracking-widest text-[10px] font-black italic">
+                                <th class="px-4 py-2 w-16 text-center">Actif</th>
+                                <th class="px-4 py-2">Article (Source HelloAsso)</th>
+                                <th class="px-4 py-2 w-1/4">Nom Affiché</th>
+                                <th class="px-4 py-2 w-32">Catégorie</th>
+                                <th class="px-4 py-2 w-32">Bloc Graphique</th>
+                                ${type === 'Shop' ? '<th class="px-4 py-2 w-40 text-center">P. Revient / Vente</th>' : ''}
                             </tr>
                         </thead>
                         <tbody id="rules-body">
@@ -54,20 +54,22 @@ async function configureForm(org, form, type, name) {
             const isMain = item.isMain;
             html += `
                 <tr class="rule-row group" data-pattern="${pattern}">
-                    <td class="py-3 px-4 bg-slate-50 first:rounded-l-2xl">
+                    <td class="py-3 px-4 bg-slate-50 first:rounded-l-2xl text-center">
                         <input type="checkbox" class="rule-visible w-5 h-5 accent-blue-600 cursor-pointer" checked>
                     </td>
-                    <td class="py-3 px-4 bg-slate-50 font-bold text-slate-400 text-[10px] uppercase truncate max-w-[200px]" title="${pattern}">
-                        ${pattern}
+                    <td class="py-3 px-4 bg-slate-50">
+                        <p class="font-bold text-slate-400 text-[10px] uppercase truncate max-w-[250px] italic" title="${pattern}">
+                            ${pattern}
+                        </p>
                     </td>
                     <td class="py-3 px-4 bg-slate-50">
-                        <input type="text" class="display-label input-soft !py-2 !text-sm" value="${pattern}">
+                        <input type="text" class="display-label input-soft !py-2 !text-sm border-transparent focus:border-blue-500" value="${pattern}">
                     </td>
                     <td class="py-3 px-4 bg-slate-50">
                         <select class="rule-type input-soft !py-2 !text-xs font-black uppercase">
                             <option value="Billet" ${isMain ? 'selected' : ''}>${labels.main}</option>
                             <option value="Option" ${!isMain ? 'selected' : ''}>📊 Option</option>
-                            <option value="Ignorer">🚫 Cacher</option>
+                            <option value="Ignorer">🚫 Masquer</option>
                         </select>
                     </td>
                     <td class="py-3 px-4 bg-slate-50 ${type === 'Shop' ? '' : 'last:rounded-r-2xl'}">
@@ -75,9 +77,9 @@ async function configureForm(org, form, type, name) {
                     </td>
                     ${type === 'Shop' ? `
                     <td class="py-3 px-4 bg-slate-50 last:rounded-r-2xl">
-                        <div class="flex gap-1">
-                            <input type="number" step="0.01" class="rule-cost-price input-soft !py-2 !px-2 !text-[10px] w-16" placeholder="Revient">
-                            <input type="number" step="0.01" class="rule-selling-price input-soft !py-2 !px-2 !text-[10px] w-16" placeholder="Vente">
+                        <div class="flex gap-1 justify-center">
+                            <input type="number" step="0.01" class="rule-cost-price input-soft !py-2 !px-2 !text-[10px] w-16 text-center" placeholder="Revient" title="Prix de revient">
+                            <input type="number" step="0.01" class="rule-selling-price input-soft !py-2 !px-2 !text-[10px] w-16 text-center" placeholder="Vente" title="Prix de vente">
                         </div>
                     </td>
                     ` : ''}
