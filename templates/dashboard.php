@@ -267,27 +267,29 @@
             };
             const labels = labelsMap[meta.formType] || labelsMap['Event'];
 
-            document.getElementById('label-participants').innerText = labels.main;
-            document.getElementById('label-heatmap').innerText = `Heatmap : Densité des ${labels.list}`;
-            document.getElementById('label-modal-unit').innerText = labels.list;
+            if (document.getElementById('label-participants')) document.getElementById('label-participants').innerText = labels.main;
+            if (document.getElementById('label-heatmap')) document.getElementById('label-heatmap').innerText = `Heatmap : Densité des ${labels.list}`;
+            if (document.getElementById('label-modal-unit')) document.getElementById('label-modal-unit').innerText = labels.list;
 
             State.allRecent = d.recent || [];
 
             // KPIS
-            document.getElementById('val-revenue').innerText = new Intl.NumberFormat('fr-FR', {style:'currency', currency:'EUR', minimumFractionDigits:0}).format(d.kpi.revenue);
-            
+            if (document.getElementById('val-revenue')) document.getElementById('val-revenue').innerText = new Intl.NumberFormat('fr-FR', {style:'currency', currency:'EUR', minimumFractionDigits:0}).format(d.kpi.revenue);
+
             const isShop = (meta.formType === 'Shop' || meta.formType === 'Checkout' || meta.formType === 'product');
-            document.getElementById('val-participants').innerText = isShop ? d.kpi.orderCount : d.kpi.participants;
+            if (document.getElementById('val-participants')) document.getElementById('val-participants').innerText = isShop ? d.kpi.orderCount : d.kpi.participants;
 
             const n1Container = document.getElementById('n1-container');
-            if (isShop) {
-                n1Container.classList.remove('hidden');
-                n1Container.innerHTML = `<i class="fa-solid fa-box-open mr-1"></i> ${d.kpi.participants} articles vendus`;
-            } else if (goals.n1 > 0) {
-                n1Container.classList.remove('hidden');
-                n1Container.innerHTML = `Vs ${goals.n1} l'an passé`;
-            } else {
-                n1Container.classList.add('hidden');
+            if (n1Container) {
+                if (isShop) {
+                    n1Container.classList.remove('hidden');
+                    n1Container.innerHTML = `<i class="fa-solid fa-box-open mr-1"></i> ${d.kpi.participants} articles vendus`;
+                } else if (goals.n1 > 0) {
+                    n1Container.classList.remove('hidden');
+                    n1Container.innerHTML = `Vs ${goals.n1} l'an passé`;
+                } else {
+                    n1Container.classList.add('hidden');
+                }
             }
 
             if (d.kpi.donations > 0) {
@@ -295,13 +297,14 @@
                 if (container) {
                     container.classList.remove('opacity-0');
                     container.classList.add('opacity-100');
+                    if (document.getElementById('val-donations')) {
+                        document.getElementById('val-donations').innerText = new Intl.NumberFormat('fr-FR', {
+                            style: 'currency',
+                            currency: 'EUR',
+                            minimumFractionDigits: 0
+                        }).format(d.kpi.donations);
+                    }
                 }
-                
-                document.getElementById('val-donations').innerText = new Intl.NumberFormat('fr-FR', {
-                    style: 'currency', 
-                    currency: 'EUR', 
-                    minimumFractionDigits: 0
-                }).format(d.kpi.donations);
             }
 
             if (d.kpi.attachment_rate !== undefined) {
@@ -311,31 +314,31 @@
             
             // PACING
             if (d.pacing && goals.revenue > 0) {
-                document.getElementById('pacing-container').classList.remove('hidden');
-                document.getElementById('pacing-date').innerText = d.pacing.projectedDate || '--';
-                document.getElementById('alert-slowdown').classList.toggle('hidden', !d.pacing.isSlowingDown);
-                document.getElementById('alert-speedup').classList.toggle('hidden', d.pacing.trend !== 'up');
+                if (document.getElementById('pacing-container')) document.getElementById('pacing-container').classList.remove('hidden');
+                if (document.getElementById('pacing-date')) document.getElementById('pacing-date').innerText = d.pacing.projectedDate || '--';
+                if (document.getElementById('alert-slowdown')) document.getElementById('alert-slowdown').classList.toggle('hidden', !d.pacing.isSlowingDown);
+                if (document.getElementById('alert-speedup')) document.getElementById('alert-speedup').classList.toggle('hidden', d.pacing.trend !== 'up');
             }
 
             // JAUGES
             if (goals.revenue > 0) {
-                document.getElementById('goal-revenue-container').classList.remove('hidden');
+                if (document.getElementById('goal-revenue-container')) document.getElementById('goal-revenue-container').classList.remove('hidden');
                 const pct = Math.min(100, (d.kpi.revenue / goals.revenue) * 100);
-                document.getElementById('goal-revenue-bar').style.width = pct + '%';
-                document.getElementById('goal-revenue-text').innerText = `Objectif : ${goals.revenue}€`;
-                document.getElementById('goal-revenue-percent').innerText = Math.round(pct) + '%';
+                if (document.getElementById('goal-revenue-bar')) document.getElementById('goal-revenue-bar').style.width = pct + '%';
+                if (document.getElementById('goal-revenue-text')) document.getElementById('goal-revenue-text').innerText = `Objectif : ${goals.revenue}€`;
+                if (document.getElementById('goal-revenue-percent')) document.getElementById('goal-revenue-percent').innerText = Math.round(pct) + '%';
             }
             if (goals.tickets > 0) {
-                document.getElementById('goal-tickets-container').classList.remove('hidden');
+                if (document.getElementById('goal-tickets-container')) document.getElementById('goal-tickets-container').classList.remove('hidden');
                 const pct = Math.min(100, (d.kpi.participants / goals.tickets) * 100);
-                document.getElementById('goal-tickets-bar').style.width = pct + '%';
+                if (document.getElementById('goal-tickets-bar')) document.getElementById('goal-tickets-bar').style.width = pct + '%';
                 const unitLabel = isShop ? 'articles' : labels.unit;
-                document.getElementById('goal-tickets-text').innerText = `Quotas : ${goals.tickets} ${unitLabel}`;
-                document.getElementById('goal-tickets-percent').innerText = Math.round(pct) + '%';
+                if (document.getElementById('goal-tickets-text')) document.getElementById('goal-tickets-text').innerText = `Quotas : ${goals.tickets} ${unitLabel}`;
+                if (document.getElementById('goal-tickets-percent')) document.getElementById('goal-tickets-percent').innerText = Math.round(pct) + '%';
             }
             if (goals.n1 > 0) {
-                document.getElementById('n1-container').classList.remove('hidden');
-                document.getElementById('val-n1').innerText = goals.n1;
+                if (document.getElementById('n1-container')) document.getElementById('n1-container').classList.remove('hidden');
+                if (document.getElementById('val-n1')) document.getElementById('val-n1').innerText = goals.n1;
             }
 
             // RENDU
@@ -346,27 +349,63 @@
             const shopBreakdownGrid = document.getElementById('shop-breakdown-grid');
             if (isShop && d.kpi.productBreakdown && Object.keys(d.kpi.productBreakdown).length > 0) {
                 shopBreakdownGrid.classList.remove('hidden');
-                shopBreakdownGrid.innerHTML = `
+
+                let inventoryHtml = `
                     <section class="sexy-card p-10 reveal">
                         <div class="flex justify-between items-center mb-8">
                             <h3 class="text-xs font-black uppercase text-slate-400 italic">Répartition des quantités par produit</h3>
                             <span class="bg-blue-50 text-blue-600 text-[10px] font-black px-3 py-1 rounded-full uppercase italic">Inventaire</span>
                         </div>
                         <div class="space-y-4">
-                            ${Object.entries(d.kpi.productBreakdown).sort((a,b) => b[1] - a[1]).map(([name, qty]) => `
+                            ${Object.entries(d.kpi.productBreakdown).sort((a,b) => b[1].count - a[1].count).map(([name, data]) => `
                                 <div class="flex items-center justify-between">
                                     <span class="text-sm font-bold text-slate-600 truncate mr-4">${name}</span>
                                     <div class="flex items-center gap-3 shrink-0">
                                         <div class="h-1.5 w-24 bg-slate-100 rounded-full overflow-hidden">
-                                            <div class="h-full bg-blue-500 rounded-full" style="width: ${(qty / d.kpi.participants * 100)}%"></div>
+                                            <div class="h-full bg-blue-500 rounded-full" style="width: ${(data.count / d.kpi.participants * 100)}%"></div>
                                         </div>
-                                        <span class="text-sm font-black text-slate-900 w-8 text-right">${qty}</span>
+                                        <span class="text-sm font-black text-slate-900 w-8 text-right">${data.count}</span>
                                     </div>
                                 </div>
                             `).join('')}
                         </div>
                     </section>
                 `;
+
+                let performanceHtml = `
+                    <section class="sexy-card p-10 reveal overflow-x-auto">
+                        <div class="flex justify-between items-center mb-8">
+                            <h3 class="text-xs font-black uppercase text-slate-400 italic">Détail Performance par Produit</h3>
+                            <span class="bg-emerald-50 text-emerald-600 text-[10px] font-black px-3 py-1 rounded-full uppercase italic">Rentabilité</span>
+                        </div>
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
+                                    <th class="pb-4">Produit</th>
+                                    <th class="pb-4 text-right">CA</th>
+                                    <th class="pb-4 text-right">Bénéfice</th>
+                                    <th class="pb-4 text-right">Marge</th>
+                                    <th class="pb-4 text-right text-xs">Contrib.</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-50">
+                                ${Object.entries(d.kpi.productBreakdown).sort((a,b) => b[1].revenue - a[1].revenue).map(([name, data]) => `
+                                    <tr class="group hover:bg-slate-50 transition-colors">
+                                        <td class="py-4 text-sm font-bold text-slate-700">${name}</td>
+                                        <td class="py-4 text-sm font-black text-slate-900 text-right">${Math.round(data.revenue)}€</td>
+                                        <td class="py-4 text-sm font-black text-emerald-600 text-right">${Math.round(data.benefit)}€</td>
+                                        <td class="py-4 text-sm font-black text-slate-500 text-right">${data.marginRate.toFixed(1)}%</td>
+                                        <td class="py-4 text-right">
+                                            <span class="text-[10px] font-black bg-blue-50 text-blue-600 px-2 py-1 rounded-md">${data.contribution.toFixed(1)}%</span>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </section>
+                `;
+
+                shopBreakdownGrid.innerHTML = `<div class="grid grid-cols-1 gap-6">${inventoryHtml}${performanceHtml}</div>`;
             } else {
                 shopBreakdownGrid.classList.add('hidden');
             }

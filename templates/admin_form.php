@@ -42,6 +42,7 @@ async function configureForm(org, form, type, name) {
                                 <th class="px-4 py-2">Nom Affiché</th>
                                 <th class="px-4 py-2">Catégorie</th>
                                 <th class="px-4 py-2">Bloc</th>
+                                ${type === 'Shop' ? '<th class="px-4 py-2">Revient / Vente</th>' : ''}
                             </tr>
                         </thead>
                         <tbody id="rules-body">
@@ -70,9 +71,17 @@ async function configureForm(org, form, type, name) {
                             <option value="Ignorer">🚫 Cacher</option>
                         </select>
                     </td>
-                    <td class="py-3 px-4 bg-slate-50 last:rounded-r-2xl">
+                    <td class="py-3 px-4 bg-slate-50 ${type === 'Shop' ? '' : 'last:rounded-r-2xl'}">
                         <input type="text" class="rule-group input-soft !py-2 !text-xs uppercase" placeholder="DIVERS">
                     </td>
+                    ${type === 'Shop' ? `
+                    <td class="py-3 px-4 bg-slate-50 last:rounded-r-2xl">
+                        <div class="flex gap-1">
+                            <input type="number" step="0.01" class="rule-cost-price input-soft !py-2 !px-2 !text-[10px] w-16" placeholder="Revient">
+                            <input type="number" step="0.01" class="rule-selling-price input-soft !py-2 !px-2 !text-[10px] w-16" placeholder="Vente">
+                        </div>
+                    </td>
+                    ` : ''}
                 </tr>
             `;
         });
@@ -107,7 +116,9 @@ async function saveFullCampaign(org, form, type, name) {
             group: row.querySelector('.rule-group').value || 'Divers',
             chartType: "doughnut",
             transform: "",
-            hidden: !row.querySelector('.rule-visible').checked
+            hidden: !row.querySelector('.rule-visible').checked,
+            costPrice: row.querySelector('.rule-cost-price') ? parseFloat(row.querySelector('.rule-cost-price').value) : 0,
+            sellingPrice: row.querySelector('.rule-selling-price') ? parseFloat(row.querySelector('.rule-selling-price').value) : 0
         });
     });
 

@@ -98,7 +98,15 @@ class StatsEngine {
                             $this->addToGroup($groups, $rule ?: ['group' => 'Divers'], $displayLabel, 1);
 
                             // Aggregate all main items (tickets/products) for a global breakdown
-                            $stats['kpi']['productBreakdown'][$displayLabel] = ($stats['kpi']['productBreakdown'][$displayLabel] ?? 0) + 1;
+                            if (!isset($stats['kpi']['productBreakdown'][$displayLabel])) {
+                                $stats['kpi']['productBreakdown'][$displayLabel] = [
+                                    'count' => 0,
+                                    'revenue' => 0,
+                                    'costPrice' => (float)($rule['costPrice'] ?? 0)
+                                ];
+                            }
+                            $stats['kpi']['productBreakdown'][$displayLabel]['count']++;
+                            $stats['kpi']['productBreakdown'][$displayLabel]['revenue'] += $amount;
                         }
 
                         $recentList[] = [
@@ -191,6 +199,14 @@ class StatsEngine {
         
         usort($recentList, function($a, $b) { return $b['ts'] - $a['ts']; });
         $stats['recent'] = $recentList;
+
+        // Finalize product breakdown calculations
+        $totalRevenue = $stats['kpi']['revenue'];
+        foreach ($stats['kpi']['productBreakdown'] as $label => &$data) {
+            $data['benefit'] = $data['revenue'] - ($data['count'] * $data['costPrice']);
+            $data['marginRate'] = $data['revenue'] > 0 ? ($data['benefit'] / $data['revenue']) * 100 : 0;
+            $data['contribution'] = $totalRevenue > 0 ? ($data['revenue'] / $totalRevenue) * 100 : 0;
+        }
 
         return $stats;
     }
