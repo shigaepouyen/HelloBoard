@@ -78,8 +78,6 @@ class HelloAssoClient {
         $decoded = json_decode($response, true);
         $this->writeToDisk('RESPONSE', "Code: $httpCode", $decoded ?: $response);
 
-        curl_close($ch);
-
         return ['code' => $httpCode, 'body' => $decoded];
     }
 
