@@ -41,7 +41,7 @@ async function configureForm(org, form, type, name) {
                                 <th class="px-4 py-2 w-1/4">Nom Affiché</th>
                                 <th class="px-4 py-2 w-32">Catégorie</th>
                                 <th class="px-4 py-2 w-32">Bloc Graphique</th>
-                                ${type === 'Shop' ? '<th class="px-4 py-2 w-40 text-center">P. Revient / Vente</th>' : ''}
+                                ${type === 'Shop' ? '<th class="px-4 py-2 w-48 text-center">P. Revient / Vente / Stock</th>' : ''}
                             </tr>
                         </thead>
                         <tbody id="rules-body">
@@ -80,6 +80,7 @@ async function configureForm(org, form, type, name) {
                         <div class="flex gap-1 justify-center">
                             <input type="number" step="0.01" class="rule-cost-price input-soft !py-2 !px-2 !text-[10px] w-16 text-center" placeholder="Revient" title="Prix de revient">
                             <input type="number" step="0.01" class="rule-selling-price input-soft !py-2 !px-2 !text-[10px] w-16 text-center" placeholder="Vente" title="Prix de vente">
+                            <input type="number" class="rule-stock input-soft !py-2 !px-2 !text-[10px] w-16 text-center" placeholder="Stock" title="Stock initial">
                         </div>
                     </td>
                     ` : ''}
@@ -119,7 +120,8 @@ async function saveFullCampaign(org, form, type, name) {
             transform: "",
             hidden: !row.querySelector('.rule-visible').checked,
             costPrice: row.querySelector('.rule-cost-price') ? parseFloat(row.querySelector('.rule-cost-price').value) : 0,
-            sellingPrice: row.querySelector('.rule-selling-price') ? parseFloat(row.querySelector('.rule-selling-price').value) : 0
+            sellingPrice: row.querySelector('.rule-selling-price') ? parseFloat(row.querySelector('.rule-selling-price').value) : 0,
+            stock: row.querySelector('.rule-stock') ? parseInt(row.querySelector('.rule-stock').value) : 0
         });
     });
 

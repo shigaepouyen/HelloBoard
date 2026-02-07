@@ -239,6 +239,213 @@
         `).join('');
     }
 
+    function updateUI(res) {
+        const d = res.data; const meta = res.meta;
+        const goals = meta.goals || { revenue: 0, tickets: 0, n1: 0 };
+
+        const labelsMap = {
+            'Event': { main: 'Inscriptions', unit: 'billets', list: 'inscriptions', timeline: 'Inscr.' },
+            'Shop': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' },
+            'Membership': { main: 'Adhésions', unit: 'adhésions', list: 'adhésions', timeline: 'Adh.' },
+            'Donation': { main: 'Dons', unit: 'donateurs', list: 'dons', timeline: 'Dons' },
+            'Crowdfunding': { main: 'Contributions', unit: 'contributeurs', list: 'contributions', timeline: 'Contrib.' },
+            'PaymentForm': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' },
+            'Checkout': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' }
+        };
+        const formTypeKey = meta.formType ? (meta.formType.charAt(0).toUpperCase() + meta.formType.slice(1)) : 'Event';
+        const labels = labelsMap[formTypeKey] || labelsMap['Event'];
+
+        if (document.getElementById('label-participants')) document.getElementById('label-participants').innerText = labels.main;
+        if (document.getElementById('label-heatmap')) document.getElementById('label-heatmap').innerText = `Heatmap : Densité des ${labels.list}`;
+        if (document.getElementById('label-modal-unit')) {
+            const count = (d.recent || []).length;
+            document.getElementById('label-modal-unit').innerText = labels.list + (count > 1 ? 's' : '');
+        }
+
+        State.allRecent = d.recent || [];
+
+        // KPIS
+        if (document.getElementById('val-revenue')) document.getElementById('val-revenue').innerText = new Intl.NumberFormat('fr-FR', {style:'currency', currency:'EUR', minimumFractionDigits:0}).format(d.kpi.revenue);
+
+        const isShop = (['Shop', 'Checkout', 'PaymentForm', 'Product', 'product'].includes(formTypeKey));
+        if (document.getElementById('val-participants')) document.getElementById('val-participants').innerText = isShop ? d.kpi.orderCount : d.kpi.participants;
+
+        const n1Container = document.getElementById('n1-container');
+        if (n1Container) {
+            if (isShop) {
+                n1Container.classList.remove('hidden');
+                const artCount = d.kpi.participants || 0;
+                n1Container.innerHTML = `<i class="fa-solid fa-box-open mr-1"></i> ${artCount} article${artCount > 1 ? 's' : ''} vendu${artCount > 1 ? 's' : ''}`;
+            } else if (goals.n1 > 0) {
+                n1Container.classList.remove('hidden');
+                n1Container.innerHTML = `Vs ${goals.n1} l'an passé`;
+            } else {
+                n1Container.classList.add('hidden');
+            }
+        }
+
+        if (d.kpi.donations > 0) {
+            const container = document.getElementById('donations-box-container');
+            if (container) {
+                container.classList.remove('opacity-0');
+                container.classList.add('opacity-100');
+                if (document.getElementById('val-donations')) {
+                    document.getElementById('val-donations').innerText = new Intl.NumberFormat('fr-FR', {
+                        style: 'currency',
+                        currency: 'EUR',
+                        minimumFractionDigits: 0
+                    }).format(d.kpi.donations);
+                }
+            }
+        }
+
+        if (d.kpi.attachment_rate !== undefined) {
+            const attachmentEl = document.getElementById('val-attachment');
+            if (attachmentEl) attachmentEl.innerText = d.kpi.attachment_rate;
+        }
+
+        // PACING
+        if (d.pacing && goals.revenue > 0) {
+            if (document.getElementById('pacing-container')) document.getElementById('pacing-container').classList.remove('hidden');
+            if (document.getElementById('pacing-date')) document.getElementById('pacing-date').innerText = d.pacing.projectedDate || '--';
+            if (document.getElementById('alert-slowdown')) document.getElementById('alert-slowdown').classList.toggle('hidden', !d.pacing.isSlowingDown);
+            if (document.getElementById('alert-speedup')) document.getElementById('alert-speedup').classList.toggle('hidden', d.pacing.trend !== 'up');
+        }
+
+        // JAUGES
+        if (goals.revenue > 0) {
+            if (document.getElementById('goal-revenue-container')) document.getElementById('goal-revenue-container').classList.remove('hidden');
+            const pct = Math.min(100, (d.kpi.revenue / goals.revenue) * 100);
+            if (document.getElementById('goal-revenue-bar')) document.getElementById('goal-revenue-bar').style.width = pct + '%';
+            if (document.getElementById('goal-revenue-text')) document.getElementById('goal-revenue-text').innerText = `Objectif : ${goals.revenue}€`;
+            if (document.getElementById('goal-revenue-percent')) document.getElementById('goal-revenue-percent').innerText = Math.round(pct) + '%';
+        }
+        if (goals.tickets > 0) {
+            if (document.getElementById('goal-tickets-container')) document.getElementById('goal-tickets-container').classList.remove('hidden');
+            const pct = Math.min(100, (d.kpi.participants / goals.tickets) * 100);
+            if (document.getElementById('goal-tickets-bar')) document.getElementById('goal-tickets-bar').style.width = pct + '%';
+            const unitLabel = isShop ? 'articles' : labels.unit;
+            if (document.getElementById('goal-tickets-text')) document.getElementById('goal-tickets-text').innerText = `Quotas : ${goals.tickets} ${unitLabel}`;
+            if (document.getElementById('goal-tickets-percent')) document.getElementById('goal-tickets-percent').innerText = Math.round(pct) + '%';
+        }
+        if (goals.n1 > 0) {
+            if (document.getElementById('n1-container')) document.getElementById('n1-container').classList.remove('hidden');
+            if (document.getElementById('val-n1')) document.getElementById('val-n1').innerText = goals.n1;
+        }
+
+        // RENDU
+        renderTimeline(d.timeline, meta.markers || [], labels.timeline);
+        renderHeatmap(d.heatmap);
+
+        // Shop specific: Product breakdown card
+        const shopBreakdownGrid = document.getElementById('shop-breakdown-grid');
+        if (isShop && d.kpi.productBreakdown && Object.keys(d.kpi.productBreakdown).length > 0) {
+            shopBreakdownGrid.classList.remove('hidden');
+
+            let inventoryHtml = `
+                <section class="sexy-card p-10 reveal">
+                    <div class="flex justify-between items-center mb-8">
+                        <h3 class="text-xs font-black uppercase text-slate-400 italic">Répartition des quantités par produit</h3>
+                        <span class="bg-blue-50 text-blue-600 text-[10px] font-black px-3 py-1 rounded-full uppercase italic">Inventaire</span>
+                    </div>
+                    <div class="space-y-4">
+                        ${Object.entries(d.kpi.productBreakdown).sort((a,b) => b[1].count - a[1].count).map(([name, data]) => {
+                            const isSoldOut = data.stock > 0 && data.count >= data.stock;
+                            const percent = data.stock > 0 ? Math.min(100, (data.count / data.stock * 100)) : (data.count / d.kpi.participants * 100);
+                            return `
+                            <div class="flex items-center justify-between">
+                                <div class="flex flex-col min-w-0">
+                                    <span class="text-sm font-bold text-slate-600 truncate mr-4">${name}</span>
+                                    ${isSoldOut ? '<span class="text-[8px] font-black text-red-500 uppercase tracking-widest leading-none mt-0.5 animate-pulse">Indisponible (Stock épuisé)</span>' : ''}
+                                </div>
+                                <div class="flex items-center gap-3 shrink-0">
+                                    <div class="h-1.5 w-24 bg-slate-100 rounded-full overflow-hidden">
+                                        <div class="h-full ${isSoldOut ? 'bg-red-500' : 'bg-blue-500'} rounded-full transition-all duration-1000" style="width: ${percent}%"></div>
+                                    </div>
+                                    <div class="text-right min-w-[3rem]">
+                                        <span class="text-sm font-black text-slate-900">${data.count}</span>
+                                        ${data.stock > 0 ? `<span class="text-[10px] font-bold text-slate-400">/${data.stock}</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </section>
+            `;
+
+            let performanceHtml = `
+                <section class="sexy-card p-10 reveal overflow-x-auto">
+                    <div class="flex justify-between items-center mb-8">
+                        <h3 class="text-xs font-black uppercase text-slate-400 italic">Détail Performance par Produit</h3>
+                        <span class="bg-emerald-50 text-emerald-600 text-[10px] font-black px-3 py-1 rounded-full uppercase italic">Rentabilité</span>
+                    </div>
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
+                                <th class="pb-4">Produit</th>
+                                <th class="pb-4 text-right">CA</th>
+                                <th class="pb-4 text-right">Bénéfice</th>
+                                <th class="pb-4 text-right">Marge</th>
+                                <th class="pb-4 text-right text-xs">Contrib.</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-50">
+                            ${Object.entries(d.kpi.productBreakdown).sort((a,b) => b[1].revenue - a[1].revenue).map(([name, data]) => `
+                                <tr class="group hover:bg-slate-50 transition-colors">
+                                    <td class="py-4 text-sm font-bold text-slate-700">${name}</td>
+                                    <td class="py-4 text-sm font-black text-slate-900 text-right">${Math.round(data.revenue)}€</td>
+                                    <td class="py-4 text-sm font-black text-emerald-600 text-right">${Math.round(data.benefit)}€</td>
+                                    <td class="py-4 text-sm font-black text-slate-500 text-right">${data.marginRate.toFixed(1)}%</td>
+                                    <td class="py-4 text-right">
+                                        <span class="text-[10px] font-black bg-blue-50 text-blue-600 px-2 py-1 rounded-md">${data.contribution.toFixed(1)}%</span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </section>
+            `;
+
+            let matrixHtml = `
+                <section class="sexy-card p-10 reveal">
+                    <div class="flex justify-between items-center mb-8">
+                        <h3 class="text-xs font-black uppercase text-slate-400 italic">Matrice Rentabilité (Volume vs Bénéfice)</h3>
+                        <span class="bg-indigo-50 text-indigo-600 text-[10px] font-black px-3 py-1 rounded-full uppercase italic">Analyse</span>
+                    </div>
+                    <div class="h-80 w-full">
+                        <canvas id="matrixChart"></canvas>
+                    </div>
+                    <p class="text-center text-[10px] font-bold text-slate-400 mt-6 italic">
+                        Plus un point est haut et à droite, meilleur est le produit !
+                    </p>
+                </section>
+            `;
+
+            shopBreakdownGrid.innerHTML = `${inventoryHtml}${performanceHtml}${matrixHtml}`;
+            setTimeout(() => renderMatrix(d.kpi.productBreakdown), 100);
+        } else {
+            shopBreakdownGrid.classList.add('hidden');
+        }
+
+        renderCharts(d.charts);
+
+        // MASQUER LE LOADER
+        const loader = document.getElementById('global-loader');
+        if (loader) {
+            setTimeout(() => {
+                loader.classList.add('fade-out');
+                setTimeout(() => loader.remove(), 500);
+            }, 300);
+        }
+
+        const recentListEl = document.getElementById('recent-list');
+        if (recentListEl) {
+            updateListView(recentListEl, State.allRecent.slice(0, 5));
+        }
+
+        document.getElementById('last-update').innerText = 'MAJ : ' + (meta.lastUpdated || 'A l\'instant');
+    }
+
     async function refresh() {
         const icon = document.getElementById('refresh-icon');
         const btn = document.getElementById('refresh-btn');
@@ -248,205 +455,11 @@
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const token = urlParams.get('token') || '';
-            
+
             const res = await (await fetch(`api.php?campaign=<?= $campaignConfig['slug'] ?>&token=${token}`)).json();
-            
+
             if(!res.success) throw new Error(res.error);
-            const d = res.data; const meta = res.meta;
-            const goals = meta.goals || { revenue: 0, tickets: 0, n1: 0 };
-
-            const labelsMap = {
-                'Event': { main: 'Inscriptions', unit: 'billets', list: 'inscriptions', timeline: 'Inscr.' },
-                'Shop': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' },
-                'Membership': { main: 'Adhésions', unit: 'adhésions', list: 'adhésions', timeline: 'Adh.' },
-                'Donation': { main: 'Dons', unit: 'donateurs', list: 'dons', timeline: 'Dons' },
-                'Crowdfunding': { main: 'Contributions', unit: 'contributeurs', list: 'contributions', timeline: 'Contrib.' },
-                'PaymentForm': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' },
-                'Checkout': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' }
-            };
-            const formTypeKey = meta.formType ? (meta.formType.charAt(0).toUpperCase() + meta.formType.slice(1)) : 'Event';
-            const labels = labelsMap[formTypeKey] || labelsMap['Event'];
-
-            if (document.getElementById('label-participants')) document.getElementById('label-participants').innerText = labels.main;
-            if (document.getElementById('label-heatmap')) document.getElementById('label-heatmap').innerText = `Heatmap : Densité des ${labels.list}`;
-            if (document.getElementById('label-modal-unit')) {
-                const count = (d.recent || []).length;
-                document.getElementById('label-modal-unit').innerText = labels.list + (count > 1 ? 's' : '');
-            }
-
-            State.allRecent = d.recent || [];
-
-            // KPIS
-            if (document.getElementById('val-revenue')) document.getElementById('val-revenue').innerText = new Intl.NumberFormat('fr-FR', {style:'currency', currency:'EUR', minimumFractionDigits:0}).format(d.kpi.revenue);
-
-            const isShop = (['Shop', 'Checkout', 'PaymentForm', 'Product', 'product'].includes(formTypeKey));
-            if (document.getElementById('val-participants')) document.getElementById('val-participants').innerText = isShop ? d.kpi.orderCount : d.kpi.participants;
-
-            const n1Container = document.getElementById('n1-container');
-            if (n1Container) {
-                if (isShop) {
-                    n1Container.classList.remove('hidden');
-                    const artCount = d.kpi.participants || 0;
-                    n1Container.innerHTML = `<i class="fa-solid fa-box-open mr-1"></i> ${artCount} article${artCount > 1 ? 's' : ''} vendu${artCount > 1 ? 's' : ''}`;
-                } else if (goals.n1 > 0) {
-                    n1Container.classList.remove('hidden');
-                    n1Container.innerHTML = `Vs ${goals.n1} l'an passé`;
-                } else {
-                    n1Container.classList.add('hidden');
-                }
-            }
-
-            if (d.kpi.donations > 0) {
-                const container = document.getElementById('donations-box-container');
-                if (container) {
-                    container.classList.remove('opacity-0');
-                    container.classList.add('opacity-100');
-                    if (document.getElementById('val-donations')) {
-                        document.getElementById('val-donations').innerText = new Intl.NumberFormat('fr-FR', {
-                            style: 'currency',
-                            currency: 'EUR',
-                            minimumFractionDigits: 0
-                        }).format(d.kpi.donations);
-                    }
-                }
-            }
-
-            if (d.kpi.attachment_rate !== undefined) {
-                const attachmentEl = document.getElementById('val-attachment');
-                if (attachmentEl) attachmentEl.innerText = d.kpi.attachment_rate;
-            }
-            
-            // PACING
-            if (d.pacing && goals.revenue > 0) {
-                if (document.getElementById('pacing-container')) document.getElementById('pacing-container').classList.remove('hidden');
-                if (document.getElementById('pacing-date')) document.getElementById('pacing-date').innerText = d.pacing.projectedDate || '--';
-                if (document.getElementById('alert-slowdown')) document.getElementById('alert-slowdown').classList.toggle('hidden', !d.pacing.isSlowingDown);
-                if (document.getElementById('alert-speedup')) document.getElementById('alert-speedup').classList.toggle('hidden', d.pacing.trend !== 'up');
-            }
-
-            // JAUGES
-            if (goals.revenue > 0) {
-                if (document.getElementById('goal-revenue-container')) document.getElementById('goal-revenue-container').classList.remove('hidden');
-                const pct = Math.min(100, (d.kpi.revenue / goals.revenue) * 100);
-                if (document.getElementById('goal-revenue-bar')) document.getElementById('goal-revenue-bar').style.width = pct + '%';
-                if (document.getElementById('goal-revenue-text')) document.getElementById('goal-revenue-text').innerText = `Objectif : ${goals.revenue}€`;
-                if (document.getElementById('goal-revenue-percent')) document.getElementById('goal-revenue-percent').innerText = Math.round(pct) + '%';
-            }
-            if (goals.tickets > 0) {
-                if (document.getElementById('goal-tickets-container')) document.getElementById('goal-tickets-container').classList.remove('hidden');
-                const pct = Math.min(100, (d.kpi.participants / goals.tickets) * 100);
-                if (document.getElementById('goal-tickets-bar')) document.getElementById('goal-tickets-bar').style.width = pct + '%';
-                const unitLabel = isShop ? 'articles' : labels.unit;
-                if (document.getElementById('goal-tickets-text')) document.getElementById('goal-tickets-text').innerText = `Quotas : ${goals.tickets} ${unitLabel}`;
-                if (document.getElementById('goal-tickets-percent')) document.getElementById('goal-tickets-percent').innerText = Math.round(pct) + '%';
-            }
-            if (goals.n1 > 0) {
-                if (document.getElementById('n1-container')) document.getElementById('n1-container').classList.remove('hidden');
-                if (document.getElementById('val-n1')) document.getElementById('val-n1').innerText = goals.n1;
-            }
-
-            // RENDU
-            renderTimeline(d.timeline, meta.markers || [], labels.timeline);
-            renderHeatmap(d.heatmap);
-
-            // Shop specific: Product breakdown card
-            const shopBreakdownGrid = document.getElementById('shop-breakdown-grid');
-            if (isShop && d.kpi.productBreakdown && Object.keys(d.kpi.productBreakdown).length > 0) {
-                shopBreakdownGrid.classList.remove('hidden');
-
-                let inventoryHtml = `
-                    <section class="sexy-card p-10 reveal">
-                        <div class="flex justify-between items-center mb-8">
-                            <h3 class="text-xs font-black uppercase text-slate-400 italic">Répartition des quantités par produit</h3>
-                            <span class="bg-blue-50 text-blue-600 text-[10px] font-black px-3 py-1 rounded-full uppercase italic">Inventaire</span>
-                        </div>
-                        <div class="space-y-4">
-                            ${Object.entries(d.kpi.productBreakdown).sort((a,b) => b[1].count - a[1].count).map(([name, data]) => `
-                                <div class="flex items-center justify-between">
-                                    <span class="text-sm font-bold text-slate-600 truncate mr-4">${name}</span>
-                                    <div class="flex items-center gap-3 shrink-0">
-                                        <div class="h-1.5 w-24 bg-slate-100 rounded-full overflow-hidden">
-                                            <div class="h-full bg-blue-500 rounded-full" style="width: ${(data.count / d.kpi.participants * 100)}%"></div>
-                                        </div>
-                                        <span class="text-sm font-black text-slate-900 w-8 text-right">${data.count}</span>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </section>
-                `;
-
-                let performanceHtml = `
-                    <section class="sexy-card p-10 reveal overflow-x-auto">
-                        <div class="flex justify-between items-center mb-8">
-                            <h3 class="text-xs font-black uppercase text-slate-400 italic">Détail Performance par Produit</h3>
-                            <span class="bg-emerald-50 text-emerald-600 text-[10px] font-black px-3 py-1 rounded-full uppercase italic">Rentabilité</span>
-                        </div>
-                        <table class="w-full text-left">
-                            <thead>
-                                <tr class="text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
-                                    <th class="pb-4">Produit</th>
-                                    <th class="pb-4 text-right">CA</th>
-                                    <th class="pb-4 text-right">Bénéfice</th>
-                                    <th class="pb-4 text-right">Marge</th>
-                                    <th class="pb-4 text-right text-xs">Contrib.</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-50">
-                                ${Object.entries(d.kpi.productBreakdown).sort((a,b) => b[1].revenue - a[1].revenue).map(([name, data]) => `
-                                    <tr class="group hover:bg-slate-50 transition-colors">
-                                        <td class="py-4 text-sm font-bold text-slate-700">${name}</td>
-                                        <td class="py-4 text-sm font-black text-slate-900 text-right">${Math.round(data.revenue)}€</td>
-                                        <td class="py-4 text-sm font-black text-emerald-600 text-right">${Math.round(data.benefit)}€</td>
-                                        <td class="py-4 text-sm font-black text-slate-500 text-right">${data.marginRate.toFixed(1)}%</td>
-                                        <td class="py-4 text-right">
-                                            <span class="text-[10px] font-black bg-blue-50 text-blue-600 px-2 py-1 rounded-md">${data.contribution.toFixed(1)}%</span>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </section>
-                `;
-
-                let matrixHtml = `
-                    <section class="sexy-card p-10 reveal">
-                        <div class="flex justify-between items-center mb-8">
-                            <h3 class="text-xs font-black uppercase text-slate-400 italic">Matrice Rentabilité (Volume vs Bénéfice)</h3>
-                            <span class="bg-indigo-50 text-indigo-600 text-[10px] font-black px-3 py-1 rounded-full uppercase italic">Analyse</span>
-                        </div>
-                        <div class="h-80 w-full">
-                            <canvas id="matrixChart"></canvas>
-                        </div>
-                        <p class="text-center text-[10px] font-bold text-slate-400 mt-6 italic">
-                            Plus un point est haut et à droite, meilleur est le produit !
-                        </p>
-                    </section>
-                `;
-
-                shopBreakdownGrid.innerHTML = `${inventoryHtml}${performanceHtml}${matrixHtml}`;
-                setTimeout(() => renderMatrix(d.kpi.productBreakdown), 100);
-            } else {
-                shopBreakdownGrid.classList.add('hidden');
-            }
-
-            renderCharts(d.charts);
-            
-            // MASQUER LE LOADER
-            const loader = document.getElementById('global-loader');
-            if (loader) {
-                setTimeout(() => {
-                    loader.classList.add('fade-out');
-                    setTimeout(() => loader.remove(), 500);
-                }, 300);
-            }
-
-            const recentListEl = document.getElementById('recent-list');
-            if (recentListEl) {
-                updateListView(recentListEl, State.allRecent.slice(0, 5));
-            }
-
-            document.getElementById('last-update').innerText = 'MAJ : ' + meta.lastUpdated;
+            updateUI(res);
         } catch (e) { console.error(e); } 
         finally { icon.innerHTML = '<i class="fa-solid fa-sync-alt"></i>'; btn.disabled = false; }
     }
@@ -483,10 +496,11 @@
         const ctx = document.getElementById('matrixChart').getContext('2d');
         if (State.mChart) State.mChart.destroy();
 
+        const maxRev = Math.max(...Object.values(productBreakdown).map(d => d.revenue), 1);
         const dataPoints = Object.entries(productBreakdown).map(([name, data]) => ({
             x: data.count,
             y: data.benefit,
-            r: Math.max(5, Math.min(25, Math.sqrt(data.revenue) * 2)),
+            r: Math.max(5, (data.revenue / maxRev) * 35),
             label: name
         }));
 
@@ -602,7 +616,12 @@
         if (icon) icon.classList.toggle('rotate');
     }
 
-    refresh(); setInterval(refresh, 5 * 60 * 1000);
+    <?php if (!isset($data)): ?>
+    refresh();
+    <?php else: ?>
+    updateUI(<?= json_encode($data) ?>);
+    <?php endif; ?>
+    setInterval(refresh, 5 * 60 * 1000);
     </script>
 </body>
 </html>

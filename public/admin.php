@@ -315,7 +315,7 @@ if ($action === 'analyze') {
                 <div class="w-24">Catégorie</div>
                 <div class="w-24">Graphique</div>
                 <div class="w-24">Nettoyage</div>
-                ${type === 'Shop' ? '<div class="w-24 text-center">P. Revient / P. Vente</div>' : ''}
+                ${type === 'Shop' ? '<div class="w-24 text-center">P. Revient / Vente / Stock</div>' : ''}
             </div>
         `;
 
@@ -403,7 +403,7 @@ if ($action === 'analyze') {
                                     </div>
 
                                     ${type === 'Shop' ? `
-                                        <div class="flex gap-1 lg:w-24">
+                                        <div class="flex gap-1 lg:w-32">
                                             <div class="flex-1 relative">
                                                 <input type="number" step="0.01" class="rule-cost-price input-soft !py-2 !px-1 !text-[10px] text-center" value="${r.costPrice || 0}" title="Prix de revient">
                                                 <span class="absolute -top-3 left-1/2 -translate-x-1/2 text-[7px] font-black text-slate-400 lg:hidden">REVIENT</span>
@@ -411,6 +411,10 @@ if ($action === 'analyze') {
                                             <div class="flex-1 relative">
                                                 <input type="number" step="0.01" class="rule-selling-price input-soft !py-2 !px-1 !text-[10px] text-center" value="${r.sellingPrice || 0}" title="Prix de vente">
                                                 <span class="absolute -top-3 left-1/2 -translate-x-1/2 text-[7px] font-black text-slate-400 lg:hidden">VENTE</span>
+                                            </div>
+                                            <div class="flex-1 relative">
+                                                <input type="number" class="rule-stock input-soft !py-2 !px-1 !text-[10px] text-center" value="${r.stock || 0}" title="Stock initial">
+                                                <span class="absolute -top-3 left-1/2 -translate-x-1/2 text-[7px] font-black text-slate-400 lg:hidden">STOCK</span>
                                             </div>
                                         </div>
                                     ` : ''}
@@ -425,7 +429,7 @@ if ($action === 'analyze') {
     }
     function addMarkerRow() { const div = document.createElement('div'); div.className = 'flex gap-2 marker-row mb-2'; div.innerHTML = `<input type="text" placeholder="Action" class="marker-label input-soft !py-2 !text-xs"><input type="date" class="marker-date input-soft !py-2 !text-xs w-36"><button onclick="this.parentElement.remove()" class="text-red-400 px-2"><i class="fa-solid fa-times"></i></button>`; document.getElementById('markers-list').appendChild(div); }
     async function save(org, slug, type, name, token) {
-        const rules = []; document.querySelectorAll('.rule-tile').forEach(row => { rules.push({ pattern: row.dataset.item, displayLabel: row.querySelector('.display-label').value, type: row.querySelector('.rule-type').value, group: row.querySelector('.rule-group').value || 'Divers', chartType: row.querySelector('.rule-chart').value, transform: row.querySelector('.rule-transform').value, hidden: !row.querySelector('.toggle-btn').classList.contains('active'), costPrice: row.querySelector('.rule-cost-price') ? parseFloat(row.querySelector('.rule-cost-price').value) : 0, sellingPrice: row.querySelector('.rule-selling-price') ? parseFloat(row.querySelector('.rule-selling-price').value) : 0 }); });
+        const rules = []; document.querySelectorAll('.rule-tile').forEach(row => { rules.push({ pattern: row.dataset.item, displayLabel: row.querySelector('.display-label').value, type: row.querySelector('.rule-type').value, group: row.querySelector('.rule-group').value || 'Divers', chartType: row.querySelector('.rule-chart').value, transform: row.querySelector('.rule-transform').value, hidden: !row.querySelector('.toggle-btn').classList.contains('active'), costPrice: row.querySelector('.rule-cost-price') ? parseFloat(row.querySelector('.rule-cost-price').value) : 0, sellingPrice: row.querySelector('.rule-selling-price') ? parseFloat(row.querySelector('.rule-selling-price').value) : 0, stock: row.querySelector('.rule-stock') ? parseInt(row.querySelector('.rule-stock').value) : 0 }); });
         const markers = []; document.querySelectorAll('.marker-row').forEach(row => { const l = row.querySelector('.marker-label').value; const d = row.querySelector('.marker-date').value; if(l && d) markers.push({label: l, date: d}); });
         const config = { slug, title: name, orgSlug: org, formSlug: slug, formType: type, shareToken: token, rules, markers, goals: { revenue: parseFloat(document.getElementById('goal-rev').value), tickets: parseInt(document.getElementById('goal-tix').value), n1: parseInt(document.getElementById('goal-n1').value) } };
         await fetch('admin.php', { method: 'POST', body: new URLSearchParams({save_campaign: 1, config: JSON.stringify(config)}) });

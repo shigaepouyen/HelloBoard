@@ -15,7 +15,7 @@ class StatsEngine {
                 'revenue' => 0,
                 'participants' => 0,
                 'donations' => 0,
-                'orderCount' => count($orders),
+                'orderCount' => 0,
                 'orders_with_tickets' => 0,
                 'orders_with_both' => 0,
                 'attachment_rate' => 0,
@@ -63,10 +63,12 @@ class StatsEngine {
             
             $hasTicketInOrder = false;
             $hasDonationInOrder = false;
+            $hasValidItem = false;
 
             foreach ($order['items'] ?? [] as $item) {
                 // --- MODIFICATION : EXCLUSION DES ITEMS ANNULÉS (State = Canceled) ---
                 if (isset($item['state']) && $item['state'] === 'Canceled') continue;
+                $hasValidItem = true;
 
                 $amount = ($item['amount'] ?? 0) / 100;
                 $rawName = trim($item['name'] ?? 'Inconnu');
@@ -116,7 +118,8 @@ class StatsEngine {
                             $stats['kpi']['productBreakdown'][$displayLabel] = [
                                 'count' => 0,
                                 'revenue' => 0,
-                                'costPrice' => (float)($rule ? ($rule['costPrice'] ?? 0) : 0)
+                                'costPrice' => (float)($rule ? ($rule['costPrice'] ?? 0) : 0),
+                                'stock' => (int)($rule ? ($rule['stock'] ?? 0) : 0)
                             ];
                         }
                         $stats['kpi']['productBreakdown'][$displayLabel]['count']++;
@@ -149,6 +152,10 @@ class StatsEngine {
                         $this->addToGroup($groups, $optRule, $label, 1);
                     }
                 }
+            }
+
+            if ($hasValidItem) {
+                $stats['kpi']['orderCount']++;
             }
 
             if ($hasTicketInOrder) {
