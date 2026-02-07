@@ -104,8 +104,8 @@
                 <p id="last-update" class="text-[9px] font-black text-slate-400 uppercase tracking-widest hidden sm:block"></p>
                 
                 <?php if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true): ?>
-                    <a href="index.php" class="bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-slate-300 transition hidden sm:inline-block">Liste</a>
-                    <a href="admin.php" class="bg-slate-900 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-colors">Admin</a>
+                    <a href="index.php" class="bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-slate-300 transition hidden sm:inline-block">Supervision</a>
+                    <a href="admin.php?action=edit&campaign=<?= $campaignConfig['slug'] ?>" class="bg-slate-900 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-colors">Réglages</a>
                     <a href="index.php?logout=1" class="w-10 h-10 flex items-center justify-center rounded-full bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all"><i class="fa-solid fa-power-off"></i></a>
                 <?php endif; ?>
             </div>
