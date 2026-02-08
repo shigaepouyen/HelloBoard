@@ -173,11 +173,13 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
             if (empty($orderItems)) continue;
 
             if ($groupByOrder) {
-                $main = []; $secondary = []; $fields = []; $phone = '';
+                $main = []; $secondary = []; $fields = []; $phone = ''; $pNames = [];
                 foreach($orderItems as $item) {
                     if ($item['computedType'] === 'Billet') {
                         if(!isset($main[$item['name']])) $main[$item['name']] = 0;
                         $main[$item['name']]++;
+                        $uName = trim(trim($item['user']['firstName'] ?? '') . ' ' . trim($item['user']['lastName'] ?? ''));
+                        if (!empty($uName)) $pNames[] = $uName;
                     } else {
                         if(!isset($secondary[$item['name']])) $secondary[$item['name']] = 0;
                         $secondary[$item['name']]++;
@@ -191,15 +193,17 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                 }
                 $participants[] = [
                     'date' => substr($order['date'], 0, 10),
-                    'nom' => strtoupper($order['payer']['lastName'] ?? ''),
-                    'prenom' => $order['payer']['firstName'] ?? '',
+                    'nom' => strtoupper(trim($order['payer']['lastName'] ?? '')),
+                    'prenom' => trim($order['payer']['firstName'] ?? ''),
                     'main_items' => $main,
                     'secondary_items' => $secondary,
                     'fields' => array_values(array_unique($fields)),
                     'hasDonation' => $hasDonation,
                     'email' => $order['payer']['email'] ?? '',
                     'phone' => $phone,
-                    'ref' => $order['id']
+                    'ref' => $order['id'],
+                    'payer_name' => trim(trim($order['payer']['firstName'] ?? '') . ' ' . trim($order['payer']['lastName'] ?? '')),
+                    'participant_names' => array_values(array_unique($pNames))
                 ];
             } else {
                 foreach($orderItems as $item) {
@@ -215,15 +219,16 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
 
                     $participants[] = [
                         'date' => substr($order['date'], 0, 10),
-                        'nom' => strtoupper($item['user']['lastName'] ?? $order['payer']['lastName'] ?? ''),
-                        'prenom' => $item['user']['firstName'] ?? $order['payer']['firstName'] ?? '',
+                        'nom' => strtoupper(trim($item['user']['lastName'] ?? $order['payer']['lastName'] ?? '')),
+                        'prenom' => trim($item['user']['firstName'] ?? $order['payer']['firstName'] ?? ''),
                         'main_items' => [$item['name'] => 1],
                         'secondary_items' => [],
                         'fields' => $fields,
                         'hasDonation' => $hasDonation,
                         'email' => $order['payer']['email'] ?? '',
                         'phone' => $phone,
-                        'ref' => $order['id'] . '-' . $item['id']
+                        'ref' => $order['id'] . '-' . $item['id'],
+                        'payer_name' => trim(trim($order['payer']['firstName'] ?? '') . ' ' . trim($order['payer']['lastName'] ?? ''))
                     ];
                 }
             }
@@ -239,15 +244,20 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
             header('Content-Type: text/csv; charset=utf-8');
             header('Content-Disposition: attachment; filename=inscrits_' . $slug . '_' . date('Y-m-d') . '.csv');
             $output = fopen('php://output', 'w');
-            fputcsv($output, ['Date', 'Nom', 'Prenom', 'Articles', 'Options/Infos', 'Email', 'Telephone', 'Donation', 'Ref']);
+            fputcsv($output, ['Date', 'Nom', 'Prenom', 'Articles', 'Options/Infos', 'Acheteur', 'Email', 'Telephone', 'Donation', 'Ref']);
             foreach ($participants as $p) {
                 $itemsStr = []; foreach($p['main_items'] as $n=>$q) $itemsStr[] = ($q>1?"$q x ":"").$n;
                 $optStr = []; foreach($p['secondary_items'] as $n=>$q) $optStr[] = ($q>1?"$q x ":"").$n;
+
+                if (!empty($p['participant_names'])) {
+                    $optStr[] = "Inscrits: " . implode(', ', $p['participant_names']);
+                }
+
                 $optStr = array_merge($optStr, $p['fields']);
 
                 fputcsv($output, [
                     $p['date'], $p['nom'], $p['prenom'], implode(', ', $itemsStr), implode(' | ', $optStr),
-                    $p['email'], $p['phone'], ($p['hasDonation']?'OUI':'NON'), $p['ref']
+                    $p['payer_name'] ?? '', $p['email'], $p['phone'], ($p['hasDonation']?'OUI':'NON'), $p['ref']
                 ]);
             }
             exit;

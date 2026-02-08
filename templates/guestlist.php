@@ -198,6 +198,14 @@ $title = htmlspecialchars($currentCamp['title']);
                                         <?php endforeach; ?>
                                     </div>
 
+                                    <?php if(!empty($p['participant_names'])): ?>
+                                        <div class="flex flex-wrap gap-1 mb-2">
+                                            <?php foreach($p['participant_names'] as $uname): ?>
+                                                <span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase italic"><?= htmlspecialchars($uname) ?></span>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php endif; ?>
+
                                     <?php if(!empty($p['secondary_items']) || !empty($p['fields'])): ?>
                                         <div class="flex flex-col gap-1">
                                             <?php foreach($p['secondary_items'] as $name => $qty): ?>
@@ -219,6 +227,13 @@ $title = htmlspecialchars($currentCamp['title']);
 
                             <?php if(in_array('email', $guestlistConfig['columns']) || in_array('phone', $guestlistConfig['columns'])): ?>
                                 <td class="p-4 hide-mobile">
+                                    <?php
+                                    $pFull = trim(($p['prenom'] ?? '') . ' ' . ($p['nom'] ?? ''));
+                                    if (!empty($p['payer_name']) && strtolower($pFull) !== strtolower($p['payer_name'])): ?>
+                                        <div class="text-[9px] font-black uppercase text-slate-400 mb-0.5">Acheteur</div>
+                                        <div class="text-[10px] font-bold text-slate-700 mb-1"><?= htmlspecialchars($p['payer_name']) ?></div>
+                                    <?php endif; ?>
+
                                     <?php if(in_array('email', $guestlistConfig['columns'])): ?>
                                         <div class="text-[10px] font-bold text-slate-500"><?= htmlspecialchars($p['email'] ?: '-') ?></div>
                                     <?php endif; ?>
