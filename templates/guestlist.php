@@ -83,8 +83,22 @@ $title = htmlspecialchars($currentCamp['title']);
             border-color: transparent !important;
             color: white !important;
         }
-        .checked-in .search-target span:first-child {
+        .checked-in .search-target span {
             text-decoration: line-through;
+        }
+
+        .uncheck-mode {
+            background-color: #fef2f2 !important; /* red-50 */
+            border-left: 4px solid #ef4444 !important; /* red-500 */
+        }
+        .uncheck-mode .check-box {
+            background-color: #ef4444 !important;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
 
         /* Responsive adjustments for mobile/tablet check-in */
@@ -143,7 +157,7 @@ $title = htmlspecialchars($currentCamp['title']);
                             <th class="p-4 border-b border-slate-100"><?= $col2Label ?></th>
                         <?php endif; ?>
 
-                        <?php if(in_array('email', $guestlistConfig['columns']) || in_array('phone', $guestlistConfig['columns'])): ?>
+                        <?php if(in_array('email', $guestlistConfig['columns']) || in_array('phone', $guestlistConfig['columns']) || count($participants) > 0): ?>
                             <th class="p-4 border-b border-slate-100 hide-mobile">Contact</th>
                         <?php endif; ?>
 
@@ -172,11 +186,17 @@ $title = htmlspecialchars($currentCamp['title']);
                                 <td class="p-4 search-target">
                                     <div class="flex items-center gap-2">
                                         <div>
-                                            <?php if(in_array('nom', $guestlistConfig['columns'])): ?>
-                                                <span class="block font-black uppercase text-slate-800 leading-tight"><?= htmlspecialchars($p['nom']) ?></span>
-                                            <?php endif; ?>
-                                            <?php if(in_array('prenom', $guestlistConfig['columns'])): ?>
-                                                <span class="block text-sm text-slate-500 font-semibold leading-tight"><?= htmlspecialchars($p['prenom']) ?></span>
+                                            <?php if(!empty($p['participant_names'])): ?>
+                                                <?php foreach($p['participant_names'] as $uname): ?>
+                                                    <span class="block font-black uppercase text-slate-800 leading-tight"><?= htmlspecialchars($uname) ?></span>
+                                                <?php endforeach; ?>
+                                            <?php else: ?>
+                                                <?php if(in_array('nom', $guestlistConfig['columns'])): ?>
+                                                    <span class="block font-black uppercase text-slate-800 leading-tight"><?= htmlspecialchars($p['nom']) ?></span>
+                                                <?php endif; ?>
+                                                <?php if(in_array('prenom', $guestlistConfig['columns'])): ?>
+                                                    <span class="block text-sm text-slate-500 font-semibold leading-tight"><?= htmlspecialchars($p['prenom']) ?></span>
+                                                <?php endif; ?>
                                             <?php endif; ?>
                                         </div>
                                         <?php if($p['hasDonation']): ?>
@@ -198,14 +218,6 @@ $title = htmlspecialchars($currentCamp['title']);
                                         <?php endforeach; ?>
                                     </div>
 
-                                    <?php if(!empty($p['participant_names'])): ?>
-                                        <div class="flex flex-wrap gap-1 mb-2">
-                                            <?php foreach($p['participant_names'] as $uname): ?>
-                                                <span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-bold uppercase italic"><?= htmlspecialchars($uname) ?></span>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    <?php endif; ?>
-
                                     <?php if(!empty($p['secondary_items']) || !empty($p['fields'])): ?>
                                         <div class="flex flex-col gap-1">
                                             <?php foreach($p['secondary_items'] as $name => $qty): ?>
@@ -215,9 +227,16 @@ $title = htmlspecialchars($currentCamp['title']);
                                                 </div>
                                             <?php endforeach; ?>
                                             <?php foreach($p['fields'] as $field): ?>
-                                                <div class="flex items-start gap-2 text-[9px] text-slate-400 font-bold uppercase italic leading-tight">
+                                                <div class="flex items-start gap-2 text-[9px] text-slate-400 italic leading-tight">
                                                     <i class="fa-solid fa-info-circle text-[7px] opacity-50 mt-1"></i>
-                                                    <span><?= htmlspecialchars($field) ?></span>
+                                                    <?php
+                                                    if (strpos($field, ':') !== false) {
+                                                        list($label, $value) = explode(':', $field, 2);
+                                                        echo '<span>' . htmlspecialchars($label) . ': <strong class="font-bold text-slate-600">' . htmlspecialchars($value) . '</strong></span>';
+                                                    } else {
+                                                        echo '<span class="font-bold">' . htmlspecialchars($field) . '</span>';
+                                                    }
+                                                    ?>
                                                 </div>
                                             <?php endforeach; ?>
                                         </div>
@@ -225,11 +244,9 @@ $title = htmlspecialchars($currentCamp['title']);
                                 </td>
                             <?php endif; ?>
 
-                            <?php if(in_array('email', $guestlistConfig['columns']) || in_array('phone', $guestlistConfig['columns'])): ?>
+                            <?php if(in_array('email', $guestlistConfig['columns']) || in_array('phone', $guestlistConfig['columns']) || !empty($p['payer_name'])): ?>
                                 <td class="p-4 hide-mobile">
-                                    <?php
-                                    $pFull = trim(($p['prenom'] ?? '') . ' ' . ($p['nom'] ?? ''));
-                                    if (!empty($p['payer_name']) && strtolower($pFull) !== strtolower($p['payer_name'])): ?>
+                                    <?php if (!empty($p['payer_name'])): ?>
                                         <div class="text-[9px] font-black uppercase text-slate-400 mb-0.5">Acheteur</div>
                                         <div class="text-[10px] font-bold text-slate-700 mb-1"><?= htmlspecialchars($p['payer_name']) ?></div>
                                     <?php endif; ?>
@@ -277,11 +294,33 @@ $title = htmlspecialchars($currentCamp['title']);
             });
         }
 
+        let uncheckTimeout = null;
+
         function toggleCheck(row, id) {
-            const isChecked = row.classList.toggle('checked-in');
+            const isChecked = row.classList.contains('checked-in');
+
+            if (isChecked) {
+                // If it's already checked, we require a second click to uncheck
+                if (!row.classList.contains('uncheck-mode')) {
+                    // Reset any other row in uncheck mode
+                    document.querySelectorAll('.uncheck-mode').forEach(r => r.classList.remove('uncheck-mode'));
+
+                    row.classList.add('uncheck-mode');
+
+                    if (uncheckTimeout) clearTimeout(uncheckTimeout);
+                    uncheckTimeout = setTimeout(() => {
+                        row.classList.remove('uncheck-mode');
+                    }, 3000);
+                    return;
+                }
+                row.classList.remove('uncheck-mode');
+                row.classList.remove('checked-in');
+            } else {
+                row.classList.add('checked-in');
+            }
 
             let state = JSON.parse(localStorage.getItem(storageKey) || '{}');
-            if (isChecked) {
+            if (row.classList.contains('checked-in')) {
                 state[id] = 1;
             } else {
                 delete state[id];

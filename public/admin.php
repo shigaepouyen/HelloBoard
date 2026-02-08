@@ -178,7 +178,10 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                     if ($item['computedType'] === 'Billet') {
                         if(!isset($main[$item['name']])) $main[$item['name']] = 0;
                         $main[$item['name']]++;
-                        $uName = trim(trim($item['user']['firstName'] ?? '') . ' ' . trim($item['user']['lastName'] ?? ''));
+
+                        $fn = trim($item['user']['firstName'] ?? '');
+                        $ln = trim($item['user']['lastName'] ?? '');
+                        $uName = trim($fn . ' ' . $ln);
                         if (!empty($uName)) $pNames[] = $uName;
                     } else {
                         if(!isset($secondary[$item['name']])) $secondary[$item['name']] = 0;
@@ -217,10 +220,18 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                         }
                     }
 
+                    $lastName = trim($item['user']['lastName'] ?? '');
+                    $firstName = trim($item['user']['firstName'] ?? '');
+
+                    if (empty($lastName) && empty($firstName)) {
+                        $lastName = trim($order['payer']['lastName'] ?? '');
+                        $firstName = trim($order['payer']['firstName'] ?? '');
+                    }
+
                     $participants[] = [
                         'date' => substr($order['date'], 0, 10),
-                        'nom' => strtoupper(trim($item['user']['lastName'] ?? $order['payer']['lastName'] ?? '')),
-                        'prenom' => trim($item['user']['firstName'] ?? $order['payer']['firstName'] ?? ''),
+                        'nom' => strtoupper($lastName),
+                        'prenom' => $firstName,
                         'main_items' => [$item['name'] => 1],
                         'secondary_items' => [],
                         'fields' => $fields,
@@ -249,14 +260,19 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                 $itemsStr = []; foreach($p['main_items'] as $n=>$q) $itemsStr[] = ($q>1?"$q x ":"").$n;
                 $optStr = []; foreach($p['secondary_items'] as $n=>$q) $optStr[] = ($q>1?"$q x ":"").$n;
 
-                if (!empty($p['participant_names'])) {
-                    $optStr[] = "Inscrits: " . implode(', ', $p['participant_names']);
-                }
-
                 $optStr = array_merge($optStr, $p['fields']);
 
+                $nom = $p['nom'];
+                $prenom = $p['prenom'];
+
+                // Prioritize participant names for the main name columns in CSV
+                if (!empty($p['participant_names'])) {
+                    $nom = implode(' / ', $p['participant_names']);
+                    $prenom = '';
+                }
+
                 fputcsv($output, [
-                    $p['date'], $p['nom'], $p['prenom'], implode(', ', $itemsStr), implode(' | ', $optStr),
+                    $p['date'], $nom, $prenom, implode(', ', $itemsStr), implode(' | ', $optStr),
                     $p['payer_name'] ?? '', $p['email'], $p['phone'], ($p['hasDonation']?'OUI':'NON'), $p['ref']
                 ]);
             }
