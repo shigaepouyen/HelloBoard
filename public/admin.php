@@ -255,7 +255,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
             header('Content-Type: text/csv; charset=utf-8');
             header('Content-Disposition: attachment; filename=inscrits_' . $slug . '_' . date('Y-m-d') . '.csv');
             $output = fopen('php://output', 'w');
-            fputcsv($output, ['Date', 'Nom', 'Prenom', 'Articles', 'Options/Infos', 'Acheteur', 'Email', 'Telephone', 'Donation', 'Ref']);
+            fputcsv($output, ['Date', 'Nom', 'Prenom', 'Articles', 'Options/Infos', 'Acheteur', 'Email', 'Telephone', 'Donation', 'Ref'], ',', '"', "\\");
             foreach ($participants as $p) {
                 $itemsStr = []; foreach($p['main_items'] as $n=>$q) $itemsStr[] = ($q>1?"$q x ":"").$n;
                 $optStr = []; foreach($p['secondary_items'] as $n=>$q) $optStr[] = ($q>1?"$q x ":"").$n;
@@ -274,7 +274,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                 fputcsv($output, [
                     $p['date'], $nom, $prenom, implode(', ', $itemsStr), implode(' | ', $optStr),
                     $p['payer_name'] ?? '', $p['email'], $p['phone'], ($p['hasDonation']?'OUI':'NON'), $p['ref']
-                ]);
+                ], ',', '"', "\\");
             }
             exit;
         }
