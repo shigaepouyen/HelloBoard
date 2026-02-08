@@ -218,7 +218,7 @@ $title = htmlspecialchars($currentCamp['title']);
                                         <?php endforeach; ?>
                                     </div>
 
-                                    <?php if(!empty($p['secondary_items']) || !empty($p['fields'])): ?>
+                                    <?php if(!empty($p['secondary_items']) || !empty($p['fields_map'])): ?>
                                         <div class="flex flex-col gap-1">
                                             <?php foreach($p['secondary_items'] as $name => $qty): ?>
                                                 <div class="flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase italic">
@@ -226,17 +226,10 @@ $title = htmlspecialchars($currentCamp['title']);
                                                     <span><?= ($qty > 1 ? $qty.'x ' : '') . htmlspecialchars($name) ?></span>
                                                 </div>
                                             <?php endforeach; ?>
-                                            <?php foreach($p['fields'] as $field): ?>
+                                            <?php foreach($p['fields_map'] as $label => $value): ?>
                                                 <div class="flex items-start gap-2 text-[9px] text-slate-400 italic leading-tight">
                                                     <i class="fa-solid fa-info-circle text-[7px] opacity-50 mt-1"></i>
-                                                    <?php
-                                                    if (strpos($field, ':') !== false) {
-                                                        list($label, $value) = explode(':', $field, 2);
-                                                        echo '<span>' . htmlspecialchars($label) . ': <strong class="font-bold text-slate-600">' . htmlspecialchars($value) . '</strong></span>';
-                                                    } else {
-                                                        echo '<span class="font-bold">' . htmlspecialchars($field) . '</span>';
-                                                    }
-                                                    ?>
+                                                    <span><?= htmlspecialchars($label) ?>: <strong class="font-bold text-slate-600"><?= htmlspecialchars($value) ?></strong></span>
                                                 </div>
                                             <?php endforeach; ?>
                                         </div>

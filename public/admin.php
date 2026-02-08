@@ -173,7 +173,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
             if (empty($orderItems)) continue;
 
             if ($groupByOrder) {
-                $main = []; $secondary = []; $fields = []; $phone = ''; $pNames = [];
+                $main = []; $secondary = []; $fieldsMap = []; $phone = ''; $pNames = [];
                 foreach($orderItems as $item) {
                     if ($item['computedType'] === 'Billet') {
                         if(!isset($main[$item['name']])) $main[$item['name']] = 0;
@@ -188,19 +188,27 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                         $secondary[$item['name']]++;
                     }
                     foreach($item['customFields'] ?? [] as $f) {
-                        $fields[] = $f['name'] . ': ' . $f['answer'];
+                        if (!isset($fieldsMap[$f['name']])) $fieldsMap[$f['name']] = [];
+                        $fieldsMap[$f['name']][] = $f['answer'];
+
                         if (empty($phone) && (strpos(mb_strtolower($f['name']), 'téléphone') !== false || $f['type'] === 'Phone')) {
                             $phone = $f['answer'];
                         }
                     }
                 }
+
+                $flatFields = [];
+                foreach($fieldsMap as $label => $answers) {
+                    $flatFields[$label] = implode(', ', array_unique($answers));
+                }
+
                 $participants[] = [
                     'date' => substr($order['date'], 0, 10),
                     'nom' => strtoupper(trim($order['payer']['lastName'] ?? '')),
                     'prenom' => trim($order['payer']['firstName'] ?? ''),
                     'main_items' => $main,
                     'secondary_items' => $secondary,
-                    'fields' => array_values(array_unique($fields)),
+                    'fields_map' => $flatFields,
                     'hasDonation' => $hasDonation,
                     'email' => $order['payer']['email'] ?? '',
                     'phone' => $phone,
@@ -212,9 +220,9 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                 foreach($orderItems as $item) {
                     if ($item['computedType'] !== 'Billet') continue; // In individual mode, we only create rows for main items
 
-                    $fields = []; $phone = '';
+                    $flatFields = []; $phone = '';
                     foreach($item['customFields'] ?? [] as $f) {
-                        $fields[] = $f['name'] . ': ' . $f['answer'];
+                        $flatFields[$f['name']] = $f['answer'];
                         if (strpos(mb_strtolower($f['name']), 'téléphone') !== false || $f['type'] === 'Phone') {
                             $phone = $f['answer'];
                         }
@@ -234,7 +242,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                         'prenom' => $firstName,
                         'main_items' => [$item['name'] => 1],
                         'secondary_items' => [],
-                        'fields' => $fields,
+                        'fields_map' => $flatFields,
                         'hasDonation' => $hasDonation,
                         'email' => $order['payer']['email'] ?? '',
                         'phone' => $phone,
@@ -252,29 +260,63 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
         });
 
         if ($action === 'export_csv') {
+            // Identify all unique columns
+            $allMainItems = [];
+            $allSecondaryItems = [];
+            $allCustomFields = [];
+            foreach ($participants as $p) {
+                foreach ($p['main_items'] as $name => $qty) $allMainItems[$name] = true;
+                foreach ($p['secondary_items'] as $name => $qty) $allSecondaryItems[$name] = true;
+                foreach ($p['fields_map'] as $label => $val) $allCustomFields[$label] = true;
+            }
+            $mainItemCols = array_keys($allMainItems);
+            $secondaryItemCols = array_keys($allSecondaryItems);
+            $customFieldCols = array_keys($allCustomFields);
+
             header('Content-Type: text/csv; charset=utf-8');
             header('Content-Disposition: attachment; filename=inscrits_' . $slug . '_' . date('Y-m-d') . '.csv');
             $output = fopen('php://output', 'w');
-            fputcsv($output, ['Date', 'Nom', 'Prenom', 'Articles', 'Options/Infos', 'Acheteur', 'Email', 'Telephone', 'Donation', 'Ref'], ',', '"', "\\");
+
+            // Build Header
+            $header = ['Date', 'Nom', 'Prenom'];
+            foreach ($mainItemCols as $col) $header[] = $col;
+            foreach ($secondaryItemCols as $col) $header[] = $col;
+            foreach ($customFieldCols as $col) $header[] = $col;
+            $header = array_merge($header, ['Acheteur', 'Email', 'Telephone', 'Donation', 'Ref']);
+
+            fputcsv($output, $header, ',', '"', "\\");
+
             foreach ($participants as $p) {
-                $itemsStr = []; foreach($p['main_items'] as $n=>$q) $itemsStr[] = ($q>1?"$q x ":"").$n;
-                $optStr = []; foreach($p['secondary_items'] as $n=>$q) $optStr[] = ($q>1?"$q x ":"").$n;
-
-                $optStr = array_merge($optStr, $p['fields']);
-
                 $nom = $p['nom'];
                 $prenom = $p['prenom'];
-
-                // Prioritize participant names for the main name columns in CSV
                 if (!empty($p['participant_names'])) {
                     $nom = implode(' / ', $p['participant_names']);
                     $prenom = '';
                 }
 
-                fputcsv($output, [
-                    $p['date'], $nom, $prenom, implode(', ', $itemsStr), implode(' | ', $optStr),
-                    $p['payer_name'] ?? '', $p['email'], $p['phone'], ($p['hasDonation']?'OUI':'NON'), $p['ref']
-                ], ',', '"', "\\");
+                $row = [$p['date'], $nom, $prenom];
+                // Fill main items
+                foreach ($mainItemCols as $col) {
+                    $row[] = $p['main_items'][$col] ?? 0;
+                }
+                // Fill secondary items
+                foreach ($secondaryItemCols as $col) {
+                    $row[] = $p['secondary_items'][$col] ?? 0;
+                }
+                // Fill custom fields
+                foreach ($customFieldCols as $col) {
+                    $row[] = $p['fields_map'][$col] ?? '';
+                }
+
+                $row = array_merge($row, [
+                    $p['payer_name'] ?? '',
+                    $p['email'],
+                    $p['phone'],
+                    ($p['hasDonation'] ? 'OUI' : 'NON'),
+                    $p['ref']
+                ]);
+
+                fputcsv($output, $row, ',', '"', "\\");
             }
             exit;
         }
