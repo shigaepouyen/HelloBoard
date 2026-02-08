@@ -33,7 +33,7 @@ try {
         $globals['debugMode'] ?? false
     );
     $orders = $client->fetchAllOrders($campaignConfig['orgSlug'], $campaignConfig['formSlug'], $campaignConfig['formType']);
-    $engine = new StatsEngine($campaignConfig['rules']);
+    $engine = new StatsEngine($campaignConfig['rules'], $campaignConfig['formType'] ?? 'Event');
     $stats = $engine->process($orders, $campaignConfig['goals'] ?? []);
 
     echo json_encode([
@@ -42,6 +42,7 @@ try {
         'meta' => [
             'lastUpdated' => date('H:i:s'),
             'title' => $campaignConfig['title'] ?? 'Tableau de Bord',
+            'formType' => $campaignConfig['formType'] ?? 'Event',
             'goals' => $campaignConfig['goals'] ?? [],
             'markers' => $campaignConfig['markers'] ?? []
         ]

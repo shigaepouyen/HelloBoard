@@ -2,9 +2,11 @@
 
 class StatsEngine {
     private $rules;
+    private $formType;
 
-    public function __construct($rules) {
+    public function __construct($rules, $formType = 'Event') {
         $this->rules = $rules;
+        $this->formType = $formType;
     }
 
     public function process($orders, $goals = []) {
@@ -13,10 +15,11 @@ class StatsEngine {
                 'revenue' => 0,
                 'participants' => 0,
                 'donations' => 0,
-                'orderCount' => count($orders),
+                'orderCount' => 0,
                 'orders_with_tickets' => 0,
                 'orders_with_both' => 0,
-                'attachment_rate' => 0
+                'attachment_rate' => 0,
+                'productBreakdown' => []
             ],
             'charts' => [],
             'timeline' => [],
@@ -60,44 +63,81 @@ class StatsEngine {
             
             $hasTicketInOrder = false;
             $hasDonationInOrder = false;
+            $hasValidItem = false;
 
             foreach ($order['items'] ?? [] as $item) {
                 // --- MODIFICATION : EXCLUSION DES ITEMS ANNULÉS (State = Canceled) ---
                 if (isset($item['state']) && $item['state'] === 'Canceled') continue;
+                $hasValidItem = true;
 
                 $amount = ($item['amount'] ?? 0) / 100;
                 $rawName = trim($item['name'] ?? 'Inconnu');
                 
+                $rule = $this->matchRule($rawName);
+                $isIgnored = ($rule && $rule['type'] === 'Ignorer');
+                if ($isIgnored) continue;
+
                 if ($this->isDonation($item)) {
                     $hasDonationInOrder = true;
                     $stats['kpi']['donations'] += $amount;
                     $stats['kpi']['revenue'] += $amount;
                     $dailyStats[$dateKey]['rev'] += $amount;
-                    continue; 
-                }
-                
-                $rule = $this->matchRule($rawName);
-                if ($rule && $rule['type'] !== 'Ignorer') {
-                    $stats['kpi']['revenue'] += $amount;
-                    $dailyStats[$dateKey]['rev'] += $amount;
 
-                    if ($rule['type'] === 'Billet') {
-                        $hasTicketInOrder = true;
+                    // Si c'est un formulaire de Don ou Crowdfunding, on compte chaque don comme une "pax"
+                    if (in_array($this->formType, ['Donation', 'Crowdfunding'])) {
                         $stats['kpi']['participants']++;
                         $dailyStats[$dateKey]['pax']++;
                         $stats['heatmap'][$dayOfWeek][$hour]++;
-                        
-                        if (!($rule['hidden'] ?? false)) {
-                            $this->addToGroup($groups, $rule, $rule['displayLabel'] ?: $rawName, 1);
-                        }
+                    }
+                    continue; 
+                }
+                
+                $stats['kpi']['revenue'] += $amount;
+                $dailyStats[$dateKey]['rev'] += $amount;
 
-                        $recentList[] = [
-                            'date' => date('d/m H:i', $ts),
-                            'ts' => $ts,
-                            'name' => $this->getPayerName($order, $item),
-                            'desc' => $rule['displayLabel'] ?: $rawName,
-                            'amount' => $amount
-                        ];
+                // On compte comme "main item" (Billet, Produit, Adhésion...)
+                $isMainItem = ($rule && $rule['type'] === 'Billet') || (!$rule && $amount > 0);
+
+                if ($isMainItem) {
+                    $hasTicketInOrder = true;
+                    $stats['kpi']['participants']++;
+                    $dailyStats[$dateKey]['pax']++;
+                    $stats['heatmap'][$dayOfWeek][$hour]++;
+
+                    $displayLabel = ($rule && $rule['displayLabel']) ? $rule['displayLabel'] : $rawName;
+
+                    if (!$rule || !($rule['hidden'] ?? false)) {
+                        // Pour les boutiques, on ne met pas les produits principaux dans les cartes de regroupement (pie/bar)
+                        // car ils sont déjà détaillés dans les tableaux de performance et d'inventaire.
+                        if ($this->formType !== 'Shop') {
+                            $this->addToGroup($groups, $rule ?: ['group' => 'Divers'], $displayLabel, 1);
+                        }
+                        
+                        // Aggregate for global breakdown
+                        if (!isset($stats['kpi']['productBreakdown'][$displayLabel])) {
+                            $stats['kpi']['productBreakdown'][$displayLabel] = [
+                                'count' => 0,
+                                'revenue' => 0,
+                                'costPrice' => (float)($rule ? ($rule['costPrice'] ?? 0) : 0),
+                                'stock' => (int)($rule ? ($rule['stock'] ?? 0) : 0)
+                            ];
+                        }
+                        $stats['kpi']['productBreakdown'][$displayLabel]['count']++;
+                        $stats['kpi']['productBreakdown'][$displayLabel]['revenue'] += $amount;
+                    }
+
+                    $recentList[] = [
+                        'date' => date('d/m H:i', $ts),
+                        'ts' => $ts,
+                        'name' => $this->getPayerName($order, $item),
+                        'desc' => $displayLabel,
+                        'amount' => $amount
+                    ];
+                } else if ($rule && $rule['type'] === 'Option') {
+                    // TOP-LEVEL ITEM AS OPTION (common in Shop forms)
+                    if (!($rule['hidden'] ?? false)) {
+                        $displayLabel = $rule['displayLabel'] ?: $rawName;
+                        $this->addToGroup($groups, $rule, $displayLabel, 1);
                     }
                 }
 
@@ -112,6 +152,10 @@ class StatsEngine {
                         $this->addToGroup($groups, $optRule, $label, 1);
                     }
                 }
+            }
+
+            if ($hasValidItem) {
+                $stats['kpi']['orderCount']++;
             }
 
             if ($hasTicketInOrder) {
@@ -181,6 +225,14 @@ class StatsEngine {
         
         usort($recentList, function($a, $b) { return $b['ts'] - $a['ts']; });
         $stats['recent'] = $recentList;
+
+        // Finalize product breakdown calculations
+        $totalRevenue = $stats['kpi']['revenue'];
+        foreach ($stats['kpi']['productBreakdown'] as $label => &$data) {
+            $data['benefit'] = $data['revenue'] - ($data['count'] * $data['costPrice']);
+            $data['marginRate'] = $data['revenue'] > 0 ? ($data['benefit'] / $data['revenue']) * 100 : 0;
+            $data['contribution'] = $totalRevenue > 0 ? ($data['revenue'] / $totalRevenue) * 100 : 0;
+        }
 
         return $stats;
     }

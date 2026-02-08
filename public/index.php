@@ -136,7 +136,7 @@ if ($isAdmin) {
                             <button onclick="copyLink('<?= $tokenLink ?>', this)" class="px-4 bg-slate-100 text-slate-400 rounded-xl hover:bg-emerald-500 hover:text-white transition" title="Copier le lien public">
                                 <i class="fa-solid fa-link"></i>
                             </button>
-                            <a href="admin.php" class="px-4 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-800 hover:text-white transition flex items-center" title="Réglages">
+                            <a href="admin.php?action=edit&campaign=<?= $c['slug'] ?>" class="px-4 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-800 hover:text-white transition flex items-center" title="Réglages">
                                 <i class="fa-solid fa-gear"></i>
                             </a>
                         </div>
