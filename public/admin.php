@@ -172,35 +172,62 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
 
             if (empty($orderItems)) continue;
 
-            if ($groupByOrder) {
-                $main = []; $secondary = []; $fieldsMap = []; $phone = ''; $pNames = [];
-                $firstFN = ''; $firstLN = '';
-                foreach($orderItems as $item) {
-                    if ($item['computedType'] === 'Billet') {
-                        if(!isset($main[$item['name']])) $main[$item['name']] = 0;
-                        $main[$item['name']]++;
+            $mainItems = [];
+            $secondaryItems = [];
+            $orderPhone = '';
 
-                        $fn = trim($item['user']['firstName'] ?? '');
-                        $ln = trim($item['user']['lastName'] ?? '');
-
-                        if (empty($firstFN) && empty($firstLN)) {
-                            $firstFN = $fn;
-                            $firstLN = $ln;
-                        }
-
-                        $uName = trim($fn . ' ' . $ln);
-                        if (!empty($uName)) $pNames[] = $uName;
-                    } else {
-                        if(!isset($secondary[$item['name']])) $secondary[$item['name']] = 0;
-                        $secondary[$item['name']]++;
+            foreach($orderItems as $item) {
+                if ($item['computedType'] === 'Billet') {
+                    $mainItems[] = $item;
+                } else {
+                    $secondaryItems[] = $item;
+                }
+                // Try to find a phone number in ANY item of the order
+                foreach($item['customFields'] ?? [] as $f) {
+                    if (empty($orderPhone) && (strpos(mb_strtolower($f['name']), 'téléphone') !== false || $f['type'] === 'Phone')) {
+                        $orderPhone = $f['answer'];
                     }
+                }
+            }
+
+            // If we have no main items (e.g. only options in a shop order), treat all options as main items for display if not grouped
+            if (empty($mainItems) && !$groupByOrder) {
+                $mainItems = $secondaryItems;
+                $secondaryItems = [];
+            }
+
+            if ($groupByOrder && !empty($mainItems)) {
+                // GROUPED MODE
+                $mainQuantities = []; $secondaryQuantities = []; $fieldsMap = []; $pNames = [];
+                $firstFN = ''; $firstLN = '';
+
+                foreach($mainItems as $item) {
+                    if(!isset($mainQuantities[$item['name']])) $mainQuantities[$item['name']] = 0;
+                    $mainQuantities[$item['name']]++;
+
+                    $fn = trim($item['user']['firstName'] ?? '');
+                    $ln = trim($item['user']['lastName'] ?? '');
+                    if (empty($fn) && empty($ln)) {
+                        $fn = trim($order['payer']['firstName'] ?? '');
+                        $ln = trim($order['payer']['lastName'] ?? '');
+                    }
+
+                    if (empty($firstFN) && empty($firstLN)) { $firstFN = $fn; $firstLN = $ln; }
+                    $uName = trim($fn . ' ' . $ln);
+                    if (!empty($uName)) $pNames[] = $uName;
+
                     foreach($item['customFields'] ?? [] as $f) {
                         if (!isset($fieldsMap[$f['name']])) $fieldsMap[$f['name']] = [];
                         $fieldsMap[$f['name']][] = $f['answer'];
+                    }
+                }
 
-                        if (empty($phone) && (strpos(mb_strtolower($f['name']), 'téléphone') !== false || $f['type'] === 'Phone')) {
-                            $phone = $f['answer'];
-                        }
+                foreach($secondaryItems as $item) {
+                    if(!isset($secondaryQuantities[$item['name']])) $secondaryQuantities[$item['name']] = 0;
+                    $secondaryQuantities[$item['name']]++;
+                    foreach($item['customFields'] ?? [] as $f) {
+                        if (!isset($fieldsMap[$f['name']])) $fieldsMap[$f['name']] = [];
+                        $fieldsMap[$f['name']][] = $f['answer'];
                     }
                 }
 
@@ -209,40 +236,36 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                     $flatFields[$label] = implode(', ', array_unique($answers));
                 }
 
-                if (empty($firstFN) && empty($firstLN)) {
-                    $firstFN = trim($order['payer']['firstName'] ?? '');
-                    $firstLN = trim($order['payer']['lastName'] ?? '');
-                }
-
                 $participants[] = [
                     'date' => substr($order['date'], 0, 10),
                     'nom' => strtoupper($firstLN),
                     'prenom' => $firstFN,
-                    'main_items' => $main,
-                    'secondary_items' => $secondary,
+                    'main_items' => $mainQuantities,
+                    'secondary_items' => $secondaryQuantities,
                     'fields_map' => $flatFields,
                     'hasDonation' => $hasDonation,
                     'email' => $order['payer']['email'] ?? '',
-                    'phone' => $phone,
+                    'phone' => $orderPhone,
                     'ref' => $order['id'],
                     'payer_name' => trim(trim($order['payer']['firstName'] ?? '') . ' ' . trim($order['payer']['lastName'] ?? '')),
                     'participant_names' => array_values(array_unique($pNames))
                 ];
             } else {
-                foreach($orderItems as $item) {
-                    if ($item['computedType'] !== 'Billet') continue; // In individual mode, we only create rows for main items
+                // INDIVIDUAL MODE (or fallback for empty main items)
+                $orderSecondaryQuantities = [];
+                foreach($secondaryItems as $si) {
+                    if(!isset($orderSecondaryQuantities[$si['name']])) $orderSecondaryQuantities[$si['name']] = 0;
+                    $orderSecondaryQuantities[$si['name']]++;
+                }
 
-                    $flatFields = []; $phone = '';
+                foreach($mainItems as $item) {
+                    $flatFields = [];
                     foreach($item['customFields'] ?? [] as $f) {
                         $flatFields[$f['name']] = $f['answer'];
-                        if (strpos(mb_strtolower($f['name']), 'téléphone') !== false || $f['type'] === 'Phone') {
-                            $phone = $f['answer'];
-                        }
                     }
 
                     $lastName = trim($item['user']['lastName'] ?? '');
                     $firstName = trim($item['user']['firstName'] ?? '');
-
                     if (empty($lastName) && empty($firstName)) {
                         $lastName = trim($order['payer']['lastName'] ?? '');
                         $firstName = trim($order['payer']['firstName'] ?? '');
@@ -253,11 +276,11 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                         'nom' => strtoupper($lastName),
                         'prenom' => $firstName,
                         'main_items' => [$item['name'] => 1],
-                        'secondary_items' => [],
+                        'secondary_items' => $orderSecondaryQuantities, // Attach all order options to each main item
                         'fields_map' => $flatFields,
                         'hasDonation' => $hasDonation,
                         'email' => $order['payer']['email'] ?? '',
-                        'phone' => $phone,
+                        'phone' => $orderPhone,
                         'ref' => $order['id'] . '-' . $item['id'],
                         'payer_name' => trim(trim($order['payer']['firstName'] ?? '') . ' ' . trim($order['payer']['lastName'] ?? ''))
                     ];
