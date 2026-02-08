@@ -9,7 +9,40 @@
  */
 
 $type = $currentCamp['formType'] ?? 'Event';
-$unit = (in_array($type, ['Shop', 'Checkout', 'PaymentForm'])) ? 'articles' : 'inscrits';
+
+$unitMap = [
+    'Shop' => 'articles',
+    'Checkout' => 'articles',
+    'PaymentForm' => 'articles',
+    'Event' => 'participants',
+    'Membership' => 'adhérents',
+    'Donation' => 'contributeurs',
+    'Crowdfunding' => 'contributeurs'
+];
+$unit = $unitMap[$type] ?? 'inscrits';
+
+$col1Map = [
+    'Shop' => 'Acheteur',
+    'Checkout' => 'Acheteur',
+    'PaymentForm' => 'Acheteur',
+    'Event' => 'Participant',
+    'Membership' => 'Adhérent',
+    'Donation' => 'Donateur',
+    'Crowdfunding' => 'Donateur'
+];
+$col1Label = $col1Map[$type] ?? 'Inscription';
+
+$col2Map = [
+    'Shop' => 'Commande & Options',
+    'Checkout' => 'Commande & Options',
+    'PaymentForm' => 'Commande & Options',
+    'Event' => 'Billets & Options',
+    'Membership' => 'Adhésion & Options',
+    'Donation' => 'Contribution',
+    'Crowdfunding' => 'Contribution'
+];
+$col2Label = $col2Map[$type] ?? 'Détails';
+
 $guestlistConfig = $currentCamp['guestlist'] ?? [
     'columns' => ['nom', 'prenom', 'formule', 'options'],
     'showCheckboxes' => true
@@ -103,11 +136,11 @@ $title = htmlspecialchars($currentCamp['title']);
                         <?php endif; ?>
 
                         <?php if(in_array('nom', $guestlistConfig['columns']) || in_array('prenom', $guestlistConfig['columns'])): ?>
-                            <th class="p-4 border-b border-slate-100">Participant / Payer</th>
+                            <th class="p-4 border-b border-slate-100"><?= $col1Label ?></th>
                         <?php endif; ?>
 
                         <?php if(in_array('formule', $guestlistConfig['columns']) || in_array('options', $guestlistConfig['columns'])): ?>
-                            <th class="p-4 border-b border-slate-100">Détails de l'achat</th>
+                            <th class="p-4 border-b border-slate-100"><?= $col2Label ?></th>
                         <?php endif; ?>
 
                         <?php if(in_array('email', $guestlistConfig['columns']) || in_array('phone', $guestlistConfig['columns'])): ?>
@@ -121,7 +154,7 @@ $title = htmlspecialchars($currentCamp['title']);
                 </thead>
                 <tbody id="list-body">
                     <?php foreach($participants as $idx => $p):
-                        $checkId = $p['ref_commande'] . '_' . $idx;
+                        $checkId = $p['ref'];
                     ?>
                         <tr class="border-b border-slate-50 hover:bg-slate-50/50 cursor-pointer transition group"
                             onclick="toggleCheck(this, '<?= $checkId ?>')"
@@ -137,31 +170,48 @@ $title = htmlspecialchars($currentCamp['title']);
 
                             <?php if(in_array('nom', $guestlistConfig['columns']) || in_array('prenom', $guestlistConfig['columns'])): ?>
                                 <td class="p-4 search-target">
-                                    <?php if(in_array('nom', $guestlistConfig['columns'])): ?>
-                                        <span class="block font-black uppercase text-slate-800"><?= htmlspecialchars($p['nom']) ?></span>
-                                    <?php endif; ?>
-                                    <?php if(in_array('prenom', $guestlistConfig['columns'])): ?>
-                                        <span class="block text-sm text-slate-500 font-semibold"><?= htmlspecialchars($p['prenom']) ?></span>
-                                    <?php endif; ?>
+                                    <div class="flex items-center gap-2">
+                                        <div>
+                                            <?php if(in_array('nom', $guestlistConfig['columns'])): ?>
+                                                <span class="block font-black uppercase text-slate-800 leading-tight"><?= htmlspecialchars($p['nom']) ?></span>
+                                            <?php endif; ?>
+                                            <?php if(in_array('prenom', $guestlistConfig['columns'])): ?>
+                                                <span class="block text-sm text-slate-500 font-semibold leading-tight"><?= htmlspecialchars($p['prenom']) ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <?php if($p['hasDonation']): ?>
+                                            <span class="bg-rose-100 text-rose-600 text-[8px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm whitespace-nowrap">
+                                                <i class="fa-solid fa-heart"></i> Merci !
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                             <?php endif; ?>
 
                             <?php if(in_array('formule', $guestlistConfig['columns']) || in_array('options', $guestlistConfig['columns'])): ?>
                                 <td class="p-4">
-                                    <div class="flex flex-wrap gap-1 mb-1">
-                                        <?php foreach($p['items_list'] ?? [] as $item):
-                                            $isOption = ($item['type'] === 'Option');
-                                            $bg = $isOption ? 'bg-slate-100' : 'bg-blue-50';
-                                            $text = $isOption ? 'text-slate-500' : 'text-blue-600';
-                                        ?>
-                                            <span class="inline-block px-2 py-1 <?= $bg ?> <?= $text ?> rounded-lg text-[10px] font-black uppercase border border-transparent group-hover:border-current/10 transition-colors">
-                                                <?= ($item['qty'] > 1 ? $item['qty'].'x ' : '') . htmlspecialchars($item['name']) ?>
+                                    <div class="flex flex-wrap gap-1 mb-2">
+                                        <?php foreach($p['main_items'] as $name => $qty): ?>
+                                            <span class="inline-block px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase border border-blue-100 transition-colors">
+                                                <?= ($qty > 1 ? $qty.'x ' : '') . htmlspecialchars($name) ?>
                                             </span>
                                         <?php endforeach; ?>
                                     </div>
-                                    <?php if(in_array('options', $guestlistConfig['columns']) && !empty($p['options'])): ?>
-                                        <div class="text-[10px] text-slate-400 italic leading-tight">
-                                            <?= htmlspecialchars($p['options']) ?>
+
+                                    <?php if(!empty($p['secondary_items']) || !empty($p['fields'])): ?>
+                                        <div class="flex flex-col gap-1">
+                                            <?php foreach($p['secondary_items'] as $name => $qty): ?>
+                                                <div class="flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase italic">
+                                                    <i class="fa-solid fa-plus text-[7px] opacity-50"></i>
+                                                    <span><?= ($qty > 1 ? $qty.'x ' : '') . htmlspecialchars($name) ?></span>
+                                                </div>
+                                            <?php endforeach; ?>
+                                            <?php foreach($p['fields'] as $field): ?>
+                                                <div class="flex items-start gap-2 text-[9px] text-slate-400 font-bold uppercase italic leading-tight">
+                                                    <i class="fa-solid fa-info-circle text-[7px] opacity-50 mt-1"></i>
+                                                    <span><?= htmlspecialchars($field) ?></span>
+                                                </div>
+                                            <?php endforeach; ?>
                                         </div>
                                     <?php endif; ?>
                                 </td>

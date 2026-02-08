@@ -123,6 +123,7 @@ if ($action === 'analyze') {
         'rules' => $existing['rules'] ?? [],
         'goals' => $existing['goals'] ?? ['revenue'=>0, 'tickets'=>0, 'n1'=>0],
         'markers' => $existing['markers'] ?? [],
+        'guestlist' => $existing['guestlist'] ?? null,
         'shareToken' => $existing['shareToken'] ?? null,
         'formType' => $existing['formType'] ?? null,
         'title' => $existing['title'] ?? null,
@@ -151,92 +152,105 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
         $groupByOrder = $currentCamp['guestlist']['groupByOrder'] ?? false;
 
         foreach($orders as $order) {
-            $allValidItems = [];
+            $hasDonation = false;
+            foreach($order['items'] as $item) {
+                if ($item['type'] === 'Donation') { $hasDonation = true; break; }
+            }
+
+            $orderItems = [];
             foreach($order['items'] as $item) {
                 if (isset($item['state']) && $item['state'] === 'Canceled') continue;
                 if ($item['type'] === 'Donation') continue;
 
                 $rule = $matchRule($item['name']);
-                $itemType = 'Option'; // Default
-                if ($rule) {
-                    $itemType = $rule['type'];
-                } else if (($item['amount'] ?? 0) > 0) {
-                    $itemType = 'Billet';
-                }
+                $itemType = 'Option';
+                if ($rule) { $itemType = $rule['type']; }
+                else if (($item['amount'] ?? 0) > 0) { $itemType = 'Billet'; }
 
-                $allValidItems[] = array_merge($item, ['computedType' => $itemType]);
+                $orderItems[] = array_merge($item, ['computedType' => $itemType]);
             }
 
-            if (empty($allValidItems)) continue;
+            if (empty($orderItems)) continue;
 
             if ($groupByOrder) {
-                $aggregatedItems = [];
-                $allOptions = [];
-                $phone = '';
-
-                foreach($allValidItems as $item) {
-                    $name = $item['name'];
-                    if (!isset($aggregatedItems[$name])) {
-                        $aggregatedItems[$name] = ['name' => $name, 'qty' => 0, 'type' => $item['computedType']];
+                $main = []; $secondary = []; $fields = []; $phone = '';
+                foreach($orderItems as $item) {
+                    if ($item['computedType'] === 'Billet') {
+                        if(!isset($main[$item['name']])) $main[$item['name']] = 0;
+                        $main[$item['name']]++;
+                    } else {
+                        if(!isset($secondary[$item['name']])) $secondary[$item['name']] = 0;
+                        $secondary[$item['name']]++;
                     }
-                    $aggregatedItems[$name]['qty']++;
-
-                    foreach($item['customFields'] ?? [] as $field) {
-                        $allOptions[] = $field['name'] . ': ' . $field['answer'];
-                        if (empty($phone) && (strpos(mb_strtolower($field['name']), 'téléphone') !== false || $field['type'] === 'Phone')) {
-                            $phone = $field['answer'];
+                    foreach($item['customFields'] ?? [] as $f) {
+                        $fields[] = $f['name'] . ': ' . $f['answer'];
+                        if (empty($phone) && (strpos(mb_strtolower($f['name']), 'téléphone') !== false || $f['type'] === 'Phone')) {
+                            $phone = $f['answer'];
                         }
                     }
                 }
-
-                $itemStrings = [];
-                foreach($aggregatedItems as $ai) {
-                    $itemStrings[] = ($ai['qty'] > 1 ? $ai['qty'] . 'x ' : '') . $ai['name'];
-                }
-
                 $participants[] = [
                     'date' => substr($order['date'], 0, 10),
                     'nom' => strtoupper($order['payer']['lastName'] ?? ''),
                     'prenom' => $order['payer']['firstName'] ?? '',
-                    'formule' => implode(', ', $itemStrings),
-                    'options' => implode(' | ', array_unique($allOptions)),
+                    'main_items' => $main,
+                    'secondary_items' => $secondary,
+                    'fields' => array_values(array_unique($fields)),
+                    'hasDonation' => $hasDonation,
                     'email' => $order['payer']['email'] ?? '',
                     'phone' => $phone,
-                    'ref_commande' => $order['id'],
-                    'items_list' => array_values($aggregatedItems)
+                    'ref' => $order['id']
                 ];
             } else {
-                foreach($allValidItems as $item) {
-                    $options = [];
-                    $phone = '';
-                    foreach($item['customFields'] ?? [] as $field) {
-                        $options[] = $field['name'] . ': ' . $field['answer'];
-                        if (strpos(mb_strtolower($field['name']), 'téléphone') !== false || $field['type'] === 'Phone') {
-                            $phone = $field['answer'];
+                foreach($orderItems as $item) {
+                    if ($item['computedType'] !== 'Billet') continue; // In individual mode, we only create rows for main items
+
+                    $fields = []; $phone = '';
+                    foreach($item['customFields'] ?? [] as $f) {
+                        $fields[] = $f['name'] . ': ' . $f['answer'];
+                        if (strpos(mb_strtolower($f['name']), 'téléphone') !== false || $f['type'] === 'Phone') {
+                            $phone = $f['answer'];
                         }
                     }
+
                     $participants[] = [
                         'date' => substr($order['date'], 0, 10),
                         'nom' => strtoupper($item['user']['lastName'] ?? $order['payer']['lastName'] ?? ''),
                         'prenom' => $item['user']['firstName'] ?? $order['payer']['firstName'] ?? '',
-                        'formule' => $item['name'],
-                        'options' => implode(' | ', $options),
+                        'main_items' => [$item['name'] => 1],
+                        'secondary_items' => [],
+                        'fields' => $fields,
+                        'hasDonation' => $hasDonation,
                         'email' => $order['payer']['email'] ?? '',
                         'phone' => $phone,
-                        'ref_commande' => $order['id'],
-                        'items_list' => [['name' => $item['name'], 'qty' => 1, 'type' => $item['computedType']]]
+                        'ref' => $order['id'] . '-' . $item['id']
                     ];
                 }
             }
         }
-        usort($participants, function($a, $b) { return strcmp($a['nom'], $b['nom']); });
+
+        usort($participants, function($a, $b) {
+            $cmp = strcmp($a['nom'], $b['nom']);
+            if ($cmp === 0) $cmp = strcmp($a['prenom'], $b['prenom']);
+            return $cmp;
+        });
 
         if ($action === 'export_csv') {
             header('Content-Type: text/csv; charset=utf-8');
             header('Content-Disposition: attachment; filename=inscrits_' . $slug . '_' . date('Y-m-d') . '.csv');
             $output = fopen('php://output', 'w');
-            fputcsv($output, ['Date', 'Nom', 'Prenom', 'Formule', 'Options', 'Email', 'Telephone', 'Ref']);
-            foreach ($participants as $p) fputcsv($output, array_values($p)); exit;
+            fputcsv($output, ['Date', 'Nom', 'Prenom', 'Articles', 'Options/Infos', 'Email', 'Telephone', 'Donation', 'Ref']);
+            foreach ($participants as $p) {
+                $itemsStr = []; foreach($p['main_items'] as $n=>$q) $itemsStr[] = ($q>1?"$q x ":"").$n;
+                $optStr = []; foreach($p['secondary_items'] as $n=>$q) $optStr[] = ($q>1?"$q x ":"").$n;
+                $optStr = array_merge($optStr, $p['fields']);
+
+                fputcsv($output, [
+                    $p['date'], $p['nom'], $p['prenom'], implode(', ', $itemsStr), implode(' | ', $optStr),
+                    $p['email'], $p['phone'], ($p['hasDonation']?'OUI':'NON'), $p['ref']
+                ]);
+            }
+            exit;
         }
         if ($action === 'guestlist') {
             include __DIR__ . '/../templates/guestlist.php';
