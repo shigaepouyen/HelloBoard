@@ -148,11 +148,17 @@ $title = htmlspecialchars($currentCamp['title']);
 
                             <?php if(in_array('formule', $guestlistConfig['columns']) || in_array('options', $guestlistConfig['columns'])): ?>
                                 <td class="p-4">
-                                    <?php if(in_array('formule', $guestlistConfig['columns'])): ?>
-                                        <span class="inline-block px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase mb-1">
-                                            <?= htmlspecialchars($p['formule']) ?>
-                                        </span>
-                                    <?php endif; ?>
+                                    <div class="flex flex-wrap gap-1 mb-1">
+                                        <?php foreach($p['items_list'] ?? [] as $item):
+                                            $isOption = ($item['type'] === 'Option');
+                                            $bg = $isOption ? 'bg-slate-100' : 'bg-blue-50';
+                                            $text = $isOption ? 'text-slate-500' : 'text-blue-600';
+                                        ?>
+                                            <span class="inline-block px-2 py-1 <?= $bg ?> <?= $text ?> rounded-lg text-[10px] font-black uppercase border border-transparent group-hover:border-current/10 transition-colors">
+                                                <?= ($item['qty'] > 1 ? $item['qty'].'x ' : '') . htmlspecialchars($item['name']) ?>
+                                            </span>
+                                        <?php endforeach; ?>
+                                    </div>
                                     <?php if(in_array('options', $guestlistConfig['columns']) && !empty($p['options'])): ?>
                                         <div class="text-[10px] text-slate-400 italic leading-tight">
                                             <?= htmlspecialchars($p['options']) ?>

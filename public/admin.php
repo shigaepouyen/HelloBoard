@@ -151,27 +151,36 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
         $groupByOrder = $currentCamp['guestlist']['groupByOrder'] ?? false;
 
         foreach($orders as $order) {
-            $filteredItems = [];
+            $allValidItems = [];
             foreach($order['items'] as $item) {
                 if (isset($item['state']) && $item['state'] === 'Canceled') continue;
-                if($item['type'] === 'Donation') continue;
+                if ($item['type'] === 'Donation') continue;
 
                 $rule = $matchRule($item['name']);
-                $isMainItem = false;
+                $itemType = 'Option'; // Default
                 if ($rule) {
-                    if ($rule['type'] === 'Billet') $isMainItem = true;
+                    $itemType = $rule['type'];
                 } else if (($item['amount'] ?? 0) > 0) {
-                    $isMainItem = true;
+                    $itemType = 'Billet';
                 }
-                if ($isMainItem) $filteredItems[] = $item;
+
+                $allValidItems[] = array_merge($item, ['computedType' => $itemType]);
             }
 
-            if ($groupByOrder && !empty($filteredItems)) {
-                $itemNames = [];
+            if (empty($allValidItems)) continue;
+
+            if ($groupByOrder) {
+                $aggregatedItems = [];
                 $allOptions = [];
                 $phone = '';
-                foreach($filteredItems as $item) {
-                    $itemNames[] = $item['name'];
+
+                foreach($allValidItems as $item) {
+                    $name = $item['name'];
+                    if (!isset($aggregatedItems[$name])) {
+                        $aggregatedItems[$name] = ['name' => $name, 'qty' => 0, 'type' => $item['computedType']];
+                    }
+                    $aggregatedItems[$name]['qty']++;
+
                     foreach($item['customFields'] ?? [] as $field) {
                         $allOptions[] = $field['name'] . ': ' . $field['answer'];
                         if (empty($phone) && (strpos(mb_strtolower($field['name']), 'téléphone') !== false || $field['type'] === 'Phone')) {
@@ -179,18 +188,25 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                         }
                     }
                 }
+
+                $itemStrings = [];
+                foreach($aggregatedItems as $ai) {
+                    $itemStrings[] = ($ai['qty'] > 1 ? $ai['qty'] . 'x ' : '') . $ai['name'];
+                }
+
                 $participants[] = [
                     'date' => substr($order['date'], 0, 10),
                     'nom' => strtoupper($order['payer']['lastName'] ?? ''),
                     'prenom' => $order['payer']['firstName'] ?? '',
-                    'formule' => implode(', ', array_unique($itemNames)),
+                    'formule' => implode(', ', $itemStrings),
                     'options' => implode(' | ', array_unique($allOptions)),
                     'email' => $order['payer']['email'] ?? '',
                     'phone' => $phone,
-                    'ref_commande' => $order['id']
+                    'ref_commande' => $order['id'],
+                    'items_list' => array_values($aggregatedItems)
                 ];
             } else {
-                foreach($filteredItems as $item) {
+                foreach($allValidItems as $item) {
                     $options = [];
                     $phone = '';
                     foreach($item['customFields'] ?? [] as $field) {
@@ -207,7 +223,8 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                         'options' => implode(' | ', $options),
                         'email' => $order['payer']['email'] ?? '',
                         'phone' => $phone,
-                        'ref_commande' => $order['id']
+                        'ref_commande' => $order['id'],
+                        'items_list' => [['name' => $item['name'], 'qty' => 1, 'type' => $item['computedType']]]
                     ];
                 }
             }
