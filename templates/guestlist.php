@@ -186,7 +186,7 @@ $title = htmlspecialchars($currentCamp['title']);
                                 <td class="p-4 search-target">
                                     <div class="flex items-center gap-2">
                                         <div>
-                                            <?php if(!empty($p['participant_names'])): ?>
+                                            <?php if(!empty($p['participant_names']) && count($p['participant_names']) > 1): ?>
                                                 <?php foreach($p['participant_names'] as $uname): ?>
                                                     <span class="block font-black uppercase text-slate-800 leading-tight"><?= htmlspecialchars($uname) ?></span>
                                                 <?php endforeach; ?>

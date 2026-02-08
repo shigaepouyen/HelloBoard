@@ -174,6 +174,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
 
             if ($groupByOrder) {
                 $main = []; $secondary = []; $fieldsMap = []; $phone = ''; $pNames = [];
+                $firstFN = ''; $firstLN = '';
                 foreach($orderItems as $item) {
                     if ($item['computedType'] === 'Billet') {
                         if(!isset($main[$item['name']])) $main[$item['name']] = 0;
@@ -181,6 +182,12 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
 
                         $fn = trim($item['user']['firstName'] ?? '');
                         $ln = trim($item['user']['lastName'] ?? '');
+
+                        if (empty($firstFN) && empty($firstLN)) {
+                            $firstFN = $fn;
+                            $firstLN = $ln;
+                        }
+
                         $uName = trim($fn . ' ' . $ln);
                         if (!empty($uName)) $pNames[] = $uName;
                     } else {
@@ -202,10 +209,15 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                     $flatFields[$label] = implode(', ', array_unique($answers));
                 }
 
+                if (empty($firstFN) && empty($firstLN)) {
+                    $firstFN = trim($order['payer']['firstName'] ?? '');
+                    $firstLN = trim($order['payer']['lastName'] ?? '');
+                }
+
                 $participants[] = [
                     'date' => substr($order['date'], 0, 10),
-                    'nom' => strtoupper(trim($order['payer']['lastName'] ?? '')),
-                    'prenom' => trim($order['payer']['firstName'] ?? ''),
+                    'nom' => strtoupper($firstLN),
+                    'prenom' => $firstFN,
                     'main_items' => $main,
                     'secondary_items' => $secondary,
                     'fields_map' => $flatFields,
@@ -289,7 +301,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
             foreach ($participants as $p) {
                 $nom = $p['nom'];
                 $prenom = $p['prenom'];
-                if (!empty($p['participant_names'])) {
+                if (!empty($p['participant_names']) && count($p['participant_names']) > 1) {
                     $nom = implode(' / ', $p['participant_names']);
                     $prenom = '';
                 }
