@@ -148,7 +148,10 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
         };
 
         $participants = [];
+        $groupByOrder = $currentCamp['guestlist']['groupByOrder'] ?? false;
+
         foreach($orders as $order) {
+            $filteredItems = [];
             foreach($order['items'] as $item) {
                 if (isset($item['state']) && $item['state'] === 'Canceled') continue;
                 if($item['type'] === 'Donation') continue;
@@ -160,25 +163,67 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                 } else if (($item['amount'] ?? 0) > 0) {
                     $isMainItem = true;
                 }
-                if (!$isMainItem) continue;
+                if ($isMainItem) $filteredItems[] = $item;
+            }
 
-                $options = []; foreach($item['customFields'] ?? [] as $field) $options[] = $field['name'] . ': ' . $field['answer'];
-                $participants[] = ['date' => substr($order['date'], 0, 10), 'nom' => strtoupper($item['user']['lastName'] ?? $order['payer']['lastName']), 'prenom' => $item['user']['firstName'] ?? $order['payer']['firstName'], 'formule' => $item['name'], 'options' => implode(' | ', $options), 'email' => $order['payer']['email'], 'ref_commande' => $order['id']];
+            if ($groupByOrder && !empty($filteredItems)) {
+                $itemNames = [];
+                $allOptions = [];
+                $phone = '';
+                foreach($filteredItems as $item) {
+                    $itemNames[] = $item['name'];
+                    foreach($item['customFields'] ?? [] as $field) {
+                        $allOptions[] = $field['name'] . ': ' . $field['answer'];
+                        if (empty($phone) && (strpos(mb_strtolower($field['name']), 'téléphone') !== false || $field['type'] === 'Phone')) {
+                            $phone = $field['answer'];
+                        }
+                    }
+                }
+                $participants[] = [
+                    'date' => substr($order['date'], 0, 10),
+                    'nom' => strtoupper($order['payer']['lastName'] ?? ''),
+                    'prenom' => $order['payer']['firstName'] ?? '',
+                    'formule' => implode(', ', array_unique($itemNames)),
+                    'options' => implode(' | ', array_unique($allOptions)),
+                    'email' => $order['payer']['email'] ?? '',
+                    'phone' => $phone,
+                    'ref_commande' => $order['id']
+                ];
+            } else {
+                foreach($filteredItems as $item) {
+                    $options = [];
+                    $phone = '';
+                    foreach($item['customFields'] ?? [] as $field) {
+                        $options[] = $field['name'] . ': ' . $field['answer'];
+                        if (strpos(mb_strtolower($field['name']), 'téléphone') !== false || $field['type'] === 'Phone') {
+                            $phone = $field['answer'];
+                        }
+                    }
+                    $participants[] = [
+                        'date' => substr($order['date'], 0, 10),
+                        'nom' => strtoupper($item['user']['lastName'] ?? $order['payer']['lastName'] ?? ''),
+                        'prenom' => $item['user']['firstName'] ?? $order['payer']['firstName'] ?? '',
+                        'formule' => $item['name'],
+                        'options' => implode(' | ', $options),
+                        'email' => $order['payer']['email'] ?? '',
+                        'phone' => $phone,
+                        'ref_commande' => $order['id']
+                    ];
+                }
             }
         }
         usort($participants, function($a, $b) { return strcmp($a['nom'], $b['nom']); });
 
         if ($action === 'export_csv') {
-            header('Content-Type: text/csv; charset=utf-8'); header('Content-Disposition: attachment; filename=inscrits_' . $slug . '_' . date('Y-m-d') . '.csv');
-            $output = fopen('php://output', 'w'); fputcsv($output, ['Date', 'Nom', 'Prenom', 'Formule', 'Options', 'Email', 'Ref']);
-            foreach ($participants as $p) fputcsv($output, $p); exit;
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename=inscrits_' . $slug . '_' . date('Y-m-d') . '.csv');
+            $output = fopen('php://output', 'w');
+            fputcsv($output, ['Date', 'Nom', 'Prenom', 'Formule', 'Options', 'Email', 'Telephone', 'Ref']);
+            foreach ($participants as $p) fputcsv($output, array_values($p)); exit;
         }
         if ($action === 'guestlist') {
-            $type = $currentCamp['formType'] ?? 'Event';
-            $unit = (in_array($type, ['Shop', 'Checkout', 'PaymentForm'])) ? 'articles' : 'inscrits';
-            ?>
-            <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Liste - <?= htmlspecialchars($currentCamp['title']) ?></title><script src="https://cdn.tailwindcss.com"></script><style>@media print{.no-print{display:none!important}body{background:white}.page-break{page-break-inside:avoid}}.checked-in{text-decoration:line-through;color:#cbd5e1;background:#f8fafc}</style></head><body class="bg-slate-50 text-slate-900 p-8 min-h-screen"><div class="max-w-4xl mx-auto bg-white p-8 rounded shadow-sm min-h-full print:shadow-none"><div class="flex justify-between items-center mb-8 border-b pb-4"><div><h1 class="text-2xl font-black uppercase"><?= htmlspecialchars($currentCamp['title']) ?></h1><p class="text-sm text-slate-500">Total : <?= count($participants) ?> <?= $unit ?></p></div><div class="flex gap-2 no-print"><button onclick="window.print()" class="bg-slate-900 text-white px-4 py-2 rounded font-bold text-xs uppercase">Imprimer</button><a href="admin.php" class="bg-slate-200 text-slate-600 px-4 py-2 rounded font-bold text-xs uppercase">Retour</a></div></div><div class="mb-4 no-print"><input type="text" id="search" placeholder="Rechercher un nom..." class="w-full bg-slate-100 p-3 rounded border border-transparent focus:border-blue-500 outline-none font-bold" onkeyup="filterList()"></div><table class="w-full text-left text-sm border-collapse"><thead class="bg-slate-100 text-slate-500 uppercase text-[10px] font-black"><tr><th class="p-3">Émargement</th><th class="p-3">Nom Prénom</th><th class="p-3">Article / Formule</th><th class="p-3">Options</th></tr></thead><tbody id="list-body"><?php foreach($participants as $idx=>$p): ?><tr class="border-b border-slate-100 hover:bg-slate-50 page-break cursor-pointer transition" onclick="toggleCheck(this,'<?= $p['ref_commande'].'_'.$idx ?>')"><td class="p-3 w-16 text-center"><div class="w-6 h-6 border-2 border-slate-300 rounded mx-auto check-box flex items-center justify-center text-transparent">✓</div></td><td class="p-3 font-bold search-target"><span class="block uppercase"><?= $p['nom'] ?></span><span class="text-slate-500 font-normal"><?= $p['prenom'] ?></span></td><td class="p-3 text-xs font-bold text-blue-600"><?= $p['formule'] ?></td><td class="p-3 text-xs text-slate-400 italic"><?= $p['options']?:'-' ?></td></tr><?php endforeach; ?></tbody></table></div><script>function filterList(){const t=document.getElementById('search').value.toLowerCase();document.querySelectorAll('#list-body tr').forEach(r=>{r.style.display=r.querySelector('.search-target').innerText.toLowerCase().includes(t)?'':'none'})}function toggleCheck(r,id){const c=r.classList.toggle('checked-in');r.querySelector('.check-box').classList.toggle('bg-emerald-500',c);r.querySelector('.check-box').classList.toggle('border-transparent',c);r.querySelector('.check-box').classList.toggle('text-white',c);let s=JSON.parse(localStorage.getItem('checkin_<?= $slug ?>')||'{}');if(c)s[id]=1;else delete s[id];localStorage.setItem('checkin_<?= $slug ?>',JSON.stringify(s))}window.onload=function(){let s=JSON.parse(localStorage.getItem('checkin_<?= $slug ?>')||'{}');}</script></body></html>
-            <?php exit;
+            include __DIR__ . '/../templates/guestlist.php';
+            exit;
         }
     }
 }
@@ -433,6 +478,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
 
             const goals = data.goals || { revenue: 0, tickets: 0, n1: 0 };
             const rules = data.rules || [];
+            const guestlist = data.guestlist || { columns: ['nom', 'prenom', 'formule', 'options'], showCheckboxes: true, groupByOrder: false };
             const token = data.shareToken || '';
 
             // Fusionner les items trouvés dans l'API avec les règles existantes
@@ -503,6 +549,39 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                         <button onclick="addMarkerRow()" class="w-full py-4 border-2 border-dashed border-slate-100 rounded-2xl text-[10px] font-black text-blue-600 uppercase hover:bg-blue-50 transition">
                             <i class="fa-solid fa-plus mr-2"></i> Ajouter un marqueur
                         </button>
+                    </div>
+                </div>
+
+                <div class="admin-card p-8 mb-12">
+                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Configuration Liste Inscrits / Émargement</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <label class="text-[10px] font-black text-slate-500 uppercase block mb-4 tracking-tighter">Colonnes à afficher</label>
+                            <div class="grid grid-cols-2 gap-3">
+                                ${['date', 'nom', 'prenom', 'formule', 'options', 'email', 'phone'].map(col => `
+                                    <label class="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100 cursor-pointer hover:bg-white transition">
+                                        <input type="checkbox" class="guestlist-col w-5 h-5 accent-blue-600" value="${col}" ${guestlist.columns.includes(col) ? 'checked' : ''}>
+                                        <span class="text-[10px] font-black uppercase text-slate-600">${col}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex flex-col justify-center gap-4 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] font-black uppercase text-slate-600">Afficher cases à cocher (Check-in)</span>
+                                    <div class="toggle-btn guestlist-checkboxes ${guestlist.showCheckboxes ? 'active' : ''}" onclick="this.classList.toggle('active')"></div>
+                                </div>
+                                <p class="text-[9px] text-slate-400 font-bold uppercase leading-relaxed">Active le mode check-in interactif avec sauvegarde locale et barré des noms.</p>
+                            </div>
+                            <div class="flex flex-col justify-center gap-4 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] font-black uppercase text-slate-600">Grouper par commande</span>
+                                    <div class="toggle-btn guestlist-groupby ${guestlist.groupByOrder ? 'active' : ''}" onclick="this.classList.toggle('active')"></div>
+                                </div>
+                                <p class="text-[9px] text-slate-400 font-bold uppercase leading-relaxed">Affiche une seule ligne par acheteur avec tous ses articles (Recommandé pour les boutiques).</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -641,6 +720,9 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
             if(l && d) markers.push({label: l, date: d});
         });
 
+        const guestlistColumns = [];
+        document.querySelectorAll('.guestlist-col:checked').forEach(cb => guestlistColumns.push(cb.value));
+
         const config = {
             slug,
             title: name,
@@ -654,6 +736,11 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                 revenue: parseFloat(document.getElementById('goal-rev').value),
                 tickets: parseInt(document.getElementById('goal-tix').value),
                 n1: parseInt(document.getElementById('goal-n1').value)
+            },
+            guestlist: {
+                columns: guestlistColumns,
+                showCheckboxes: document.querySelector('.guestlist-checkboxes').classList.contains('active'),
+                groupByOrder: document.querySelector('.guestlist-groupby').classList.contains('active')
             }
         };
 
