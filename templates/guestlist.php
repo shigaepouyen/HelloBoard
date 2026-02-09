@@ -83,8 +83,22 @@ $title = htmlspecialchars($currentCamp['title']);
             border-color: transparent !important;
             color: white !important;
         }
-        .checked-in .search-target span:first-child {
+        .checked-in .search-target span {
             text-decoration: line-through;
+        }
+
+        .uncheck-mode {
+            background-color: #fef2f2 !important; /* red-50 */
+            border-left: 4px solid #ef4444 !important; /* red-500 */
+        }
+        .uncheck-mode .check-box {
+            background-color: #ef4444 !important;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
 
         /* Responsive adjustments for mobile/tablet check-in */
@@ -119,6 +133,9 @@ $title = htmlspecialchars($currentCamp['title']);
             </div>
 
             <div class="flex gap-2">
+                <a href="admin.php?action=export_csv&campaign=<?= $slug ?>" class="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center gap-2">
+                    <i class="fa-solid fa-download"></i> CSV
+                </a>
                 <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center gap-2">
                     <i class="fa-solid fa-print"></i> Imprimer
                 </button>
@@ -143,7 +160,7 @@ $title = htmlspecialchars($currentCamp['title']);
                             <th class="p-4 border-b border-slate-100"><?= $col2Label ?></th>
                         <?php endif; ?>
 
-                        <?php if(in_array('email', $guestlistConfig['columns']) || in_array('phone', $guestlistConfig['columns'])): ?>
+                        <?php if(in_array('email', $guestlistConfig['columns']) || in_array('phone', $guestlistConfig['columns']) || count($participants) > 0): ?>
                             <th class="p-4 border-b border-slate-100 hide-mobile">Contact</th>
                         <?php endif; ?>
 
@@ -172,11 +189,17 @@ $title = htmlspecialchars($currentCamp['title']);
                                 <td class="p-4 search-target">
                                     <div class="flex items-center gap-2">
                                         <div>
-                                            <?php if(in_array('nom', $guestlistConfig['columns'])): ?>
-                                                <span class="block font-black uppercase text-slate-800 leading-tight"><?= htmlspecialchars($p['nom']) ?></span>
-                                            <?php endif; ?>
-                                            <?php if(in_array('prenom', $guestlistConfig['columns'])): ?>
-                                                <span class="block text-sm text-slate-500 font-semibold leading-tight"><?= htmlspecialchars($p['prenom']) ?></span>
+                                            <?php if(!empty($p['participant_names']) && count($p['participant_names']) > 1): ?>
+                                                <?php foreach($p['participant_names'] as $uname): ?>
+                                                    <span class="block font-black uppercase text-slate-800 leading-tight"><?= htmlspecialchars($uname) ?></span>
+                                                <?php endforeach; ?>
+                                            <?php else: ?>
+                                                <?php if(in_array('nom', $guestlistConfig['columns'])): ?>
+                                                    <span class="block font-black uppercase text-slate-800 leading-tight"><?= htmlspecialchars($p['nom']) ?></span>
+                                                <?php endif; ?>
+                                                <?php if(in_array('prenom', $guestlistConfig['columns'])): ?>
+                                                    <span class="block text-sm text-slate-500 font-semibold leading-tight"><?= htmlspecialchars($p['prenom']) ?></span>
+                                                <?php endif; ?>
                                             <?php endif; ?>
                                         </div>
                                         <?php if($p['hasDonation']): ?>
@@ -198,7 +221,7 @@ $title = htmlspecialchars($currentCamp['title']);
                                         <?php endforeach; ?>
                                     </div>
 
-                                    <?php if(!empty($p['secondary_items']) || !empty($p['fields'])): ?>
+                                    <?php if(!empty($p['secondary_items']) || !empty($p['fields_map'])): ?>
                                         <div class="flex flex-col gap-1">
                                             <?php foreach($p['secondary_items'] as $name => $qty): ?>
                                                 <div class="flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase italic">
@@ -206,10 +229,10 @@ $title = htmlspecialchars($currentCamp['title']);
                                                     <span><?= ($qty > 1 ? $qty.'x ' : '') . htmlspecialchars($name) ?></span>
                                                 </div>
                                             <?php endforeach; ?>
-                                            <?php foreach($p['fields'] as $field): ?>
-                                                <div class="flex items-start gap-2 text-[9px] text-slate-400 font-bold uppercase italic leading-tight">
+                                            <?php foreach($p['fields_map'] as $label => $value): ?>
+                                                <div class="flex items-start gap-2 text-[9px] text-slate-400 italic leading-tight">
                                                     <i class="fa-solid fa-info-circle text-[7px] opacity-50 mt-1"></i>
-                                                    <span><?= htmlspecialchars($field) ?></span>
+                                                    <span><?= htmlspecialchars($label) ?>: <strong class="font-bold text-slate-600"><?= htmlspecialchars($value) ?></strong></span>
                                                 </div>
                                             <?php endforeach; ?>
                                         </div>
@@ -217,8 +240,13 @@ $title = htmlspecialchars($currentCamp['title']);
                                 </td>
                             <?php endif; ?>
 
-                            <?php if(in_array('email', $guestlistConfig['columns']) || in_array('phone', $guestlistConfig['columns'])): ?>
+                            <?php if(in_array('email', $guestlistConfig['columns']) || in_array('phone', $guestlistConfig['columns']) || !empty($p['payer_name'])): ?>
                                 <td class="p-4 hide-mobile">
+                                    <?php if (!empty($p['payer_name'])): ?>
+                                        <div class="text-[9px] font-black uppercase text-slate-400 mb-0.5">Acheteur</div>
+                                        <div class="text-[10px] font-bold text-slate-700 mb-1"><?= htmlspecialchars($p['payer_name']) ?></div>
+                                    <?php endif; ?>
+
                                     <?php if(in_array('email', $guestlistConfig['columns'])): ?>
                                         <div class="text-[10px] font-bold text-slate-500"><?= htmlspecialchars($p['email'] ?: '-') ?></div>
                                     <?php endif; ?>
@@ -251,7 +279,9 @@ $title = htmlspecialchars($currentCamp['title']);
 
     <script>
         const storageKey = 'checkin_<?= $slug ?>';
+        const campaignSlug = '<?= $slug ?>';
         let checkedCount = 0;
+        let isSyncing = false;
 
         function filterList() {
             const query = document.getElementById('search').value.toLowerCase();
@@ -262,18 +292,84 @@ $title = htmlspecialchars($currentCamp['title']);
             });
         }
 
-        function toggleCheck(row, id) {
-            const isChecked = row.classList.toggle('checked-in');
+        let uncheckTimeout = null;
 
-            let state = JSON.parse(localStorage.getItem(storageKey) || '{}');
+        async function toggleCheck(row, id) {
+            if (isSyncing) return;
+            const isChecked = row.classList.contains('checked-in');
+
             if (isChecked) {
+                // If it's already checked, we require a second click to uncheck
+                if (!row.classList.contains('uncheck-mode')) {
+                    // Reset any other row in uncheck mode
+                    document.querySelectorAll('.uncheck-mode').forEach(r => r.classList.remove('uncheck-mode'));
+
+                    row.classList.add('uncheck-mode');
+
+                    if (uncheckTimeout) clearTimeout(uncheckTimeout);
+                    uncheckTimeout = setTimeout(() => {
+                        row.classList.remove('uncheck-mode');
+                    }, 3000);
+                    return;
+                }
+                row.classList.remove('uncheck-mode');
+                row.classList.remove('checked-in');
+            } else {
+                row.classList.add('checked-in');
+            }
+
+            // Update Local
+            let state = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            if (Array.isArray(state)) state = {}; // Safeguard against legacy array storage
+
+            if (row.classList.contains('checked-in')) {
                 state[id] = 1;
             } else {
                 delete state[id];
             }
             localStorage.setItem(storageKey, JSON.stringify(state));
-
             updateStats();
+
+            // Push to Server
+            await pushCheckins(state);
+        }
+
+        async function pushCheckins(state) {
+            try {
+                await fetch(`admin.php?action=sync_checkins&campaign=${campaignSlug}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(state)
+                });
+            } catch (e) {
+                console.error("Failed to sync with server", e);
+            }
+        }
+
+        async function fetchCheckins() {
+            if (isSyncing) return;
+            try {
+                const res = await fetch(`admin.php?action=sync_checkins&campaign=${campaignSlug}`);
+                let serverState = await res.json();
+                if (Array.isArray(serverState)) serverState = {}; // Safeguard
+
+                // Merge with local (Server is master for sync)
+                localStorage.setItem(storageKey, JSON.stringify(serverState));
+
+                // Update UI
+                document.querySelectorAll('#list-body tr').forEach(row => {
+                    const id = row.getAttribute('data-check-id');
+                    if (serverState[id]) {
+                        row.classList.add('checked-in');
+                    } else {
+                        row.classList.remove('checked-in');
+                        row.classList.remove('uncheck-mode');
+                    }
+                });
+                updateStats();
+            } catch (e) {
+                console.error("Failed to fetch from server", e);
+            }
         }
 
         function updateStats() {
@@ -281,16 +377,23 @@ $title = htmlspecialchars($currentCamp['title']);
             document.getElementById('checked-count').innerText = checked;
         }
 
-        // Initialize from storage
-        window.onload = function() {
-            const state = JSON.parse(localStorage.getItem(storageKey) || '{}');
+        // Initialize
+        window.onload = async function() {
+            // First load from local for instant feedback
+            let localState = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            if (Array.isArray(localState)) localState = {}; // Safeguard
+
             document.querySelectorAll('#list-body tr').forEach(row => {
                 const id = row.getAttribute('data-check-id');
-                if (state[id]) {
-                    row.classList.add('checked-in');
-                }
+                if (localState[id]) row.classList.add('checked-in');
             });
             updateStats();
+
+            // Then sync with server
+            await fetchCheckins();
+
+            // Periodically sync (every 10 seconds)
+            setInterval(fetchCheckins, 10000);
         };
     </script>
 

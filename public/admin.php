@@ -15,7 +15,7 @@ if (isset($_POST['login'])) {
 
 if ($adminPassword && !isset($_SESSION['authenticated'])) {
     ?>
-    <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Admin</title><script src="https://cdn.tailwindcss.com"></script><style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap');body{font-family:'Plus Jakarta Sans',sans-serif;background:#0f172a;}</style></head><body class="min-h-screen flex items-center justify-center p-6"><div class="w-full max-w-md bg-white rounded-[3rem] p-10 text-center"><h2 class="text-3xl font-black mb-10 italic uppercase">Console Admin</h2><form method="POST" class="space-y-4"><input type="password" name="password" class="w-full bg-slate-50 border-2 border-transparent focus:border-blue-600 rounded-[1.5rem] p-5 text-2xl text-center outline-none" placeholder="••••••" required autofocus><button type="submit" name="login" class="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black uppercase text-xs">Accéder</button></form><?php if(isset($loginError)): ?><p class="text-red-500 font-bold mt-4"><?= $loginError ?></p><?php endif; ?></div></body></html>
+    <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Admin</title><script src="https://cdn.tailwindcss.com"></script><style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap');body{font-family:'Plus Jakarta Sans',sans-serif;background:#0f172a;}</style></head><body class="min-h-screen flex items-center justify-center p-6"><div class="w-full max-w-md bg-white rounded-[3rem] p-10 text-center"><div class="w-20 h-20 mx-auto mb-8"><img src="assets/img/logo.svg" alt="HelloBoard" class="w-full h-full"></div><h2 class="text-3xl font-black mb-10 italic uppercase">Console Admin</h2><form method="POST" class="space-y-4"><input type="password" name="password" class="w-full bg-slate-50 border-2 border-transparent focus:border-blue-600 rounded-[1.5rem] p-5 text-2xl text-center outline-none" placeholder="••••••" required autofocus><button type="submit" name="login" class="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black uppercase text-xs">Accéder</button></form><?php if(isset($loginError)): ?><p class="text-red-500 font-bold mt-4"><?= $loginError ?></p><?php endif; ?></div></body></html>
     <?php exit;
 }
 
@@ -91,6 +91,25 @@ if (isset($_POST['save_campaign'])) {
     echo json_encode(['success' => true]); exit;
 }
 
+// Sync Checkins
+if ($action === 'sync_checkins' && isset($_GET['campaign'])) {
+    header('Content-Type: application/json');
+    $slug = $_GET['campaign'];
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $checkins = json_decode(file_get_contents('php://input'), true);
+        if ($checkins !== null) {
+            Storage::saveCheckins($slug, $checkins);
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Invalid data']);
+        }
+    } else {
+        $checkins = Storage::getCheckins($slug);
+        echo json_encode($checkins ?: new stdClass(), JSON_FORCE_OBJECT);
+    }
+    exit;
+}
+
 // API Analyze (for configuration screen)
 if ($action === 'analyze') {
     header('Content-Type: application/json');
@@ -150,6 +169,8 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
 
         $participants = [];
         $groupByOrder = $currentCamp['guestlist']['groupByOrder'] ?? false;
+        // For Event forms, we always want individual rows per ticket (one line per participant)
+        if ($currentCamp['formType'] === 'Event') $groupByOrder = false;
 
         foreach($orders as $order) {
             $hasDonation = false;
@@ -172,58 +193,117 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
 
             if (empty($orderItems)) continue;
 
-            if ($groupByOrder) {
-                $main = []; $secondary = []; $fields = []; $phone = '';
-                foreach($orderItems as $item) {
-                    if ($item['computedType'] === 'Billet') {
-                        if(!isset($main[$item['name']])) $main[$item['name']] = 0;
-                        $main[$item['name']]++;
-                    } else {
-                        if(!isset($secondary[$item['name']])) $secondary[$item['name']] = 0;
-                        $secondary[$item['name']]++;
-                    }
-                    foreach($item['customFields'] ?? [] as $f) {
-                        $fields[] = $f['name'] . ': ' . $f['answer'];
-                        if (empty($phone) && (strpos(mb_strtolower($f['name']), 'téléphone') !== false || $f['type'] === 'Phone')) {
-                            $phone = $f['answer'];
-                        }
+            $mainItems = [];
+            $secondaryItems = [];
+            $orderPhone = '';
+
+            foreach($orderItems as $item) {
+                if ($item['computedType'] === 'Billet') {
+                    $mainItems[] = $item;
+                } else {
+                    $secondaryItems[] = $item;
+                }
+                // Try to find a phone number in ANY item of the order
+                foreach($item['customFields'] ?? [] as $f) {
+                    if (empty($orderPhone) && (strpos(mb_strtolower($f['name']), 'téléphone') !== false || $f['type'] === 'Phone')) {
+                        $orderPhone = $f['answer'];
                     }
                 }
+            }
+
+            // If we have no main items (e.g. only options in a shop order), treat all options as main items for display if not grouped
+            if (empty($mainItems) && !$groupByOrder) {
+                $mainItems = $secondaryItems;
+                $secondaryItems = [];
+            }
+
+            if ($groupByOrder && !empty($mainItems)) {
+                // GROUPED MODE
+                $mainQuantities = []; $secondaryQuantities = []; $fieldsMap = []; $pNames = [];
+                $firstFN = ''; $firstLN = '';
+
+                foreach($mainItems as $item) {
+                    if(!isset($mainQuantities[$item['name']])) $mainQuantities[$item['name']] = 0;
+                    $mainQuantities[$item['name']]++;
+
+                    $fn = trim($item['user']['firstName'] ?? '');
+                    $ln = trim($item['user']['lastName'] ?? '');
+                    if (empty($fn) && empty($ln)) {
+                        $fn = trim($order['payer']['firstName'] ?? '');
+                        $ln = trim($order['payer']['lastName'] ?? '');
+                    }
+
+                    if (empty($firstFN) && empty($firstLN)) { $firstFN = $fn; $firstLN = $ln; }
+                    $uName = trim($fn . ' ' . $ln);
+                    if (!empty($uName)) $pNames[] = $uName;
+
+                    foreach($item['customFields'] ?? [] as $f) {
+                        if (!isset($fieldsMap[$f['name']])) $fieldsMap[$f['name']] = [];
+                        $fieldsMap[$f['name']][] = $f['answer'];
+                    }
+                }
+
+                foreach($secondaryItems as $item) {
+                    if(!isset($secondaryQuantities[$item['name']])) $secondaryQuantities[$item['name']] = 0;
+                    $secondaryQuantities[$item['name']]++;
+                    foreach($item['customFields'] ?? [] as $f) {
+                        if (!isset($fieldsMap[$f['name']])) $fieldsMap[$f['name']] = [];
+                        $fieldsMap[$f['name']][] = $f['answer'];
+                    }
+                }
+
+                $flatFields = [];
+                foreach($fieldsMap as $label => $answers) {
+                    $flatFields[$label] = implode(', ', array_unique($answers));
+                }
+
                 $participants[] = [
                     'date' => substr($order['date'], 0, 10),
-                    'nom' => strtoupper($order['payer']['lastName'] ?? ''),
-                    'prenom' => $order['payer']['firstName'] ?? '',
-                    'main_items' => $main,
-                    'secondary_items' => $secondary,
-                    'fields' => array_values(array_unique($fields)),
+                    'nom' => strtoupper($firstLN),
+                    'prenom' => $firstFN,
+                    'main_items' => $mainQuantities,
+                    'secondary_items' => $secondaryQuantities,
+                    'fields_map' => $flatFields,
                     'hasDonation' => $hasDonation,
                     'email' => $order['payer']['email'] ?? '',
-                    'phone' => $phone,
-                    'ref' => $order['id']
+                    'phone' => $orderPhone,
+                    'ref' => $order['id'],
+                    'payer_name' => trim(trim($order['payer']['firstName'] ?? '') . ' ' . trim($order['payer']['lastName'] ?? '')),
+                    'participant_names' => array_values(array_unique($pNames))
                 ];
             } else {
-                foreach($orderItems as $item) {
-                    if ($item['computedType'] !== 'Billet') continue; // In individual mode, we only create rows for main items
+                // INDIVIDUAL MODE (or fallback for empty main items)
+                $orderSecondaryQuantities = [];
+                foreach($secondaryItems as $si) {
+                    if(!isset($orderSecondaryQuantities[$si['name']])) $orderSecondaryQuantities[$si['name']] = 0;
+                    $orderSecondaryQuantities[$si['name']]++;
+                }
 
-                    $fields = []; $phone = '';
+                foreach($mainItems as $item) {
+                    $flatFields = [];
                     foreach($item['customFields'] ?? [] as $f) {
-                        $fields[] = $f['name'] . ': ' . $f['answer'];
-                        if (strpos(mb_strtolower($f['name']), 'téléphone') !== false || $f['type'] === 'Phone') {
-                            $phone = $f['answer'];
-                        }
+                        $flatFields[$f['name']] = $f['answer'];
+                    }
+
+                    $lastName = trim($item['user']['lastName'] ?? '');
+                    $firstName = trim($item['user']['firstName'] ?? '');
+                    if (empty($lastName) && empty($firstName)) {
+                        $lastName = trim($order['payer']['lastName'] ?? '');
+                        $firstName = trim($order['payer']['firstName'] ?? '');
                     }
 
                     $participants[] = [
                         'date' => substr($order['date'], 0, 10),
-                        'nom' => strtoupper($item['user']['lastName'] ?? $order['payer']['lastName'] ?? ''),
-                        'prenom' => $item['user']['firstName'] ?? $order['payer']['firstName'] ?? '',
+                        'nom' => strtoupper($lastName),
+                        'prenom' => $firstName,
                         'main_items' => [$item['name'] => 1],
-                        'secondary_items' => [],
-                        'fields' => $fields,
+                        'secondary_items' => $orderSecondaryQuantities, // Attach all order options to each main item
+                        'fields_map' => $flatFields,
                         'hasDonation' => $hasDonation,
                         'email' => $order['payer']['email'] ?? '',
-                        'phone' => $phone,
-                        'ref' => $order['id'] . '-' . $item['id']
+                        'phone' => $orderPhone,
+                        'ref' => $order['id'] . '-' . $item['id'],
+                        'payer_name' => trim(trim($order['payer']['firstName'] ?? '') . ' ' . trim($order['payer']['lastName'] ?? ''))
                     ];
                 }
             }
@@ -236,19 +316,56 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
         });
 
         if ($action === 'export_csv') {
+            // Identify all unique columns
+            $allMainItems = [];
+            $allSecondaryItems = [];
+            $allCustomFields = [];
+            foreach ($participants as $p) {
+                foreach ($p['main_items'] as $name => $qty) $allMainItems[$name] = true;
+                foreach ($p['secondary_items'] as $name => $qty) $allSecondaryItems[$name] = true;
+                foreach ($p['fields_map'] as $label => $val) $allCustomFields[$label] = true;
+            }
+            $mainItemCols = array_keys($allMainItems);
+            $secondaryItemCols = array_keys($allSecondaryItems);
+            $customFieldCols = array_keys($allCustomFields);
+
             header('Content-Type: text/csv; charset=utf-8');
             header('Content-Disposition: attachment; filename=inscrits_' . $slug . '_' . date('Y-m-d') . '.csv');
             $output = fopen('php://output', 'w');
-            fputcsv($output, ['Date', 'Nom', 'Prenom', 'Articles', 'Options/Infos', 'Email', 'Telephone', 'Donation', 'Ref']);
-            foreach ($participants as $p) {
-                $itemsStr = []; foreach($p['main_items'] as $n=>$q) $itemsStr[] = ($q>1?"$q x ":"").$n;
-                $optStr = []; foreach($p['secondary_items'] as $n=>$q) $optStr[] = ($q>1?"$q x ":"").$n;
-                $optStr = array_merge($optStr, $p['fields']);
 
-                fputcsv($output, [
-                    $p['date'], $p['nom'], $p['prenom'], implode(', ', $itemsStr), implode(' | ', $optStr),
-                    $p['email'], $p['phone'], ($p['hasDonation']?'OUI':'NON'), $p['ref']
+            // Build Header
+            $header = ['Date', 'Nom', 'Prenom'];
+            foreach ($mainItemCols as $col) $header[] = $col;
+            foreach ($secondaryItemCols as $col) $header[] = $col;
+            foreach ($customFieldCols as $col) $header[] = $col;
+            $header = array_merge($header, ['Acheteur', 'Email', 'Telephone', 'Donation', 'Ref']);
+
+            fputcsv($output, $header, ',', '"', "\\");
+
+            foreach ($participants as $p) {
+                $row = [$p['date'], $p['nom'], $p['prenom']];
+                // Fill main items
+                foreach ($mainItemCols as $col) {
+                    $row[] = $p['main_items'][$col] ?? 0;
+                }
+                // Fill secondary items
+                foreach ($secondaryItemCols as $col) {
+                    $row[] = $p['secondary_items'][$col] ?? 0;
+                }
+                // Fill custom fields
+                foreach ($customFieldCols as $col) {
+                    $row[] = $p['fields_map'][$col] ?? '';
+                }
+
+                $row = array_merge($row, [
+                    $p['payer_name'] ?? '',
+                    $p['email'],
+                    $p['phone'],
+                    ($p['hasDonation'] ? 'OUI' : 'NON'),
+                    $p['ref']
                 ]);
+
+                fputcsv($output, $row, ',', '"', "\\");
             }
             exit;
         }
@@ -286,7 +403,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
     <nav class="p-6 bg-white border-b border-slate-100 sticky top-0 z-50 flex justify-between items-center shadow-sm">
         <div class="flex items-center gap-4">
             <a href="admin.php" class="flex items-center gap-2">
-                <div class="w-8 h-8 bg-slate-900 rounded-lg text-white flex items-center justify-center font-black italic">H</div>
+                <img src="assets/img/logo.svg" alt="HelloBoard" class="w-8 h-8">
                 <h1 class="font-black italic uppercase text-slate-900 hidden md:block">Console Admin</h1>
             </a>
         </div>
@@ -605,7 +722,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                                 </div>
                                 <p class="text-[9px] text-slate-400 font-bold uppercase leading-relaxed">Active le mode check-in interactif avec sauvegarde locale et barré des noms.</p>
                             </div>
-                            <div class="flex flex-col justify-center gap-4 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                            <div class="flex flex-col justify-center gap-4 bg-slate-50 p-6 rounded-[2rem] border border-slate-100 ${currentType === 'Event' ? 'hidden' : ''}">
                                 <div class="flex items-center justify-between">
                                     <span class="text-[10px] font-black uppercase text-slate-600">Grouper par commande</span>
                                     <div class="toggle-btn guestlist-groupby ${guestlist.groupByOrder ? 'active' : ''}" onclick="this.classList.toggle('active')"></div>
@@ -771,7 +888,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
             guestlist: {
                 columns: guestlistColumns,
                 showCheckboxes: document.querySelector('.guestlist-checkboxes').classList.contains('active'),
-                groupByOrder: document.querySelector('.guestlist-groupby').classList.contains('active')
+                groupByOrder: type === 'Event' ? false : document.querySelector('.guestlist-groupby').classList.contains('active')
             }
         };
 

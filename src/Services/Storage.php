@@ -4,6 +4,7 @@ class Storage {
     // Chemins relatifs depuis src/Services/ vers config/
     private static $configPath = __DIR__ . '/../../config/settings.json';
     private static $campaignsPath = __DIR__ . '/../../config/campaigns/';
+    private static $checkinsPath = __DIR__ . '/../../config/checkins/';
 
     public static function saveGlobalSettings($settings) {
         $dir = dirname(self::$configPath);
@@ -42,8 +43,40 @@ class Storage {
     public static function deleteCampaign($slug) {
         $filename = self::$campaignsPath . basename($slug) . '.json';
         if (file_exists($filename)) {
+            $checkinFile = self::$checkinsPath . basename($slug) . '.json';
+            if (file_exists($checkinFile)) unlink($checkinFile);
             return unlink($filename);
         }
         return false;
+    }
+
+    public static function saveCheckins($slug, $checkins) {
+        if (!is_dir(self::$checkinsPath)) mkdir(self::$checkinsPath, 0755, true);
+        $filename = self::$checkinsPath . basename($slug) . '.json';
+        // Use a temporary file and rename for atomicity, or flock.
+        // Flock is safer for concurrent reads on the same file.
+        $fp = fopen($filename, "c");
+        if (flock($fp, LOCK_EX)) {
+            ftruncate($fp, 0);
+            fwrite($fp, json_encode($checkins, JSON_PRETTY_PRINT));
+            fflush($fp);
+            flock($fp, LOCK_UN);
+        }
+        fclose($fp);
+    }
+
+    public static function getCheckins($slug) {
+        $filename = self::$checkinsPath . basename($slug) . '.json';
+        if (!file_exists($filename)) return array();
+
+        $fp = fopen($filename, "r");
+        $content = "";
+        if (flock($fp, LOCK_SH)) {
+            $content = stream_get_contents($fp);
+            flock($fp, LOCK_UN);
+        }
+        fclose($fp);
+
+        return $content ? json_decode($content, true) : array();
     }
 }
