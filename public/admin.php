@@ -750,6 +750,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                             <div class="w-32">BLOC / GROUPE</div>
                             <div class="w-24">TYPE</div>
                             <div class="w-24">CHART</div>
+                            <div class="w-32">REGEX</div>
                     ${isShop ? '<div class="w-48 text-center">FINANCES / STOCK</div>' : ''}
                         </div>
 
@@ -786,8 +787,8 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                                                 <option value="doughnut" ${r.chartType==='doughnut'?'selected':''}>Donut</option>
                                             </select>
                                         </div>
-                                        <div class="hidden">
-                                            <input type="text" class="rule-transform" value="${r.transform || ''}">
+                                        <div class="w-full lg:w-32">
+                                            <input type="text" class="rule-transform input-soft !py-2 !px-3 !text-[10px] uppercase text-slate-600" value="${r.transform || ''}" placeholder="REGEX:...">
                                         </div>
 
                                         ${isShop ? `
