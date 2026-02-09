@@ -105,7 +105,7 @@ if ($action === 'sync_checkins' && isset($_GET['campaign'])) {
         }
     } else {
         $checkins = Storage::getCheckins($slug);
-        echo json_encode($checkins);
+        echo json_encode($checkins ?: new stdClass(), JSON_FORCE_OBJECT);
     }
     exit;
 }

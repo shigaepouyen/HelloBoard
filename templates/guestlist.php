@@ -320,6 +320,8 @@ $title = htmlspecialchars($currentCamp['title']);
 
             // Update Local
             let state = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            if (Array.isArray(state)) state = {}; // Safeguard against legacy array storage
+
             if (row.classList.contains('checked-in')) {
                 state[id] = 1;
             } else {
@@ -348,7 +350,8 @@ $title = htmlspecialchars($currentCamp['title']);
             if (isSyncing) return;
             try {
                 const res = await fetch(`admin.php?action=sync_checkins&campaign=${campaignSlug}`);
-                const serverState = await res.json();
+                let serverState = await res.json();
+                if (Array.isArray(serverState)) serverState = {}; // Safeguard
 
                 // Merge with local (Server is master for sync)
                 localStorage.setItem(storageKey, JSON.stringify(serverState));
@@ -377,7 +380,9 @@ $title = htmlspecialchars($currentCamp['title']);
         // Initialize
         window.onload = async function() {
             // First load from local for instant feedback
-            const localState = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            let localState = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            if (Array.isArray(localState)) localState = {}; // Safeguard
+
             document.querySelectorAll('#list-body tr').forEach(row => {
                 const id = row.getAttribute('data-check-id');
                 if (localState[id]) row.classList.add('checked-in');

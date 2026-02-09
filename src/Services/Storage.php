@@ -53,13 +53,30 @@ class Storage {
     public static function saveCheckins($slug, $checkins) {
         if (!is_dir(self::$checkinsPath)) mkdir(self::$checkinsPath, 0755, true);
         $filename = self::$checkinsPath . basename($slug) . '.json';
-        return file_put_contents($filename, json_encode($checkins, JSON_PRETTY_PRINT));
+        // Use a temporary file and rename for atomicity, or flock.
+        // Flock is safer for concurrent reads on the same file.
+        $fp = fopen($filename, "c");
+        if (flock($fp, LOCK_EX)) {
+            ftruncate($fp, 0);
+            fwrite($fp, json_encode($checkins, JSON_PRETTY_PRINT));
+            fflush($fp);
+            flock($fp, LOCK_UN);
+        }
+        fclose($fp);
     }
 
     public static function getCheckins($slug) {
         $filename = self::$checkinsPath . basename($slug) . '.json';
         if (!file_exists($filename)) return array();
-        $content = file_get_contents($filename);
+
+        $fp = fopen($filename, "r");
+        $content = "";
+        if (flock($fp, LOCK_SH)) {
+            $content = stream_get_contents($fp);
+            flock($fp, LOCK_UN);
+        }
+        fclose($fp);
+
         return $content ? json_decode($content, true) : array();
     }
 }
