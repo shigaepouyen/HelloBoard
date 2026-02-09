@@ -1,7 +1,33 @@
 # 🎭 HelloBoard - Dashboard Live HelloAsso
 
-HelloBoard est une application PHP légère permettant de suivre en temps réel les inscriptions et les recettes de vos campagnes HelloAsso.  
-Conçue spécifiquement pour les associations (APEL, clubs sportifs, etc.), elle transforme des données brutes en indicateurs visuels clairs, sans usine à gaz.
+HelloBoard est une application PHP légère et puissante permettant de suivre en temps réel les inscriptions, les ventes et les recettes de vos campagnes HelloAsso.
+Conçue spécifiquement pour les associations, elle transforme les données brutes de l'API en indicateurs visuels clairs et outils opérationnels (émargement, analyse financière).
+
+---
+
+## ✨ Fonctionnalités clés
+
+### 📊 Dashboard Interactif
+- **KPIs en temps réel** : Chiffre d'affaires, nombre d'inscrits, taux de générosité (dons).
+- **Visualisations avancées** : Graphiques d'évolution (Timeline), répartition par catégories (Pie/Bar/Donut) et Heatmap de densité des inscriptions.
+- **Projections (Pacing)** : Estimation de la date de fin d'objectif basée sur la vélocité des 7 derniers jours.
+- **Marqueurs temporels** : Visualisez l'impact de vos actions de communication directement sur la courbe des ventes.
+
+### 🛍️ Spécialisation "Boutique" (Shop)
+- **Analyse de rentabilité** : Calcul automatique du bénéfice net, de la marge et du taux de contribution par produit.
+- **Matrice de performance** : Graphique à bulles comparant le volume de ventes au bénéfice généré.
+- **Suivi d'inventaire** : Alertes de stock et barres de progression pour chaque article.
+
+### 📝 Liste d'Émargement (Guestlist)
+- **Check-in synchronisé** : Émargez les participants depuis plusieurs appareils simultanément avec synchronisation en temps réel.
+- **Sécurité anti-erreur** : Système de verrouillage lors du "dé-pointage" pour éviter les erreurs de manipulation.
+- **Vue flexible** : Affichage individuel ou groupé par commande (idéal pour les distributions de produits).
+- **Exports & Impression** : Export CSV complet et mode impression optimisé.
+
+### ⚙️ Administration simplifiée
+- **Scanner de campagnes** : Importation facile de vos formulaires HelloAsso (Événements, Boutiques, Adhésions, Dons, etc.).
+- **Mapping intelligent** : Renommez les articles, regroupez-les et appliquez des transformations (REGEX, Majuscules, etc.).
+- **Partage sécurisé** : Génération de liens publics avec jetons (tokens) pour partager le dashboard sans donner d'accès admin.
 
 ---
 
@@ -9,21 +35,23 @@ Conçue spécifiquement pour les associations (APEL, clubs sportifs, etc.), elle
 
 ```text
 /
-├── config/             # Stockage des paramètres et boards (JSON)
-│   ├── campaigns/      # Un fichier .json par board configuré
+├── config/             # Stockage des données (JSON)
+│   ├── campaigns/      # Configurations spécifiques à chaque board
+│   ├── checkins/       # États d'émargement synchronisés
 │   └── settings.json   # Identifiants API HelloAsso (ignoré par Git)
 ├── public/             # Point d'entrée web
-│   ├── admin.php       # Interface d'administration
-│   ├── api.php         # Endpoint de données pour le dashboard
-│   ├── index.php       # Routeur / afficheur des boards
-│   └── assets/         # Images et styles (logo, etc.)
+│   ├── admin.php       # Console d'administration et exports
+│   ├── api.php         # Endpoint de données temps réel
+│   ├── index.php       # Routeur et afficheur des boards
+│   └── assets/         # Ressources statiques (images, logo)
 ├── src/
-│   └── Services/       # Logique métier
+│   └── Services/       # Logique métier (PHP 8+)
 │       ├── HelloAssoClient.php # Communication API
-│       ├── StatsEngine.php     # Calculs et transformations
-│       └── Storage.php         # Gestion des fichiers JSON
-├── templates/          # Vues HTML / PHP
-│   └── dashboard.php   # Rendu visuel du tableau de bord
+│       ├── StatsEngine.php     # Calculs statistiques et financiers
+│       └── Storage.php         # Gestion de la persistance JSON
+├── templates/          # Vues HTML/PHP
+│   ├── dashboard.php   # Interface du tableau de bord
+│   └── guestlist.php   # Interface d'émargement
 └── .gitignore          # Protection des données sensibles
 ```
 
@@ -32,80 +60,38 @@ Conçue spécifiquement pour les associations (APEL, clubs sportifs, etc.), elle
 ## 🚀 Installation
 
 ### Prérequis
-
-- Serveur Web (Apache, Nginx…)
-- PHP **7.4+**
+- PHP **8.0+**
 - Extension **cURL** activée
+- Permissions en écriture sur le dossier `config/`
 
 ### Déploiement
-
-1. Copier l’ensemble des fichiers sur votre serveur  
-2. Vérifier les permissions :  
-   - `config/`  
-   - `config/campaigns/`  
-   (CHMOD 755 ou 777 selon l’hébergeur)
-
-### Configuration initiale
-
-1. Accéder à `https://votre-site.com/admin.php`  
-2. Renseigner :  
-   - Client ID HelloAsso  
-   - Secret  
-   - Slug de l’association  
-3. Cliquer sur **Scanner** pour détecter les formulaires
-
----
-
-## 🔐 Modèle de Sécurité
-
-Le fichier `.gitignore` protège vos clés API.  
-**Ne jamais pousser** le fichier `config/settings.json` dans un dépôt public (GitHub, GitLab…).
+1. Clonez ou copiez les fichiers sur votre serveur.
+2. Assurez-vous que le dossier `config/` est accessible en écriture par le serveur web (CHMOD 755 ou 775).
+3. Accédez à `admin.php` pour la configuration initiale.
 
 ---
 
 ## ⚙️ Configuration Avancée
 
 ### Transformations de valeur
+Dans l'interface d'administration, vous pouvez transformer les réponses aux champs personnalisés :
+- `FIRST_LETTER` : Garde le premier caractère (ex: "6ème A" -> "6").
+- `UPPER` : Force la mise en majuscules.
+- `REGEX:/pattern/` : Extrait une partie de la valeur via une expression régulière.
 
-Dans la colonne **Transform** de l’interface d’administration :
-
-- `FIRST_LETTER`  
-  Garde uniquement le premier caractère  
-  Exemple : `6ème A` → `6`
-
-- `UPPER`  
-  Force la valeur en majuscules
-
-- `REGEX:votre_pattern`  
-  Applique une expression régulière PHP  
-  Exemple :  
-  ```
-  REGEX:/(.*)\s/
-  ```
-  → conserve tout avant le premier espace
-
-### Ordre des blocs
-
-- Utiliser la poignée Drag & Drop à gauche de chaque ligne  
-- L’ordre des lignes = ordre d’affichage sur le dashboard
-
-Simple. Visuel. Sans surprises.
+### Finances & Stock (Mode Boutique)
+Pour les formulaires de type "Shop", vous pouvez renseigner :
+- **Prix d'achat** : Pour le calcul du bénéfice net.
+- **Stock** : Pour afficher les jauges de disponibilité.
 
 ---
 
-## ⚠️ Précautions
-
-- Le fichier `.gitignore` protège vos clés API  
-- **Ne jamais supprimer** :  
-  ```
-  config/settings.json
-  ```
-  d’un dépôt public (GitHub, GitLab…)
+## 🔐 Sécurité
+- Les clés API sont stockées localement dans `config/settings.json` et ne doivent jamais être poussées sur un dépôt public.
+- L'accès à la console admin peut être protégé par mot de passe via les réglages globaux.
+- Les dashboards publics utilisent un `shareToken` unique pour empêcher l'accès non autorisé.
 
 ---
 
 ## 📄 Licence
-
-Ce projet est distribué sous la licence MIT.
-
-Permission est accordée, à titre gratuit, à toute personne obtenant une copie de ce logiciel et des fichiers de documentation associés, d'utiliser le logiciel sans restriction, y compris, sans s'y limiter, les droits d'utiliser, de copier, de modifier, de fusionner, de publier, de distribuer, de sous-licencier et/ou de vendre des copies du logiciel.
+Distribué sous licence MIT. Libre d'utilisation pour toutes les associations ! ❤️
