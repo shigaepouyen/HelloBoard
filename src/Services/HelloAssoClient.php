@@ -106,15 +106,20 @@ class HelloAssoClient {
 
         $data = $res['body']['data'] ?? $res['body'] ?? [];
 
+        // Filter out the generic "Checkout/default" form which is often empty and clutters results
+        $filteredData = array_filter($data, function($f) {
+            return !($f['formType'] === 'Checkout' && $f['formSlug'] === 'default');
+        });
+
         return [
             'orgSlug' => $orgSlug,
-            'forms' => array_map(function($f) {
+            'forms' => array_values(array_map(function($f) {
                 return [
                     'name' => $f['title'] ?? $f['formSlug'],
                     'slug' => $f['formSlug'],
                     'type' => $f['formType']
                 ];
-            }, $data)
+            }, $filteredData))
         ];
     }
 

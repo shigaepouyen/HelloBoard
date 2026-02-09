@@ -133,7 +133,7 @@ $title = htmlspecialchars($currentCamp['title']);
             </div>
 
             <div class="flex gap-2">
-                <a href="admin.php?action=export_csv&campaign=<?= $slug ?>" class="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center gap-2">
+                <a href="admin.php?action=export_csv&campaign=<?= $slug ?>" onclick="return btnDownloadLoading(this)" class="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center gap-2">
                     <i class="fa-solid fa-download"></i> CSV
                 </a>
                 <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center gap-2">
@@ -278,6 +278,21 @@ $title = htmlspecialchars($currentCamp['title']);
     </div>
 
     <script>
+        function btnDownloadLoading(btn) {
+            if (btn.dataset.loading === 'true') return false;
+            btn.dataset.loading = 'true';
+            const icon = btn.querySelector('i');
+            if (icon) {
+                const originalClass = icon.className;
+                icon.className = 'fa-solid fa-circle-notch fa-spin';
+                setTimeout(() => {
+                    icon.className = originalClass;
+                    delete btn.dataset.loading;
+                }, 5000);
+            }
+            return true;
+        }
+
         const storageKey = 'checkin_<?= $slug ?>';
         const campaignSlug = '<?= $slug ?>';
         let checkedCount = 0;

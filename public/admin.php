@@ -452,7 +452,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                                 <div class="flex items-center gap-4 mt-2">
                                     <span class="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded uppercase"><?= $c['formType'] ?></span>
                                     <a href="index.php?campaign=<?= $c['slug'] ?>" target="_blank" class="text-[10px] text-blue-500 font-black uppercase hover:underline"><i class="fa-solid fa-external-link-alt mr-1"></i> Voir</a>
-                                    <a href="admin.php?action=guestlist&campaign=<?= $c['slug'] ?>" class="text-[10px] text-emerald-600 font-black uppercase hover:underline"><i class="fa-solid fa-clipboard-list mr-1"></i> Inscrits</a>
+                                    <a href="admin.php?action=guestlist&campaign=<?= $c['slug'] ?>" onclick="showLoader()" class="text-[10px] text-emerald-600 font-black uppercase hover:underline"><i class="fa-solid fa-clipboard-list mr-1"></i> Inscrits</a>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
@@ -461,7 +461,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                                     $shareUrl = $protocol . '://' . $_SERVER['HTTP_HOST'] . str_replace('admin.php', 'index.php', $_SERVER['SCRIPT_NAME']) . '?campaign=' . $c['slug'] . '&token=' . ($c['shareToken'] ?? '');
                                 ?>
                                 <button onclick="copyToClipboard('<?= $shareUrl ?>', this)" class="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="Copier le lien public"><i class="fa-solid fa-link"></i></button>
-                                <a href="admin.php?action=export_csv&campaign=<?= $c['slug'] ?>" class="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="Export CSV"><i class="fa-solid fa-download"></i></a>
+                                <a href="admin.php?action=export_csv&campaign=<?= $c['slug'] ?>" onclick="return btnDownloadLoading(this)" class="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="Export CSV"><i class="fa-solid fa-download"></i></a>
                                 <a href="admin.php?action=toggle_archive&campaign=<?= $c['slug'] ?>" class="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="<?= $isArchived ? 'Restaurer' : 'Archiver' ?>"><i class="fa-solid <?= $isArchived ? 'fa-box-open' : 'fa-box-archive' ?>"></i></a>
                                 <button onclick="confirmDelete('<?= $c['slug'] ?>', '<?= htmlspecialchars(addslashes($c['title']), ENT_QUOTES) ?>')" class="w-12 h-12 flex items-center justify-center bg-red-50 text-red-300 rounded-xl hover:bg-red-500 hover:text-white transition" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
                                 <a href="admin.php?action=edit&campaign=<?= $c['slug'] ?>" class="bg-blue-600 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase shadow-lg shadow-blue-100 transition transform active:scale-95 ml-2">Réglages</a>
@@ -599,6 +599,36 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
     </main>
 
     <script>
+    function showLoader() {
+        const loader = document.createElement('div');
+        loader.id = 'global-loader';
+        loader.innerHTML = `
+            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] flex items-center justify-center">
+                <div class="bg-white p-8 rounded-[2rem] text-center shadow-2xl animate-fade-in">
+                    <div class="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p class="font-black uppercase text-xs tracking-widest text-slate-900">Génération en cours...</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase mt-2">Ceci peut prendre quelques secondes</p>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(loader);
+    }
+
+    function btnDownloadLoading(btn) {
+        if (btn.dataset.loading === 'true') return false;
+        btn.dataset.loading = 'true';
+        const icon = btn.querySelector('i');
+        if (icon) {
+            const originalClass = icon.className;
+            icon.className = 'fa-solid fa-circle-notch fa-spin';
+            setTimeout(() => {
+                icon.className = originalClass;
+                delete btn.dataset.loading;
+            }, 5000);
+        }
+        return true;
+    }
+
     const labelsMap = {
         'Event': { main: '🎫 Billet', quota: 'Quota Billets' },
         'Shop': { main: '📦 Produit', quota: 'Quota Articles' },
