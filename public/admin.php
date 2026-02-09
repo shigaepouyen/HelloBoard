@@ -150,6 +150,8 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
 
         $participants = [];
         $groupByOrder = $currentCamp['guestlist']['groupByOrder'] ?? false;
+        // For Event forms, we always want individual rows per ticket (one line per participant)
+        if ($currentCamp['formType'] === 'Event') $groupByOrder = false;
 
         foreach($orders as $order) {
             $hasDonation = false;
@@ -322,14 +324,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
             fputcsv($output, $header, ',', '"', "\\");
 
             foreach ($participants as $p) {
-                $nom = $p['nom'];
-                $prenom = $p['prenom'];
-                if (!empty($p['participant_names']) && count($p['participant_names']) > 1) {
-                    $nom = implode(' / ', $p['participant_names']);
-                    $prenom = '';
-                }
-
-                $row = [$p['date'], $nom, $prenom];
+                $row = [$p['date'], $p['nom'], $p['prenom']];
                 // Fill main items
                 foreach ($mainItemCols as $col) {
                     $row[] = $p['main_items'][$col] ?? 0;
@@ -708,7 +703,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                                 </div>
                                 <p class="text-[9px] text-slate-400 font-bold uppercase leading-relaxed">Active le mode check-in interactif avec sauvegarde locale et barré des noms.</p>
                             </div>
-                            <div class="flex flex-col justify-center gap-4 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                            <div class="flex flex-col justify-center gap-4 bg-slate-50 p-6 rounded-[2rem] border border-slate-100 ${currentType === 'Event' ? 'hidden' : ''}">
                                 <div class="flex items-center justify-between">
                                     <span class="text-[10px] font-black uppercase text-slate-600">Grouper par commande</span>
                                     <div class="toggle-btn guestlist-groupby ${guestlist.groupByOrder ? 'active' : ''}" onclick="this.classList.toggle('active')"></div>
@@ -874,7 +869,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
             guestlist: {
                 columns: guestlistColumns,
                 showCheckboxes: document.querySelector('.guestlist-checkboxes').classList.contains('active'),
-                groupByOrder: document.querySelector('.guestlist-groupby').classList.contains('active')
+                groupByOrder: type === 'Event' ? false : document.querySelector('.guestlist-groupby').classList.contains('active')
             }
         };
 
