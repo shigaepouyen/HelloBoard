@@ -4,6 +4,7 @@ class Storage {
     // Chemins relatifs depuis src/Services/ vers config/
     private static $configPath = __DIR__ . '/../../config/settings.json';
     private static $campaignsPath = __DIR__ . '/../../config/campaigns/';
+    private static $checkinsPath = __DIR__ . '/../../config/checkins/';
 
     public static function saveGlobalSettings($settings) {
         $dir = dirname(self::$configPath);
@@ -42,8 +43,23 @@ class Storage {
     public static function deleteCampaign($slug) {
         $filename = self::$campaignsPath . basename($slug) . '.json';
         if (file_exists($filename)) {
+            $checkinFile = self::$checkinsPath . basename($slug) . '.json';
+            if (file_exists($checkinFile)) unlink($checkinFile);
             return unlink($filename);
         }
         return false;
+    }
+
+    public static function saveCheckins($slug, $checkins) {
+        if (!is_dir(self::$checkinsPath)) mkdir(self::$checkinsPath, 0755, true);
+        $filename = self::$checkinsPath . basename($slug) . '.json';
+        return file_put_contents($filename, json_encode($checkins, JSON_PRETTY_PRINT));
+    }
+
+    public static function getCheckins($slug) {
+        $filename = self::$checkinsPath . basename($slug) . '.json';
+        if (!file_exists($filename)) return array();
+        $content = file_get_contents($filename);
+        return $content ? json_decode($content, true) : array();
     }
 }

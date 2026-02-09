@@ -279,7 +279,9 @@ $title = htmlspecialchars($currentCamp['title']);
 
     <script>
         const storageKey = 'checkin_<?= $slug ?>';
+        const campaignSlug = '<?= $slug ?>';
         let checkedCount = 0;
+        let isSyncing = false;
 
         function filterList() {
             const query = document.getElementById('search').value.toLowerCase();
@@ -292,7 +294,8 @@ $title = htmlspecialchars($currentCamp['title']);
 
         let uncheckTimeout = null;
 
-        function toggleCheck(row, id) {
+        async function toggleCheck(row, id) {
+            if (isSyncing) return;
             const isChecked = row.classList.contains('checked-in');
 
             if (isChecked) {
@@ -315,6 +318,7 @@ $title = htmlspecialchars($currentCamp['title']);
                 row.classList.add('checked-in');
             }
 
+            // Update Local
             let state = JSON.parse(localStorage.getItem(storageKey) || '{}');
             if (row.classList.contains('checked-in')) {
                 state[id] = 1;
@@ -322,8 +326,47 @@ $title = htmlspecialchars($currentCamp['title']);
                 delete state[id];
             }
             localStorage.setItem(storageKey, JSON.stringify(state));
-
             updateStats();
+
+            // Push to Server
+            await pushCheckins(state);
+        }
+
+        async function pushCheckins(state) {
+            try {
+                await fetch(`admin.php?action=sync_checkins&campaign=${campaignSlug}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(state)
+                });
+            } catch (e) {
+                console.error("Failed to sync with server", e);
+            }
+        }
+
+        async function fetchCheckins() {
+            if (isSyncing) return;
+            try {
+                const res = await fetch(`admin.php?action=sync_checkins&campaign=${campaignSlug}`);
+                const serverState = await res.json();
+
+                // Merge with local (Server is master for sync)
+                localStorage.setItem(storageKey, JSON.stringify(serverState));
+
+                // Update UI
+                document.querySelectorAll('#list-body tr').forEach(row => {
+                    const id = row.getAttribute('data-check-id');
+                    if (serverState[id]) {
+                        row.classList.add('checked-in');
+                    } else {
+                        row.classList.remove('checked-in');
+                        row.classList.remove('uncheck-mode');
+                    }
+                });
+                updateStats();
+            } catch (e) {
+                console.error("Failed to fetch from server", e);
+            }
         }
 
         function updateStats() {
@@ -331,16 +374,21 @@ $title = htmlspecialchars($currentCamp['title']);
             document.getElementById('checked-count').innerText = checked;
         }
 
-        // Initialize from storage
-        window.onload = function() {
-            const state = JSON.parse(localStorage.getItem(storageKey) || '{}');
+        // Initialize
+        window.onload = async function() {
+            // First load from local for instant feedback
+            const localState = JSON.parse(localStorage.getItem(storageKey) || '{}');
             document.querySelectorAll('#list-body tr').forEach(row => {
                 const id = row.getAttribute('data-check-id');
-                if (state[id]) {
-                    row.classList.add('checked-in');
-                }
+                if (localState[id]) row.classList.add('checked-in');
             });
             updateStats();
+
+            // Then sync with server
+            await fetchCheckins();
+
+            // Periodically sync (every 10 seconds)
+            setInterval(fetchCheckins, 10000);
         };
     </script>
 

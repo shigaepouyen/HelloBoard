@@ -91,6 +91,25 @@ if (isset($_POST['save_campaign'])) {
     echo json_encode(['success' => true]); exit;
 }
 
+// Sync Checkins
+if ($action === 'sync_checkins' && isset($_GET['campaign'])) {
+    header('Content-Type: application/json');
+    $slug = $_GET['campaign'];
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $checkins = json_decode(file_get_contents('php://input'), true);
+        if ($checkins !== null) {
+            Storage::saveCheckins($slug, $checkins);
+            echo json_encode(['success' => true]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Invalid data']);
+        }
+    } else {
+        $checkins = Storage::getCheckins($slug);
+        echo json_encode($checkins);
+    }
+    exit;
+}
+
 // API Analyze (for configuration screen)
 if ($action === 'analyze') {
     header('Content-Type: application/json');
