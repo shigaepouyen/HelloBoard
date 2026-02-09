@@ -98,7 +98,7 @@ if ($isAdmin) {
     <body class="min-h-screen pb-20">
         <nav class="p-6 bg-white sticky top-0 z-50 flex justify-between items-center shadow-sm">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 bg-slate-900 rounded-lg text-white flex items-center justify-center font-black italic">H</div>
+                <img src="assets/img/logo.svg" alt="HelloBoard" class="w-8 h-8">
                 <h1 class="font-black italic uppercase text-slate-900">Console Admin</h1>
             </div>
             <div class="flex gap-4">
@@ -170,8 +170,8 @@ if ($isAdmin) {
     </head>
     <body class="min-h-screen flex items-center justify-center p-6">
         <div class="w-full max-w-md bg-white rounded-[2.5rem] p-10 text-center shadow-2xl">
-            <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-8 text-white text-2xl shadow-lg shadow-blue-200">
-                <i class="fa-solid fa-lock"></i>
+            <div class="w-20 h-20 mx-auto mb-8">
+                <img src="assets/img/logo.svg" alt="HelloBoard" class="w-full h-full">
             </div>
             <h2 class="text-2xl font-black italic uppercase text-slate-900 mb-2">Espace Privé</h2>
             <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">HelloBoard Admin</p>
