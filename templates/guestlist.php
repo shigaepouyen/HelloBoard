@@ -109,8 +109,8 @@ $title = htmlspecialchars($currentCamp['title']);
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen">
 
-    <div class="no-print sticky top-0 z-50 bg-slate-900 text-white p-4 shadow-lg">
-        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+    <div class="no-print sticky top-0 z-50 bg-slate-900 text-white p-3 md:p-4 shadow-lg">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3 md:gap-4">
             <div class="flex items-center gap-4">
                 <a href="admin.php" class="w-10 h-10 flex items-center justify-center bg-white/10 rounded-full hover:bg-white/20 transition">
                     <i class="fa-solid fa-arrow-left"></i>
@@ -127,16 +127,16 @@ $title = htmlspecialchars($currentCamp['title']);
                 <div class="relative">
                     <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
                     <input type="text" id="search" placeholder="Rechercher un nom, email..."
-                           class="w-full bg-white/10 border border-white/10 rounded-2xl py-3 pl-12 pr-4 outline-none focus:bg-white/20 focus:border-blue-500 transition font-bold text-sm"
+                           class="w-full bg-white/10 border border-white/10 rounded-2xl py-2 md:py-3 pl-12 pr-4 outline-none focus:bg-white/20 focus:border-blue-500 transition font-bold text-sm"
                            onkeyup="filterList()">
                 </div>
             </div>
 
-            <div class="flex gap-2">
-                <a href="admin.php?action=export_csv&campaign=<?= $slug ?>" onclick="return btnDownloadLoading(this)" class="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center gap-2">
+            <div class="flex gap-2 w-full md:w-auto">
+                <a href="admin.php?action=export_csv&campaign=<?= $slug ?>" onclick="return btnDownloadLoading(this)" class="flex-1 md:flex-none justify-center bg-white/10 hover:bg-white/20 text-white px-4 py-2 md:px-6 md:py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center gap-2">
                     <i class="fa-solid fa-download"></i> CSV
                 </a>
-                <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center gap-2">
+                <button onclick="window.print()" class="flex-1 md:flex-none justify-center bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 md:px-6 md:py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center gap-2">
                     <i class="fa-solid fa-print"></i> Imprimer
                 </button>
             </div>
@@ -149,23 +149,23 @@ $title = htmlspecialchars($currentCamp['title']);
                 <thead class="bg-slate-50 text-slate-400 uppercase text-[10px] font-black tracking-widest">
                     <tr>
                         <?php if($guestlistConfig['showCheckboxes']): ?>
-                            <th class="p-4 w-16 text-center border-b border-slate-100">Check</th>
+                            <th class="px-2 py-4 md:p-4 w-12 md:w-16 text-center border-b border-slate-100">Check</th>
                         <?php endif; ?>
 
                         <?php if(in_array('nom', $guestlistConfig['columns']) || in_array('prenom', $guestlistConfig['columns'])): ?>
-                            <th class="p-4 border-b border-slate-100"><?= $col1Label ?></th>
+                            <th class="px-2 py-4 md:p-4 border-b border-slate-100"><?= $col1Label ?></th>
                         <?php endif; ?>
 
                         <?php if(in_array('formule', $guestlistConfig['columns']) || in_array('options', $guestlistConfig['columns'])): ?>
-                            <th class="p-4 border-b border-slate-100"><?= $col2Label ?></th>
+                            <th class="px-2 py-4 md:p-4 border-b border-slate-100"><?= $col2Label ?></th>
                         <?php endif; ?>
 
                         <?php if(in_array('email', $guestlistConfig['columns']) || in_array('phone', $guestlistConfig['columns']) || count($participants) > 0): ?>
-                            <th class="p-4 border-b border-slate-100 hide-mobile">Contact</th>
+                            <th class="px-2 py-4 md:p-4 border-b border-slate-100 hide-mobile">Contact</th>
                         <?php endif; ?>
 
                         <?php if(in_array('date', $guestlistConfig['columns'])): ?>
-                            <th class="p-4 border-b border-slate-100 hide-mobile">Date</th>
+                            <th class="px-2 py-4 md:p-4 border-b border-slate-100 hide-mobile">Date</th>
                         <?php endif; ?>
                     </tr>
                 </thead>
@@ -178,15 +178,15 @@ $title = htmlspecialchars($currentCamp['title']);
                             data-check-id="<?= $checkId ?>">
 
                             <?php if($guestlistConfig['showCheckboxes']): ?>
-                                <td class="p-4 w-16 text-center">
-                                    <div class="w-8 h-8 border-2 border-slate-200 rounded-xl mx-auto check-box flex items-center justify-center text-transparent transition-all duration-300 group-hover:border-blue-300">
+                                <td class="px-2 py-3 md:p-4 w-12 md:w-16 text-center">
+                                    <div class="w-7 h-7 md:w-8 md:h-8 border-2 border-slate-200 rounded-xl mx-auto check-box flex items-center justify-center text-transparent transition-all duration-300 group-hover:border-blue-300">
                                         <i class="fa-solid fa-check"></i>
                                     </div>
                                 </td>
                             <?php endif; ?>
 
                             <?php if(in_array('nom', $guestlistConfig['columns']) || in_array('prenom', $guestlistConfig['columns'])): ?>
-                                <td class="p-4 search-target">
+                                <td class="px-2 py-3 md:p-4 search-target">
                                     <div class="flex items-center gap-2">
                                         <div>
                                             <?php if(!empty($p['participant_names']) && count($p['participant_names']) > 1): ?>
@@ -212,7 +212,7 @@ $title = htmlspecialchars($currentCamp['title']);
                             <?php endif; ?>
 
                             <?php if(in_array('formule', $guestlistConfig['columns']) || in_array('options', $guestlistConfig['columns'])): ?>
-                                <td class="p-4">
+                                <td class="px-2 py-3 md:p-4">
                                     <div class="flex flex-wrap gap-1 mb-2">
                                         <?php foreach($p['main_items'] as $name => $qty): ?>
                                             <span class="inline-block px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase border border-blue-100 transition-colors">
@@ -241,7 +241,7 @@ $title = htmlspecialchars($currentCamp['title']);
                             <?php endif; ?>
 
                             <?php if(in_array('email', $guestlistConfig['columns']) || in_array('phone', $guestlistConfig['columns']) || !empty($p['payer_name'])): ?>
-                                <td class="p-4 hide-mobile">
+                                <td class="px-2 py-3 md:p-4 hide-mobile">
                                     <?php if (!empty($p['payer_name'])): ?>
                                         <div class="text-[9px] font-black uppercase text-slate-400 mb-0.5">Acheteur</div>
                                         <div class="text-[10px] font-bold text-slate-700 mb-1"><?= htmlspecialchars($p['payer_name']) ?></div>
@@ -257,7 +257,7 @@ $title = htmlspecialchars($currentCamp['title']);
                             <?php endif; ?>
 
                             <?php if(in_array('date', $guestlistConfig['columns'])): ?>
-                                <td class="p-4 hide-mobile text-[10px] font-bold text-slate-300 italic text-right">
+                                <td class="px-2 py-3 md:p-4 hide-mobile text-[10px] font-bold text-slate-300 italic text-right">
                                     <?= $p['date'] ?>
                                 </td>
                             <?php endif; ?>
