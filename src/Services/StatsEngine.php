@@ -109,7 +109,7 @@ class StatsEngine {
                     if (!$rule || !($rule['hidden'] ?? false)) {
                         // Pour les boutiques, on ne met pas les produits principaux dans les cartes de regroupement (pie/bar)
                         // car ils sont déjà détaillés dans les tableaux de performance et d'inventaire.
-                        if ($this->formType !== 'Shop') {
+                        if (!in_array($this->formType, ['Shop', 'Checkout', 'PaymentForm', 'Product'])) {
                             $this->addToGroup($groups, $rule ?: ['group' => 'Divers'], $displayLabel, 1);
                         }
                         

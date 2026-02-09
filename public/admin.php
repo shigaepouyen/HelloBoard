@@ -456,6 +456,11 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
+                                <?php
+                                    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+                                    $shareUrl = $protocol . '://' . $_SERVER['HTTP_HOST'] . str_replace('admin.php', 'index.php', $_SERVER['SCRIPT_NAME']) . '?campaign=' . $c['slug'] . '&token=' . ($c['shareToken'] ?? '');
+                                ?>
+                                <button onclick="copyToClipboard('<?= $shareUrl ?>', this)" class="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="Copier le lien public"><i class="fa-solid fa-link"></i></button>
                                 <a href="admin.php?action=export_csv&campaign=<?= $c['slug'] ?>" class="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="Export CSV"><i class="fa-solid fa-download"></i></a>
                                 <a href="admin.php?action=toggle_archive&campaign=<?= $c['slug'] ?>" class="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="<?= $isArchived ? 'Restaurer' : 'Archiver' ?>"><i class="fa-solid <?= $isArchived ? 'fa-box-open' : 'fa-box-archive' ?>"></i></a>
                                 <button onclick="confirmDelete('<?= $c['slug'] ?>', '<?= htmlspecialchars(addslashes($c['title']), ENT_QUOTES) ?>')" class="w-12 h-12 flex items-center justify-center bg-red-50 text-red-300 rounded-xl hover:bg-red-500 hover:text-white transition" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
@@ -601,7 +606,8 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
         'Donation': { main: '❤️ Donateur', quota: 'Objectif Dons' },
         'Crowdfunding': { main: '🚀 Contributeur', quota: 'Objectif Contrib.' },
         'PaymentForm': { main: '💳 Article', quota: 'Quota Articles' },
-        'Checkout': { main: '📦 Produit', quota: 'Quota Articles' }
+        'Checkout': { main: '📦 Produit', quota: 'Quota Articles' },
+        'Product': { main: '📦 Produit', quota: 'Quota Articles' }
     };
 
     function confirmDelete(slug, title) {
@@ -661,6 +667,26 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                         <button id="save-main-btn" class="flex-1 md:flex-none bg-blue-600 text-white px-10 py-5 rounded-[1.5rem] font-black uppercase text-xs shadow-xl shadow-blue-100 transition transform active:scale-95">
                             Sauvegarder
                         </button>
+                    </div>
+                </div>
+
+                <div class="admin-card p-8 mb-8 flex flex-col md:flex-row justify-between items-center gap-6 border-2 border-blue-50 bg-blue-50/20">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
+                            <i class="fa-solid fa-share-nodes text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-black uppercase text-slate-400 italic tracking-widest">Lien de partage public</h3>
+                            <p class="text-sm font-bold text-slate-700 mt-1">Partagez ce board sans donner d'accès administrateur</p>
+                        </div>
+                    </div>
+                    <div class="flex-1 w-full md:w-auto">
+                        <div class="flex gap-2">
+                            <input type="text" readonly id="share-url" class="input-soft !bg-white !py-4 !text-xs text-blue-600 font-mono" value="${window.location.origin + window.location.pathname.replace('admin.php', 'index.php') + '?campaign=' + slug + '&token=' + token}">
+                            <button onclick="copyShareLink(this)" class="bg-slate-900 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-600 transition shadow-lg">
+                                Copier
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -750,6 +776,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                             <div class="w-32">BLOC / GROUPE</div>
                             <div class="w-24">TYPE</div>
                             <div class="w-24">CHART</div>
+                            <div class="w-32">REGEX</div>
                     ${isShop ? '<div class="w-48 text-center">FINANCES / STOCK</div>' : ''}
                         </div>
 
@@ -786,8 +813,8 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                                                 <option value="doughnut" ${r.chartType==='doughnut'?'selected':''}>Donut</option>
                                             </select>
                                         </div>
-                                        <div class="hidden">
-                                            <input type="text" class="rule-transform" value="${r.transform || ''}">
+                                        <div class="w-full lg:w-32">
+                                            <input type="text" class="rule-transform input-soft !py-2 !px-3 !text-[10px] uppercase text-slate-600" value="${r.transform || ''}" placeholder="REGEX:...">
                                         </div>
 
                                         ${isShop ? `
@@ -906,6 +933,30 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
             btn.innerText = oldText;
             btn.disabled = false;
         }
+    }
+
+    function copyShareLink(btn) {
+        const input = document.getElementById('share-url');
+        input.select();
+        document.execCommand('copy');
+        const oldText = btn.innerText;
+        btn.innerText = "Copié !";
+        btn.classList.replace('bg-slate-900', 'bg-emerald-500');
+        setTimeout(() => {
+            btn.innerText = oldText;
+            btn.classList.replace('bg-emerald-500', 'bg-slate-900');
+        }, 2000);
+    }
+
+    function copyToClipboard(text, btn) {
+        navigator.clipboard.writeText(text);
+        const oldHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        btn.classList.replace('text-slate-400', 'text-emerald-500');
+        setTimeout(() => {
+            btn.innerHTML = oldHtml;
+            btn.classList.replace('text-emerald-500', 'text-slate-400');
+        }, 2000);
     }
     </script>
 </body>

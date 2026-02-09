@@ -251,7 +251,8 @@
             'Donation': { main: 'Dons', unit: 'donateurs', list: 'dons', timeline: 'Dons' },
             'Crowdfunding': { main: 'Contributions', unit: 'contributeurs', list: 'contributions', timeline: 'Contrib.' },
             'PaymentForm': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' },
-            'Checkout': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' }
+            'Checkout': { main: 'Ventes', unit: 'commandes', list: 'ventes', timeline: 'Ventes' },
+            'Product': { main: 'Ventes', unit: 'articles', list: 'ventes', timeline: 'Ventes' }
         };
         const formTypeKey = meta.formType ? (meta.formType.charAt(0).toUpperCase() + meta.formType.slice(1)) : 'Event';
         const labels = labelsMap[formTypeKey] || labelsMap['Event'];
@@ -276,7 +277,9 @@
             if (isShop) {
                 n1Container.classList.remove('hidden');
                 const artCount = d.kpi.participants || 0;
-                n1Container.innerHTML = `<i class="fa-solid fa-box-open mr-1"></i> ${artCount} article${artCount > 1 ? 's' : ''} vendu${artCount > 1 ? 's' : ''}`;
+                const caItems = d.kpi.revenue - d.kpi.donations;
+                const caFormatted = new Intl.NumberFormat('fr-FR', {style:'currency', currency:'EUR', minimumFractionDigits:0}).format(caItems);
+                n1Container.innerHTML = `<i class="fa-solid fa-box-open mr-1"></i> ${artCount} article${artCount > 1 ? 's' : ''} vendu${artCount > 1 ? 's' : ''} • ${caFormatted} CA`;
             } else if (goals.n1 > 0) {
                 n1Container.classList.remove('hidden');
                 n1Container.innerHTML = `Vs ${goals.n1} l'an passé`;
