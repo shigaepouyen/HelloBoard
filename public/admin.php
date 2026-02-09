@@ -456,6 +456,11 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
+                                <?php
+                                    $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+                                    $shareUrl = $protocol . '://' . $_SERVER['HTTP_HOST'] . str_replace('admin.php', 'index.php', $_SERVER['SCRIPT_NAME']) . '?campaign=' . $c['slug'] . '&token=' . ($c['shareToken'] ?? '');
+                                ?>
+                                <button onclick="copyToClipboard('<?= $shareUrl ?>', this)" class="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="Copier le lien public"><i class="fa-solid fa-link"></i></button>
                                 <a href="admin.php?action=export_csv&campaign=<?= $c['slug'] ?>" class="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="Export CSV"><i class="fa-solid fa-download"></i></a>
                                 <a href="admin.php?action=toggle_archive&campaign=<?= $c['slug'] ?>" class="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="<?= $isArchived ? 'Restaurer' : 'Archiver' ?>"><i class="fa-solid <?= $isArchived ? 'fa-box-open' : 'fa-box-archive' ?>"></i></a>
                                 <button onclick="confirmDelete('<?= $c['slug'] ?>', '<?= htmlspecialchars(addslashes($c['title']), ENT_QUOTES) ?>')" class="w-12 h-12 flex items-center justify-center bg-red-50 text-red-300 rounded-xl hover:bg-red-500 hover:text-white transition" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
@@ -940,6 +945,17 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
         setTimeout(() => {
             btn.innerText = oldText;
             btn.classList.replace('bg-emerald-500', 'bg-slate-900');
+        }, 2000);
+    }
+
+    function copyToClipboard(text, btn) {
+        navigator.clipboard.writeText(text);
+        const oldHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+        btn.classList.replace('text-slate-400', 'text-emerald-500');
+        setTimeout(() => {
+            btn.innerHTML = oldHtml;
+            btn.classList.replace('text-emerald-500', 'text-slate-400');
         }, 2000);
     }
     </script>
