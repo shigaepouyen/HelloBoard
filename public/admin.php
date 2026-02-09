@@ -601,7 +601,8 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
         'Donation': { main: '❤️ Donateur', quota: 'Objectif Dons' },
         'Crowdfunding': { main: '🚀 Contributeur', quota: 'Objectif Contrib.' },
         'PaymentForm': { main: '💳 Article', quota: 'Quota Articles' },
-        'Checkout': { main: '📦 Produit', quota: 'Quota Articles' }
+        'Checkout': { main: '📦 Produit', quota: 'Quota Articles' },
+        'Product': { main: '📦 Produit', quota: 'Quota Articles' }
     };
 
     function confirmDelete(slug, title) {
