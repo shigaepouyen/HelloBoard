@@ -665,6 +665,26 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                     </div>
                 </div>
 
+                <div class="admin-card p-8 mb-8 flex flex-col md:flex-row justify-between items-center gap-6 border-2 border-blue-50 bg-blue-50/20">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
+                            <i class="fa-solid fa-share-nodes text-xl"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-black uppercase text-slate-400 italic tracking-widest">Lien de partage public</h3>
+                            <p class="text-sm font-bold text-slate-700 mt-1">Partagez ce board sans donner d'accès administrateur</p>
+                        </div>
+                    </div>
+                    <div class="flex-1 w-full md:w-auto">
+                        <div class="flex gap-2">
+                            <input type="text" readonly id="share-url" class="input-soft !bg-white !py-4 !text-xs text-blue-600 font-mono" value="${window.location.origin + window.location.pathname.replace('admin.php', 'index.php') + '?campaign=' + slug + '&token=' + token}">
+                            <button onclick="copyShareLink(this)" class="bg-slate-900 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-600 transition shadow-lg">
+                                Copier
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
                     <div class="admin-card p-8">
                         <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Objectifs & Quotas</h3>
@@ -908,6 +928,19 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
             btn.innerText = oldText;
             btn.disabled = false;
         }
+    }
+
+    function copyShareLink(btn) {
+        const input = document.getElementById('share-url');
+        input.select();
+        document.execCommand('copy');
+        const oldText = btn.innerText;
+        btn.innerText = "Copié !";
+        btn.classList.replace('bg-slate-900', 'bg-emerald-500');
+        setTimeout(() => {
+            btn.innerText = oldText;
+            btn.classList.replace('bg-emerald-500', 'bg-slate-900');
+        }, 2000);
     }
     </script>
 </body>
