@@ -133,6 +133,9 @@ $title = htmlspecialchars($currentCamp['title']);
             </div>
 
             <div class="flex gap-2">
+                <a href="admin.php?action=export_csv&campaign=<?= $slug ?>" class="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center gap-2">
+                    <i class="fa-solid fa-download"></i> CSV
+                </a>
                 <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center gap-2">
                     <i class="fa-solid fa-print"></i> Imprimer
                 </button>
