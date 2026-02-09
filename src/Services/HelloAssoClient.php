@@ -106,15 +106,20 @@ class HelloAssoClient {
 
         $data = $res['body']['data'] ?? $res['body'] ?? [];
 
+        // Filtre pour exclure le Checkout par défaut de HelloAsso
+        $data = array_filter($data, function($f) {
+            return !($f['formType'] === 'Checkout' && $f['formSlug'] === 'default');
+        });
+
         return [
             'orgSlug' => $orgSlug,
-            'forms' => array_map(function($f) {
+            'forms' => array_values(array_map(function($f) {
                 return [
                     'name' => $f['title'] ?? $f['formSlug'],
                     'slug' => $f['formSlug'],
                     'type' => $f['formType']
                 ];
-            }, $data)
+            }, $data))
         ];
     }
 
