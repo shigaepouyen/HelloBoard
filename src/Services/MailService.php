@@ -15,7 +15,7 @@ class MailService {
         $this->fromName = $config['smtpFromName'] ?? 'HelloBoard';
     }
 
-    public function send($to, $subject, $body, $vars = [], $trackingUrl = '') {
+    public function send($to, $subject, $body, $vars = [], $trackingUrl = '', $attachments = []) {
         // Replace variables
         foreach ($vars as $key => $value) {
             $body = str_replace('{{' . $key . '}}', $value, $body);
@@ -37,10 +37,10 @@ class MailService {
             $body = '<!DOCTYPE html><html><body style="font-family: sans-serif; line-height: 1.6; color: #333;">' . nl2br($body) . '</body></html>';
         }
 
-        return $this->smtpSend($to, $subject, $body);
+        return $this->smtpSend($to, $subject, $body, $attachments);
     }
 
-    private function smtpSend($to, $subject, $body) {
+    private function smtpSend($to, $subject, $body, $attachments = []) {
         $timeout = 10;
         $hostPrefix = ($this->port === 465) ? 'ssl://' : 'tcp://';
         $socket = stream_socket_client($hostPrefix . $this->host . ':' . $this->port, $errno, $errstr, $timeout);
@@ -80,9 +80,10 @@ class MailService {
         $this->sendCmd($socket, "DATA");
         $this->expect($socket, '354');
 
+        $boundary = "HB_" . md5(uniqid());
         $headers = [
             "MIME-Version: 1.0",
-            "Content-Type: text/html; charset=UTF-8",
+            "Content-Type: multipart/mixed; boundary=\"$boundary\"",
             "From: =?UTF-8?B?" . base64_encode($this->fromName) . "?= <{$this->user}>",
             "To: <$to>",
             "Subject: =?UTF-8?B?" . base64_encode($subject) . "?=",
@@ -90,7 +91,27 @@ class MailService {
             "Message-ID: <" . time() . "." . uniqid() . "@" . $helloHost . ">"
         ];
 
-        fwrite($socket, implode("\r\n", $headers) . "\r\n\r\n" . $body . "\r\n.\r\n");
+        fwrite($socket, implode("\r\n", $headers) . "\r\n\r\n");
+
+        // Body part
+        fwrite($socket, "--$boundary\r\n");
+        fwrite($socket, "Content-Type: text/html; charset=UTF-8\r\n\r\n");
+        fwrite($socket, $body . "\r\n\r\n");
+
+        // Attachments
+        foreach ($attachments as $filePath) {
+            if (file_exists($filePath)) {
+                $fileName = basename($filePath);
+                $content = chunk_split(base64_encode(file_get_contents($filePath)));
+                fwrite($socket, "--$boundary\r\n");
+                fwrite($socket, "Content-Type: application/octet-stream; name=\"$fileName\"\r\n");
+                fwrite($socket, "Content-Transfer-Encoding: base64\r\n");
+                fwrite($socket, "Content-Disposition: attachment; filename=\"$fileName\"\r\n\r\n");
+                fwrite($socket, $content . "\r\n");
+            }
+        }
+
+        fwrite($socket, "--$boundary--\r\n.\r\n");
         $this->expect($socket, '250');
 
         $this->sendCmd($socket, "QUIT");

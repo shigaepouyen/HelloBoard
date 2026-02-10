@@ -6,6 +6,7 @@ class Storage {
     private static $campaignsPath = __DIR__ . '/../../config/campaigns/';
     private static $checkinsPath = __DIR__ . '/../../config/checkins/';
     private static $mailingPath = __DIR__ . '/../../config/mailing/';
+    private static $attachmentsPath = __DIR__ . '/../../config/mailing/attachments/';
 
     public static function saveGlobalSettings($settings) {
         $dir = dirname(self::$configPath);
@@ -48,6 +49,14 @@ class Storage {
             if (file_exists($checkinFile)) unlink($checkinFile);
             $mailingFile = self::$mailingPath . basename($slug) . '.json';
             if (file_exists($mailingFile)) unlink($mailingFile);
+
+            $attachDir = self::$attachmentsPath . basename($slug) . '/';
+            if (is_dir($attachDir)) {
+                $files = glob($attachDir . '*');
+                foreach($files as $f) if(is_file($f)) unlink($f);
+                rmdir($attachDir);
+            }
+
             return unlink($filename);
         }
         return false;
@@ -107,5 +116,35 @@ class Storage {
         }
         fclose($fp);
         return $content ? json_decode($content, true) : array();
+    }
+
+    public static function saveMailingAttachment($slug, $file) {
+        $dir = self::$attachmentsPath . basename($slug) . '/';
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        $target = $dir . basename($file['name']);
+        return move_uploaded_file($file['tmp_name'], $target);
+    }
+
+    public static function listMailingAttachments($slug) {
+        $dir = self::$attachmentsPath . basename($slug) . '/';
+        if (!is_dir($dir)) return [];
+        $files = glob($dir . '*');
+        $result = [];
+        foreach($files as $f) {
+            if (is_file($f)) {
+                $result[] = [
+                    'name' => basename($f),
+                    'path' => $f,
+                    'size' => filesize($f)
+                ];
+            }
+        }
+        return $result;
+    }
+
+    public static function deleteMailingAttachment($slug, $filename) {
+        $file = self::$attachmentsPath . basename($slug) . '/' . basename($filename);
+        if (file_exists($file)) return unlink($file);
+        return false;
     }
 }

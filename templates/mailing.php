@@ -46,7 +46,26 @@
                             <textarea id="mail-body" rows="12" class="input-soft font-mono text-sm" placeholder="Bonjour {{PRENOM}}, ..."><?= htmlspecialchars($mailingDraft['body']) ?></textarea>
                             <p class="text-[10px] text-slate-400 font-bold uppercase mt-3">Variables : {{NOM}}, {{PRENOM}}, {{NOM_CAMPAGNE}}</p>
                         </div>
-                        <div class="flex gap-4">
+
+                        <div class="pt-6 border-t border-slate-50">
+                            <label class="text-[10px] font-black text-slate-500 uppercase block mb-2 tracking-tighter">Pièces jointes</label>
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                <?php foreach($attachments as $file): ?>
+                                    <div class="flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-xl text-[10px] font-bold text-slate-600">
+                                        <i class="fa-solid fa-file-alt"></i>
+                                        <span><?= htmlspecialchars($file['name']) ?> (<?= round($file['size']/1024, 1) ?> KB)</span>
+                                        <a href="admin.php?action=delete_attachment&campaign=<?= $slug ?>&file=<?= urlencode($file['name']) ?>" class="text-slate-300 hover:text-red-500 transition ml-2"><i class="fa-solid fa-times-circle"></i></a>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <input type="file" id="mail-attachment" class="hidden" onchange="document.getElementById('file-name-display').innerText = this.files[0].name">
+                            <label for="mail-attachment" class="inline-flex items-center gap-2 bg-white border-2 border-dashed border-slate-200 px-6 py-4 rounded-2xl text-[10px] font-black text-slate-400 uppercase cursor-pointer hover:border-blue-400 hover:text-blue-500 transition">
+                                <i class="fa-solid fa-paperclip"></i>
+                                <span id="file-name-display">Ajouter un fichier</span>
+                            </label>
+                        </div>
+
+                        <div class="flex gap-4 pt-6 border-t border-slate-50">
                             <button onclick="saveDraft()" id="btn-save-draft" class="bg-slate-100 text-slate-600 px-6 py-4 rounded-2xl font-black uppercase text-xs hover:bg-slate-200 transition">
                                 Enregistrer le brouillon
                             </button>
@@ -179,19 +198,28 @@
             const btn = document.getElementById('btn-save-draft');
             const oldText = btn.innerText;
             btn.innerText = "Enregistrement...";
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('save_mailing_draft', '1');
+            formData.append('campaign', campaign);
+            formData.append('subject', document.getElementById('mail-subject').value);
+            formData.append('body', document.getElementById('mail-body').value);
+
+            const fileInput = document.getElementById('mail-attachment');
+            if (fileInput.files[0]) {
+                formData.append('attachment', fileInput.files[0]);
+            }
 
             try {
-                await fetch('admin.php', {
+                const res = await fetch('admin.php', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({
-                        save_mailing_draft: '1',
-                        campaign: campaign,
-                        subject: document.getElementById('mail-subject').value,
-                        body: document.getElementById('mail-body').value
-                    })
+                    body: formData
                 });
                 notify("Brouillon enregistré avec succès !", "success");
+                if (fileInput.files[0]) {
+                    setTimeout(() => location.reload(), 1000);
+                }
             } catch (e) {
                 notify("Erreur lors de l'enregistrement.", "error");
             } finally {
@@ -238,14 +266,19 @@
         }
 
         async function startSending() {
+            if (!document.getElementById('mail-subject').value) return notify("Veuillez saisir un objet.", "error");
+
             document.getElementById('btn-send-all').disabled = true;
-            document.getElementById('sending-status').classList.remove('hidden');
+            const statusContainer = document.getElementById('sending-status');
+            statusContainer.classList.remove('hidden');
 
             const subject = document.getElementById('mail-subject').value;
             const body = document.getElementById('mail-body').value;
 
             let sentCount = parseInt(document.getElementById('stat-sent').innerText);
             const totalCount = payers.length;
+            let currentInBatch = 0;
+            let batchNum = 1;
 
             for (const p of payers) {
                 if (history[p.email] && history[p.email].sent_at) continue;
@@ -258,6 +291,9 @@
                 }
 
                 try {
+                    currentInBatch++;
+                    statusContainer.innerHTML = `<p class="text-[10px] font-black uppercase text-slate-400 text-center animate-pulse">Envoi du paquet ${batchNum} (${currentInBatch}/10)...</p>`;
+
                     const res = await fetch('admin.php?action=mailing_send_one', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -290,7 +326,14 @@
                     console.error("Erreur technique pour " + p.email, e);
                 }
 
-                await new Promise(r => setTimeout(r, 800));
+                if (currentInBatch >= 10) {
+                    batchNum++;
+                    currentInBatch = 0;
+                    statusContainer.innerHTML = `<p class="text-[10px] font-black uppercase text-blue-500 text-center">Temporisation entre deux paquets (5s)...</p>`;
+                    await new Promise(r => setTimeout(r, 5000));
+                } else {
+                    await new Promise(r => setTimeout(r, 800));
+                }
             }
 
             document.getElementById('sending-status').innerHTML = '<p class="text-[10px] font-black uppercase text-emerald-500 text-center">Envoi terminé !</p>';

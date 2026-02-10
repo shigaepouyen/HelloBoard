@@ -107,10 +107,22 @@ if (isset($_POST['save_mailing_draft'])) {
                 'body' => $_POST['body']
             ];
             Storage::saveCampaign($slug, $conf);
+
+            if (!empty($_FILES['attachment']['name'])) {
+                Storage::saveMailingAttachment($slug, $_FILES['attachment']);
+            }
+
             echo json_encode(['success' => true]);
             exit;
         }
     }
+    exit;
+}
+
+// Delete Mailing Attachment
+if ($action === 'delete_attachment' && isset($_GET['campaign']) && isset($_GET['file'])) {
+    Storage::deleteMailingAttachment($_GET['campaign'], $_GET['file']);
+    header('Location: admin.php?action=mailing&campaign=' . $_GET['campaign']);
     exit;
 }
 
@@ -147,11 +159,14 @@ if ($action === 'mailing_send_one' && isset($_POST['campaign'])) {
         $body = $_POST['body'];
 
         try {
+            $attachments = Storage::listMailingAttachments($slug);
+            $attachmentPaths = array_column($attachments, 'path');
+
             $mailer->send($targetEmail, $subject, $body, [
                 'NOM' => strtoupper($lastName),
                 'PRENOM' => $firstName,
                 'NOM_CAMPAGNE' => $currentCamp['title']
-            ], $trackingUrl);
+            ], $trackingUrl, $attachmentPaths);
 
             if (!$isTest) {
                 $history[$targetEmail] = [
@@ -470,6 +485,7 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
                 return strcmp($a['lastName'] ?? '', $b['lastName'] ?? '') ?: strcmp($a['firstName'] ?? '', $b['firstName'] ?? '');
             });
             $history = Storage::getMailingHistory($slug);
+            $attachments = Storage::listMailingAttachments($slug);
             $mailingDraft = $currentCamp['mailingDraft'] ?? ['subject' => '', 'body' => "Bonjour {{PRENOM}},\n\nCeci est un rappel pour la campagne {{NOM_CAMPAGNE}}.\n\nCordialement."];
             include __DIR__ . '/../templates/mailing.php';
             exit;
