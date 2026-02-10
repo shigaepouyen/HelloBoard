@@ -13,7 +13,7 @@
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; color: #1e293b; -webkit-font-smoothing: antialiased; }
         .sexy-card { background: #ffffff; border-radius: 2.5rem; border: 1px solid rgba(255,255,255,0.7); box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.06); overflow: hidden; }
         .kpi-label { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: #94a3b8; }
-        .kpi-value { font-size: 3.5rem; font-weight: 800; color: #0f172a; line-height: 1; letter-spacing: -0.05em; }
+        .kpi-value { font-size: clamp(2.2rem, 10vw, 3.5rem); font-weight: 800; color: #0f172a; line-height: 1; letter-spacing: -0.05em; }
         .gauge-track { background: #f1f5f9; height: 12px; border-radius: 20px; overflow: hidden; margin-top: 1.5rem; }
         .gauge-bar { height: 100%; border-radius: 20px; transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
         .reveal { animation: reveal 0.8s forwards; opacity: 0; }
@@ -116,7 +116,7 @@
     <main class="max-w-4xl mx-auto px-4 mt-6 space-y-6">
         
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div class="sexy-card p-10 reveal" style="animation-delay: 0.1s;">
+            <div class="sexy-card p-6 md:p-10 reveal" style="animation-delay: 0.1s;">
                 <div class="flex justify-between items-start mb-4"><span class="kpi-label text-emerald-500/70">Recettes Totales</span><i class="fa-solid fa-euro-sign text-emerald-400 text-xl"></i></div>
                 <div id="val-revenue" class="kpi-value text-emerald-600">0 €</div>
                 <div id="donations-box-container" class="mt-2 flex justify-between items-center opacity-0 transition-opacity">
@@ -143,7 +143,7 @@
                 </div>
             </div>
 
-            <div class="sexy-card p-10 reveal border-l-8 border-l-blue-500" style="animation-delay: 0.2s;">
+            <div class="sexy-card p-6 md:p-10 reveal border-l-8 border-l-blue-500" style="animation-delay: 0.2s;">
                 <div class="flex justify-between items-start mb-4"><span id="label-participants" class="kpi-label text-blue-500/70">Inscriptions</span><i class="fa-solid fa-user-check text-blue-400 text-xl"></i></div>
                 <div id="val-participants" class="kpi-value text-blue-600">0</div>
                 <div id="n1-container" class="mt-2 text-[10px] font-bold text-slate-400 uppercase hidden italic">Vs <span id="val-n1">0</span> l'an passé</div>
@@ -158,7 +158,7 @@
             </div>
         </div>
 
-        <section class="sexy-card p-10 reveal" style="animation-delay: 0.3s;">
+        <section class="sexy-card p-6 md:p-10 reveal" style="animation-delay: 0.3s;">
             <h3 class="text-xs font-black uppercase text-slate-400 mb-8">Performance & Événements (Email/Com)</h3>
             <div class="h-80"><canvas id="timelineChart"></canvas></div>
         </section>
@@ -178,7 +178,7 @@
             </div>
         </section>
 
-        <section class="sexy-card p-10 reveal" style="animation-delay: 0.45s;">
+        <section class="sexy-card p-6 md:p-10 reveal" style="animation-delay: 0.45s;">
             <div onclick="toggleSection('recent-wrap', this)" class="flex justify-between items-center mb-4 md:mb-8 cursor-pointer cursor-mobile-pointer select-none">
                 <div class="flex items-center gap-3">
                     <h3 class="text-xs font-black uppercase tracking-widest text-slate-400">Activités Récentes</h3>
@@ -347,7 +347,7 @@
             shopBreakdownGrid.classList.remove('hidden');
 
             let inventoryHtml = `
-                <section class="sexy-card p-10 reveal">
+                <section class="sexy-card p-6 md:p-10 reveal">
                     <div class="flex justify-between items-center mb-8">
                         <h3 class="text-xs font-black uppercase text-slate-400 italic">Répartition des quantités par produit</h3>
                         <span class="bg-blue-50 text-blue-600 text-[10px] font-black px-3 py-1 rounded-full uppercase italic">Inventaire</span>
@@ -378,7 +378,7 @@
             `;
 
             let performanceHtml = `
-                <section class="sexy-card p-10 reveal overflow-x-auto">
+                <section class="sexy-card p-6 md:p-10 reveal overflow-x-auto">
                     <div class="flex justify-between items-center mb-8">
                         <h3 class="text-xs font-black uppercase text-slate-400 italic">Détail Performance par Produit</h3>
                         <span class="bg-emerald-50 text-emerald-600 text-[10px] font-black px-3 py-1 rounded-full uppercase italic">Rentabilité</span>
@@ -411,7 +411,7 @@
             `;
 
             let matrixHtml = `
-                <section class="sexy-card p-10 reveal">
+                <section class="sexy-card p-6 md:p-10 reveal">
                     <div class="flex justify-between items-center mb-8">
                         <h3 class="text-xs font-black uppercase text-slate-400 italic">Matrice Rentabilité (Volume vs Bénéfice)</h3>
                         <span class="bg-indigo-50 text-indigo-600 text-[10px] font-black px-3 py-1 rounded-full uppercase italic">Analyse</span>
@@ -591,8 +591,8 @@
         const grid = document.getElementById('charts-grid'); grid.innerHTML = '';
         chartsData.forEach((c, i) => {
             const chartId = `c-${i}`;
-            const div = document.createElement('div'); div.className = 'sexy-card p-10 reveal';
-            div.innerHTML = `<h4 class="text-[10px] font-black uppercase text-slate-400 mb-8">${c.title}</h4><div class="h-64"><canvas id="${chartId}"></canvas></div>`;
+            const div = document.createElement('div'); div.className = 'sexy-card p-6 md:p-10 reveal';
+            div.innerHTML = `<h4 class="text-[10px] font-black uppercase text-slate-400 mb-8">${c.title}</h4><div class="h-48 md:h-64"><canvas id="${chartId}"></canvas></div>`;
             grid.appendChild(div);
             
             const isBar = (c.type === 'bar');

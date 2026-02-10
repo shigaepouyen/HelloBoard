@@ -400,7 +400,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
 </head>
 <body class="pb-32">
 
-    <nav class="p-6 bg-white border-b border-slate-100 sticky top-0 z-50 flex justify-between items-center shadow-sm">
+    <nav class="p-4 md:p-6 bg-white border-b border-slate-100 sticky top-0 z-50 flex justify-between items-center shadow-sm">
         <div class="flex items-center gap-4">
             <a href="admin.php" class="flex items-center gap-2">
                 <img src="assets/img/logo.svg" alt="HelloBoard" class="w-8 h-8">
@@ -443,8 +443,8 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                     <?php endif; ?>
 
                     <?php foreach($localCampaigns as $c): $isArchived = !empty($c['archived']); ?>
-                        <div class="admin-card p-6 flex flex-col md:flex-row justify-between items-center gap-4 transition group hover:shadow-xl hover:shadow-slate-200/50 hover:border-blue-200 <?= $isArchived ? 'opacity-60 bg-slate-50 grayscale' : '' ?>">
-                            <div class="flex-1">
+                        <div class="admin-card p-4 md:p-6 flex flex-col md:flex-row justify-between items-center gap-4 transition group hover:shadow-xl hover:shadow-slate-200/50 hover:border-blue-200 <?= $isArchived ? 'opacity-60 bg-slate-50 grayscale' : '' ?>">
+                            <div class="flex-1 w-full md:w-auto">
                                 <div class="flex items-center gap-3">
                                     <h3 class="font-black text-xl text-slate-800"><?= htmlspecialchars($c['title']) ?></h3>
                                     <?php if($isArchived): ?><span class="bg-slate-200 text-slate-500 text-[9px] font-black px-2 py-0.5 rounded uppercase">Archivé</span><?php endif; ?>
@@ -455,16 +455,18 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                                     <a href="admin.php?action=guestlist&campaign=<?= $c['slug'] ?>" onclick="showLoader()" class="text-[10px] text-emerald-600 font-black uppercase hover:underline"><i class="fa-solid fa-clipboard-list mr-1"></i> Inscrits</a>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex flex-wrap items-center justify-center md:justify-end gap-2 md:gap-3 w-full md:w-auto mt-2 md:mt-0">
                                 <?php
                                     $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
                                     $shareUrl = $protocol . '://' . $_SERVER['HTTP_HOST'] . str_replace('admin.php', 'index.php', $_SERVER['SCRIPT_NAME']) . '?campaign=' . $c['slug'] . '&token=' . ($c['shareToken'] ?? '');
                                 ?>
-                                <button onclick="copyToClipboard('<?= $shareUrl ?>', this)" class="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="Copier le lien public"><i class="fa-solid fa-link"></i></button>
-                                <a href="admin.php?action=export_csv&campaign=<?= $c['slug'] ?>" onclick="return btnDownloadLoading(this)" class="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="Export CSV"><i class="fa-solid fa-download"></i></a>
-                                <a href="admin.php?action=toggle_archive&campaign=<?= $c['slug'] ?>" class="w-12 h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="<?= $isArchived ? 'Restaurer' : 'Archiver' ?>"><i class="fa-solid <?= $isArchived ? 'fa-box-open' : 'fa-box-archive' ?>"></i></a>
-                                <button onclick="confirmDelete('<?= $c['slug'] ?>', '<?= htmlspecialchars(addslashes($c['title']), ENT_QUOTES) ?>')" class="w-12 h-12 flex items-center justify-center bg-red-50 text-red-300 rounded-xl hover:bg-red-500 hover:text-white transition" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
-                                <a href="admin.php?action=edit&campaign=<?= $c['slug'] ?>" class="bg-blue-600 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase shadow-lg shadow-blue-100 transition transform active:scale-95 ml-2">Réglages</a>
+                                <div class="flex gap-2">
+                                    <button onclick="copyToClipboard('<?= $shareUrl ?>', this)" class="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="Copier le lien public"><i class="fa-solid fa-link"></i></button>
+                                    <a href="admin.php?action=export_csv&campaign=<?= $c['slug'] ?>" onclick="return btnDownloadLoading(this)" class="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="Export CSV"><i class="fa-solid fa-download"></i></a>
+                                    <a href="admin.php?action=toggle_archive&campaign=<?= $c['slug'] ?>" class="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-slate-50 text-slate-400 rounded-xl hover:bg-slate-100 transition" title="<?= $isArchived ? 'Restaurer' : 'Archiver' ?>"><i class="fa-solid <?= $isArchived ? 'fa-box-open' : 'fa-box-archive' ?>"></i></a>
+                                    <button onclick="confirmDelete('<?= $c['slug'] ?>', '<?= htmlspecialchars(addslashes($c['title']), ENT_QUOTES) ?>')" class="w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-red-50 text-red-300 rounded-xl hover:bg-red-500 hover:text-white transition" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
+                                </div>
+                                <a href="admin.php?action=edit&campaign=<?= $c['slug'] ?>" class="bg-blue-600 text-white px-5 py-3 md:px-8 md:py-4 rounded-2xl text-[10px] md:text-xs font-black uppercase shadow-lg shadow-blue-100 transition transform active:scale-95">Réglages</a>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -485,7 +487,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                     </div>
                 <?php endif; ?>
 
-                <div class="admin-card p-10 mb-8">
+                <div class="admin-card p-6 md:p-10 mb-8">
                     <form method="POST">
                         <div class="space-y-8">
                             <div>
@@ -812,8 +814,8 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
 
                         <div id="rules-list" class="space-y-3">
                             ${rules.map(r => `
-                                <div class="rule-tile bg-white border border-slate-100 rounded-2xl p-4 lg:p-5 flex flex-col lg:flex-row items-center gap-4 group hover:border-blue-300 hover:shadow-lg hover:shadow-blue-50 transition-all" data-item="${r.pattern}">
-                                    <div class="flex items-center gap-4 w-full lg:w-auto">
+                                <div class="rule-tile bg-white border border-slate-100 rounded-2xl p-4 md:p-5 flex flex-col lg:flex-row items-center gap-4 group hover:border-blue-300 hover:shadow-lg hover:shadow-blue-50 transition-all" data-item="${r.pattern}">
+                                    <div class="flex items-center justify-between lg:justify-start gap-4 w-full lg:w-auto">
                                         <div class="cursor-grab text-slate-200 group-hover:text-blue-400 transition-colors p-2"><i class="fa-solid fa-grip-vertical text-lg"></i></div>
                                         <div class="toggle-btn ${r.hidden ? '' : 'active'}" onclick="this.classList.toggle('active')" title="Activer/Désactiver l'importation"></div>
                                     </div>
@@ -825,7 +827,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                                         <input type="text" class="display-label input-soft !py-2 !text-sm border-transparent focus:border-blue-500 !bg-slate-50/50" value="${r.displayLabel}">
                                     </div>
 
-                                    <div class="flex flex-wrap lg:flex-nowrap lg:items-center gap-2 w-full lg:w-auto">
+                                    <div class="flex flex-wrap lg:flex-nowrap lg:items-center gap-2 md:gap-4 w-full lg:w-auto">
                                         <div class="w-full lg:w-32">
                                             <input type="text" class="rule-group input-soft !py-2 !px-3 !text-[10px] uppercase text-slate-600" value="${r.group || 'Divers'}" placeholder="BLOC">
                                         </div>

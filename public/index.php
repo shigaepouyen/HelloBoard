@@ -96,10 +96,10 @@ if ($isAdmin) {
         <style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap'); body{font-family:'Plus Jakarta Sans',sans-serif;background:#f1f5f9;}</style>
     </head>
     <body class="min-h-screen pb-20">
-        <nav class="p-6 bg-white sticky top-0 z-50 flex justify-between items-center shadow-sm">
+        <nav class="p-4 md:p-6 bg-white sticky top-0 z-50 flex justify-between items-center shadow-sm">
             <div class="flex items-center gap-3">
                 <img src="assets/img/logo.svg" alt="HelloBoard" class="w-8 h-8">
-                <h1 class="font-black italic uppercase text-slate-900">Console Admin</h1>
+                <h1 class="font-black italic uppercase text-slate-900 text-sm md:text-base">Console Admin</h1>
             </div>
             <div class="flex gap-4">
                 <a href="admin.php" class="bg-blue-600 text-white px-5 py-2 rounded-xl text-xs font-black uppercase hover:bg-blue-700 transition">Configuration</a>
@@ -107,8 +107,8 @@ if ($isAdmin) {
             </div>
         </nav>
 
-        <main class="max-w-5xl mx-auto px-6 py-12">
-            <h2 class="text-3xl font-black italic uppercase mb-8">Vos Boards Actifs</h2>
+        <main class="max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12">
+            <h2 class="text-2xl md:text-3xl font-black italic uppercase mb-8">Vos Boards Actifs</h2>
             
             <?php if(empty($campaigns)): ?>
                 <div class="text-center py-20 bg-white rounded-[2rem] border border-dashed border-slate-300">
@@ -123,9 +123,9 @@ if ($isAdmin) {
                         
                         $tokenLink = getCleanUrl($c['slug'], $c['shareToken']);
                     ?>
-                    <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 group hover:border-blue-500 transition relative">
+                    <div class="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-100 group hover:border-blue-500 transition relative">
                         <div class="flex justify-between items-start mb-6">
-                            <h3 class="text-xl font-black text-slate-800"><?= htmlspecialchars($c['title']) ?></h3>
+                            <h3 class="text-lg md:text-xl font-black text-slate-800"><?= htmlspecialchars($c['title']) ?></h3>
                             <span class="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-1 rounded uppercase"><?= $c['formType'] ?></span>
                         </div>
                         
