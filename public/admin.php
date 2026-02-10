@@ -3,6 +3,7 @@ session_start();
 $srcPath = __DIR__ . '/../src/Services/';
 require_once $srcPath . 'Storage.php';
 require_once $srcPath . 'HelloAssoClient.php';
+require_once $srcPath . 'SatisfactionService.php';
 
 $globals = Storage::getGlobalSettings();
 $adminPassword = $globals['adminPassword'] ?? null;
@@ -185,6 +186,110 @@ if ($action === 'mailing_send_one' && isset($_POST['campaign'])) {
     exit;
 }
 
+// Global Satisfaction Action (Reporting)
+if ($action === 'satisfaction_global') {
+    $satService = new SatisfactionService();
+    $stats = $satService->getStats();
+    $statsBySource = $satService->getStatsBySource();
+    $responses = $satService->getResponsesByCampaign();
+    include __DIR__ . '/../templates/satisfaction_global.php';
+    exit;
+}
+
+// Save Satisfaction Questions
+if (isset($_POST['save_satisfaction_questions'])) {
+    $satService = new SatisfactionService();
+    $questions = json_decode($_POST['questions'], true);
+    $satService->saveQuestions($_POST['campaign'], $questions);
+    echo json_encode(['success' => true]);
+    exit;
+}
+
+// Get Satisfaction Recipients
+if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
+    header('Content-Type: application/json');
+    $slug = $_GET['campaign'];
+    $typeFilter = $_GET['type_filter'] ?? null;
+    $excludeSent = isset($_GET['exclude_sent']) && $_GET['exclude_sent'] === '1';
+    $excludeEver = isset($_GET['exclude_ever']) && $_GET['exclude_ever'] === '1';
+
+    $currentCamp = null;
+    foreach($localCampaigns as $c) { if($c['slug'] === $slug) $currentCamp = $c; }
+
+    if ($currentCamp) {
+        $satService = new SatisfactionService();
+        $orders = $client->fetchAllOrders($currentCamp['orgSlug'], $currentCamp['formSlug'], $currentCamp['formType']);
+        $recipients = [];
+
+        foreach ($orders as $o) {
+            if (($o['state'] ?? '') !== 'Paid') continue;
+
+            $email = trim(strtolower($o['payer']['email'] ?? ''));
+            if (!$email) continue;
+
+            // Type filter (already handled by campaign slug usually, but just in case)
+            if ($typeFilter && $currentCamp['formType'] !== $typeFilter) continue;
+
+            if ($excludeSent && $satService->isAlreadySent($slug, $o['id'])) continue;
+            if ($excludeEver && $satService->hasEverReceived($email)) continue;
+
+            $recipients[$o['id']] = [
+                'orderId' => $o['id'],
+                'email' => $email,
+                'firstName' => trim($o['payer']['firstName'] ?? ''),
+                'lastName' => trim($o['payer']['lastName'] ?? ''),
+                'itemName' => $currentCamp['title'],
+                'date' => $o['date']
+            ];
+        }
+        echo json_encode(array_values($recipients));
+    }
+    exit;
+}
+
+// Send Satisfaction Email
+if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
+    header('Content-Type: application/json');
+    $slug = $_POST['campaign'];
+    $orderId = $_POST['orderId'];
+    $email = $_POST['email'];
+    $firstName = $_POST['firstName'] ?? '';
+    $lastName = $_POST['lastName'] ?? '';
+    $itemName = $_POST['itemName'] ?? '';
+
+    $currentCamp = null;
+    foreach($localCampaigns as $c) { if($c['slug'] === $slug) $currentCamp = $c; }
+
+    if ($currentCamp) {
+        require_once $srcPath . 'MailService.php';
+        $mailer = new MailService($globals);
+        $satService = new SatisfactionService();
+
+        if ($satService->isAlreadySent($slug, $orderId)) {
+            echo json_encode(['success' => false, 'error' => 'Déjà envoyé']);
+            exit;
+        }
+
+        $token = $satService->generateToken($slug, $orderId, $email, trim($firstName . ' ' . $lastName), $itemName);
+
+        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http');
+        $host = $_SERVER['HTTP_HOST'];
+        $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+        $surveyUrl = $protocol . '://' . $host . $path . '/satisfaction.php?t=' . $token;
+
+        $subject = "Votre avis nous intéresse : " . $currentCamp['title'];
+        $body = "Bonjour " . $firstName . ",\n\nMerci pour votre récent achat/participation à \"" . $currentCamp['title'] . "\".\n\nNous aimerions recueillir votre avis via ce court questionnaire :\n" . $surveyUrl . "\n\nCordialement,\n" . ($globals['smtpFromName'] ?? 'L\'équipe');
+
+        try {
+            $mailer->send($email, $subject, $body, [], null, []);
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+    exit;
+}
+
 // Sync Checkins
 if ($action === 'sync_checkins' && isset($_GET['campaign'])) {
     header('Content-Type: application/json');
@@ -245,7 +350,7 @@ if ($action === 'analyze') {
 }
 
 // Exports & Mailing View
-if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing') && isset($_GET['campaign'])) {
+if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing' || $action === 'satisfaction') && isset($_GET['campaign'])) {
     $slug = $_GET['campaign'];
     $currentCamp = null;
     foreach($localCampaigns as $c) { if($c['slug'] === $slug) $currentCamp = $c; }
@@ -490,6 +595,13 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
             include __DIR__ . '/../templates/mailing.php';
             exit;
         }
+        if ($action === 'satisfaction') {
+            $satService = new SatisfactionService();
+            $questions = $satService->getQuestions($slug);
+            $responses = $satService->getResponsesByCampaign($slug);
+            include __DIR__ . '/../templates/satisfaction.php';
+            exit;
+        }
     }
 }
 ?>
@@ -525,7 +637,8 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
             </a>
         </div>
         <div class="flex items-center gap-6">
-            <a href="admin.php" class="text-xs font-black uppercase tracking-widest <?= $action === 'list' ? 'text-blue-600' : 'text-slate-400' ?>">Boards</a>
+            <a href="admin.php" class="text-xs font-black uppercase tracking-widest <?= ($action === 'list' || $action === 'edit' || $action === 'scan') ? 'text-blue-600' : 'text-slate-400' ?>">Boards</a>
+            <a href="admin.php?action=satisfaction_global" class="text-xs font-black uppercase tracking-widest <?= strpos($action, 'satisfaction') !== false ? 'text-blue-600' : 'text-slate-400' ?>">Satisfaction</a>
             <a href="admin.php?action=settings" class="text-xs font-black uppercase tracking-widest <?= $action === 'settings' ? 'text-blue-600' : 'text-slate-400' ?>">Réglages</a>
             <div class="h-6 w-px bg-slate-200"></div>
             <a href="index.php" class="text-xs font-black uppercase text-slate-400 hover:text-red-500 transition">Quitter</a>
@@ -571,6 +684,7 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
                                     <a href="index.php?campaign=<?= $c['slug'] ?>" target="_blank" class="text-[10px] text-blue-500 font-black uppercase hover:underline"><i class="fa-solid fa-external-link-alt mr-1"></i> Voir</a>
                                     <a href="admin.php?action=guestlist&campaign=<?= $c['slug'] ?>" onclick="showLoader()" class="text-[10px] text-emerald-600 font-black uppercase hover:underline"><i class="fa-solid fa-clipboard-list mr-1"></i> Inscrits</a>
                                     <a href="admin.php?action=mailing&campaign=<?= $c['slug'] ?>" class="text-[10px] text-purple-600 font-black uppercase hover:underline"><i class="fa-solid fa-envelope mr-1"></i> Rappel</a>
+                                    <a href="admin.php?action=satisfaction&campaign=<?= $c['slug'] ?>" class="text-[10px] text-amber-600 font-black uppercase hover:underline"><i class="fa-solid fa-star mr-1"></i> Satisfaction</a>
                                 </div>
                             </div>
                             <div class="flex flex-wrap items-center justify-center md:justify-end gap-2 md:gap-3 w-full md:w-auto mt-2 md:mt-0">
