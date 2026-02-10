@@ -108,6 +108,13 @@ class SatisfactionService {
         ]);
     }
 
+    public function deleteParticipation($token) {
+        $stmt = $this->db->prepare("DELETE FROM survey_responses WHERE token = ?");
+        $stmt->execute([$token]);
+        $stmt = $this->db->prepare("DELETE FROM survey_tokens WHERE token = ?");
+        return $stmt->execute([$token]);
+    }
+
     public function getResponsesByCampaign($campaignSlug = null) {
         $sql = "SELECT r.*, t.payer_name, t.item_name, t.campaign_slug, t.email
                 FROM survey_responses r

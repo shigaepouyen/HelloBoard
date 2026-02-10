@@ -189,6 +189,11 @@ if ($action === 'mailing_send_one' && isset($_POST['campaign'])) {
 // Global Satisfaction Action (Reporting)
 if ($action === 'satisfaction_global') {
     $satService = new SatisfactionService();
+    if (isset($_GET['delete'])) {
+        $satService->deleteParticipation($_GET['delete']);
+        header('Location: admin.php?action=satisfaction_global');
+        exit;
+    }
     $stats = $satService->getStats();
     $statsBySource = $satService->getStatsBySource();
     $responses = $satService->getResponsesByCampaign();
@@ -247,15 +252,16 @@ if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
     exit;
 }
 
-// Send Satisfaction Email
+// Send Satisfaction Email (or Test)
 if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
     header('Content-Type: application/json');
     $slug = $_POST['campaign'];
-    $orderId = $_POST['orderId'];
+    $orderId = $_POST['orderId'] ?? ('TEST-' . bin2hex(random_bytes(4)));
     $email = $_POST['email'];
     $firstName = $_POST['firstName'] ?? '';
     $lastName = $_POST['lastName'] ?? '';
     $itemName = $_POST['itemName'] ?? '';
+    $isTest = isset($_POST['is_test']) && $_POST['is_test'] == '1';
 
     $currentCamp = null;
     foreach($localCampaigns as $c) { if($c['slug'] === $slug) $currentCamp = $c; }
@@ -265,7 +271,7 @@ if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
         $mailer = new MailService($globals);
         $satService = new SatisfactionService();
 
-        if ($satService->isAlreadySent($slug, $orderId)) {
+        if (!$isTest && $satService->isAlreadySent($slug, $orderId)) {
             echo json_encode(['success' => false, 'error' => 'Déjà envoyé']);
             exit;
         }
@@ -597,6 +603,11 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
         }
         if ($action === 'satisfaction') {
             $satService = new SatisfactionService();
+            if (isset($_GET['delete'])) {
+                $satService->deleteParticipation($_GET['delete']);
+                header('Location: admin.php?action=satisfaction&campaign=' . $slug);
+                exit;
+            }
             $questions = $satService->getQuestions($slug);
             $responses = $satService->getResponsesByCampaign($slug);
             include __DIR__ . '/../templates/satisfaction.php';

@@ -72,6 +72,20 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="admin-card p-8 bg-blue-50/30 border-blue-100">
+                    <h3 class="text-xs font-black uppercase text-blue-400 mb-6 italic tracking-widest border-b border-blue-50 pb-4">Mode Test (BAT)</h3>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 gap-4">
+                            <input type="text" id="test-firstname" class="input-soft !bg-white !text-xs !py-3" placeholder="Prénom (Test)">
+                            <input type="text" id="test-lastname" class="input-soft !bg-white !text-xs !py-3" placeholder="Nom (Test)">
+                            <input type="email" id="test-email" class="input-soft !bg-white !text-xs !py-3" placeholder="Email de test">
+                        </div>
+                        <button onclick="sendTest()" id="btn-send-test" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-blue-200 hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-paper-plane"></i> Envoyer un test
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- LISTE DESTINATAIRES & ENVOI -->
@@ -115,13 +129,18 @@
                                         <p class="text-xs font-black text-slate-900">Avis de <?= htmlspecialchars($r['payer_name']) ?></p>
                                         <p class="text-[10px] text-slate-400 font-bold uppercase mt-1">Sur : <?= htmlspecialchars($r['item_name']) ?> — <?= date('d/m/Y', strtotime($r['submitted_at'])) ?></p>
                                     </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-lg font-black <?= $avg >= 75 ? 'text-emerald-500' : ($avg >= 50 ? 'text-amber-500' : 'text-red-500') ?>"><?= round($avg) ?>%</span>
-                                        <div class="flex text-[8px] gap-0.5">
-                                            <?php for($i=1;$i<=5;$i++): ?>
-                                                <i class="fa-solid fa-star <?= ($r['q1']+$r['q2']+$r['q3']+$r['q4']+$r['q5'])/5 >= $i ? 'text-amber-400' : 'text-slate-200' ?>"></i>
-                                            <?php endfor; ?>
+                                    <div class="flex items-center gap-3">
+                                        <div class="text-right">
+                                            <span class="text-lg font-black <?= $avg >= 75 ? 'text-emerald-500' : ($avg >= 50 ? 'text-amber-500' : 'text-red-500') ?>"><?= round($avg) ?>%</span>
+                                            <div class="flex text-[8px] gap-0.5">
+                                                <?php for($i=1;$i<=5;$i++): ?>
+                                                    <i class="fa-solid fa-star <?= ($r['q1']+$r['q2']+$r['q3']+$r['q4']+$r['q5'])/5 >= $i ? 'text-amber-400' : 'text-slate-200' ?>"></i>
+                                                <?php endfor; ?>
+                                            </div>
                                         </div>
+                                        <a href="admin.php?action=satisfaction&campaign=<?= $slug ?>&delete=<?= $r['token'] ?>" onclick="return confirm('Supprimer cette participation ?')" class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-300 rounded-lg hover:bg-red-500 hover:text-white transition shadow-sm">
+                                            <i class="fa-solid fa-trash-can text-[10px]"></i>
+                                        </a>
                                     </div>
                                 </div>
                                 <p class="text-sm text-slate-600 italic leading-relaxed">"<?= htmlspecialchars($r['comment']) ?: 'Pas de commentaire' ?>."</p>
@@ -218,6 +237,41 @@
                 `).join('');
             } catch (e) {
                 listContainer.innerHTML = '<div class="py-10 text-center text-red-400 font-bold italic text-sm">Erreur lors du chargement des destinataires.</div>';
+            }
+        }
+
+        async function sendTest() {
+            const email = document.getElementById('test-email').value;
+            if (!email) return notify("Veuillez saisir un email de test.", "error");
+
+            const btn = document.getElementById('btn-send-test');
+            const oldHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Envoi...';
+
+            try {
+                const res = await fetch('admin.php?action=satisfaction_send_one', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        campaign: campaign,
+                        email: email,
+                        firstName: document.getElementById('test-firstname').value || 'Test',
+                        lastName: document.getElementById('test-lastname').value || 'TestUser',
+                        is_test: '1'
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    notify("Email de test envoyé avec succès !", "success");
+                } else {
+                    notify("Erreur : " + data.error, "error");
+                }
+            } catch (e) {
+                notify("Erreur technique lors de l'envoi.", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
             }
         }
 

@@ -97,13 +97,20 @@
                                     </div>
                                 </div>
                                 <div class="w-full md:w-32 flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-2">
-                                    <div class="text-3xl font-black <?= $avg >= 75 ? 'text-emerald-500' : ($avg >= 50 ? 'text-amber-500' : 'text-red-500') ?>">
-                                        <?= round($avg) ?>%
-                                    </div>
-                                    <div class="flex text-[8px] gap-0.5">
-                                        <?php for($i=1;$i<=5;$i++): ?>
-                                            <i class="fa-solid fa-star <?= ($r['q1']+$r['q2']+$r['q3']+$r['q4']+$r['q5'])/5 >= $i ? 'text-amber-400' : 'text-slate-200' ?>"></i>
-                                        <?php endfor; ?>
+                                    <div class="flex items-center gap-3">
+                                        <div class="text-right">
+                                            <div class="text-3xl font-black <?= $avg >= 75 ? 'text-emerald-500' : ($avg >= 50 ? 'text-amber-500' : 'text-red-500') ?>">
+                                                <?= round($avg) ?>%
+                                            </div>
+                                            <div class="flex text-[8px] gap-0.5 justify-end">
+                                                <?php for($i=1;$i<=5;$i++): ?>
+                                                    <i class="fa-solid fa-star <?= ($r['q1']+$r['q2']+$r['q3']+$r['q4']+$r['q5'])/5 >= $i ? 'text-amber-400' : 'text-slate-200' ?>"></i>
+                                                <?php endfor; ?>
+                                            </div>
+                                        </div>
+                                        <a href="admin.php?action=satisfaction_global&delete=<?= $r['token'] ?>" onclick="return confirm('Supprimer cette participation ?')" class="w-10 h-10 flex items-center justify-center bg-red-50 text-red-300 rounded-xl hover:bg-red-500 hover:text-white transition shadow-sm">
+                                            <i class="fa-solid fa-trash-can text-xs"></i>
+                                        </a>
                                     </div>
                                     <p class="text-[9px] text-slate-300 font-black uppercase mt-2"><?= date('d/m/Y', strtotime($r['submitted_at'])) ?></p>
                                 </div>
