@@ -31,6 +31,11 @@ if (isset($_POST['save_settings'])) {
         'clientId' => trim($_POST['clientId']),
         'clientSecret' => trim($_POST['clientSecret']),
         'orgSlug' => trim($_POST['orgSlug']),
+        'smtpHost' => trim($_POST['smtpHost'] ?? ''),
+        'smtpPort' => trim($_POST['smtpPort'] ?? '587'),
+        'smtpUser' => trim($_POST['smtpUser'] ?? ''),
+        'smtpPass' => trim($_POST['smtpPass'] ?? ''),
+        'smtpFromName' => trim($_POST['smtpFromName'] ?? ''),
         'adminPassword' => $adminPassword,
         'debugMode' => isset($_POST['debugMode'])
     ];
@@ -89,6 +94,95 @@ if (isset($_POST['save_campaign'])) {
         Storage::saveCampaign($config['slug'], $config);
     }
     echo json_encode(['success' => true]); exit;
+}
+
+// Save Mailing Draft
+if (isset($_POST['save_mailing_draft'])) {
+    $slug = $_POST['campaign'];
+    $campaigns = Storage::listCampaigns();
+    foreach($campaigns as $conf) {
+        if ($conf['slug'] === $slug) {
+            $conf['mailingDraft'] = [
+                'subject' => $_POST['subject'],
+                'body' => $_POST['body']
+            ];
+            Storage::saveCampaign($slug, $conf);
+
+            if (!empty($_FILES['attachment']['name'])) {
+                Storage::saveMailingAttachment($slug, $_FILES['attachment']);
+            }
+
+            echo json_encode(['success' => true]);
+            exit;
+        }
+    }
+    exit;
+}
+
+// Delete Mailing Attachment
+if ($action === 'delete_attachment' && isset($_GET['campaign']) && isset($_GET['file'])) {
+    Storage::deleteMailingAttachment($_GET['campaign'], $_GET['file']);
+    header('Location: admin.php?action=mailing&campaign=' . $_GET['campaign']);
+    exit;
+}
+
+// Send One Email
+if ($action === 'mailing_send_one' && isset($_POST['campaign'])) {
+    header('Content-Type: application/json');
+    $slug = $_POST['campaign'];
+    $targetEmail = $_POST['email'];
+    $firstName = $_POST['firstName'] ?? '';
+    $lastName = $_POST['lastName'] ?? '';
+    $isTest = isset($_POST['is_test']) && $_POST['is_test'] == '1';
+
+    $campaigns = Storage::listCampaigns();
+    $currentCamp = null;
+    foreach($campaigns as $c) { if($c['slug'] === $slug) $currentCamp = $c; }
+
+    if ($currentCamp) {
+        require_once $srcPath . 'MailService.php';
+        $mailer = new MailService($globals);
+
+        $history = Storage::getMailingHistory($slug);
+        if (!$isTest && !empty($history[$targetEmail]['sent_at'])) {
+            echo json_encode(['success' => false, 'error' => 'Déjà envoyé']);
+            exit;
+        }
+
+        $token = bin2hex(random_bytes(16));
+        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http');
+        $host = $_SERVER['HTTP_HOST'];
+        $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+        $trackingUrl = $protocol . '://' . $host . $path . '/track.php?c=' . $slug . '&t=' . $token;
+
+        $subject = $_POST['subject'];
+        $body = $_POST['body'];
+
+        try {
+            $attachments = Storage::listMailingAttachments($slug);
+            $attachmentPaths = array_column($attachments, 'path');
+
+            $mailer->send($targetEmail, $subject, $body, [
+                'NOM' => strtoupper($lastName),
+                'PRENOM' => $firstName,
+                'NOM_CAMPAGNE' => $currentCamp['title']
+            ], $trackingUrl, $attachmentPaths);
+
+            if (!$isTest) {
+                $history[$targetEmail] = [
+                    'sent_at' => date('Y-m-d H:i:s'),
+                    'token' => $token,
+                    'read_at' => null
+                ];
+                Storage::saveMailingHistory($slug, $history);
+            }
+
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+    exit;
 }
 
 // Sync Checkins
@@ -150,8 +244,8 @@ if ($action === 'analyze') {
     ]); exit;
 }
 
-// Exports
-if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campaign'])) {
+// Exports & Mailing View
+if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing') && isset($_GET['campaign'])) {
     $slug = $_GET['campaign'];
     $currentCamp = null;
     foreach($localCampaigns as $c) { if($c['slug'] === $slug) $currentCamp = $c; }
@@ -373,6 +467,29 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
             include __DIR__ . '/../templates/guestlist.php';
             exit;
         }
+        if ($action === 'mailing') {
+            $payers = [];
+            foreach ($orders as $o) {
+                $email = trim(strtolower($o['payer']['email'] ?? ''));
+                if (!$email) continue;
+                if (!isset($payers[$email])) {
+                    $payers[$email] = [
+                        'email' => $email,
+                        'firstName' => trim($o['payer']['firstName'] ?? ''),
+                        'lastName' => trim($o['payer']['lastName'] ?? ''),
+                        'orderDate' => $o['date']
+                    ];
+                }
+            }
+            usort($payers, function($a, $b) {
+                return strcmp($a['lastName'] ?? '', $b['lastName'] ?? '') ?: strcmp($a['firstName'] ?? '', $b['firstName'] ?? '');
+            });
+            $history = Storage::getMailingHistory($slug);
+            $attachments = Storage::listMailingAttachments($slug);
+            $mailingDraft = $currentCamp['mailingDraft'] ?? ['subject' => '', 'body' => "Bonjour {{PRENOM}},\n\nCeci est un rappel pour la campagne {{NOM_CAMPAGNE}}.\n\nCordialement."];
+            include __DIR__ . '/../templates/mailing.php';
+            exit;
+        }
     }
 }
 ?>
@@ -453,6 +570,7 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                                     <span class="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded uppercase"><?= $c['formType'] ?></span>
                                     <a href="index.php?campaign=<?= $c['slug'] ?>" target="_blank" class="text-[10px] text-blue-500 font-black uppercase hover:underline"><i class="fa-solid fa-external-link-alt mr-1"></i> Voir</a>
                                     <a href="admin.php?action=guestlist&campaign=<?= $c['slug'] ?>" onclick="showLoader()" class="text-[10px] text-emerald-600 font-black uppercase hover:underline"><i class="fa-solid fa-clipboard-list mr-1"></i> Inscrits</a>
+                                    <a href="admin.php?action=mailing&campaign=<?= $c['slug'] ?>" class="text-[10px] text-purple-600 font-black uppercase hover:underline"><i class="fa-solid fa-envelope mr-1"></i> Rappel</a>
                                 </div>
                             </div>
                             <div class="flex flex-wrap items-center justify-center md:justify-end gap-2 md:gap-3 w-full md:w-auto mt-2 md:mt-0">
@@ -496,6 +614,25 @@ if (($action === 'export_csv' || $action === 'guestlist') && isset($_GET['campai
                                     <input type="text" name="clientId" placeholder="Client ID" value="<?= htmlspecialchars($globals['clientId']??'') ?>" class="input-soft" required>
                                     <input type="password" name="clientSecret" placeholder="Client Secret" value="<?= htmlspecialchars($globals['clientSecret']??'') ?>" class="input-soft" required>
                                     <input type="text" name="orgSlug" placeholder="Slug de l'organisation" value="<?= htmlspecialchars($globals['orgSlug']??'') ?>" class="input-soft" required>
+                                </div>
+                            </div>
+
+                            <div class="pt-8 border-t border-slate-100">
+                                <label class="text-[10px] font-black text-slate-400 uppercase block mb-3 tracking-widest italic">Configuration Email (SMTP Gmail)</label>
+                                <div class="grid gap-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                        <div class="md:col-span-3">
+                                            <input type="text" name="smtpHost" placeholder="Serveur SMTP (ex: smtp.gmail.com)" value="<?= htmlspecialchars($globals['smtpHost']??'smtp.gmail.com') ?>" class="input-soft">
+                                        </div>
+                                        <div>
+                                            <input type="text" name="smtpPort" placeholder="Port (587)" value="<?= htmlspecialchars($globals['smtpPort']??'587') ?>" class="input-soft">
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <input type="text" name="smtpUser" placeholder="Email Gmail" value="<?= htmlspecialchars($globals['smtpUser']??'') ?>" class="input-soft">
+                                        <input type="password" name="smtpPass" placeholder="Mot de passe d'application" value="<?= htmlspecialchars($globals['smtpPass']??'') ?>" class="input-soft">
+                                    </div>
+                                    <input type="text" name="smtpFromName" placeholder="Nom de l'expéditeur" value="<?= htmlspecialchars($globals['smtpFromName']??'HelloBoard') ?>" class="input-soft">
                                 </div>
                             </div>
 
