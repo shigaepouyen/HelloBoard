@@ -5,6 +5,7 @@ class Storage {
     private static $configPath = __DIR__ . '/../../config/settings.json';
     private static $campaignsPath = __DIR__ . '/../../config/campaigns/';
     private static $checkinsPath = __DIR__ . '/../../config/checkins/';
+    private static $mailingPath = __DIR__ . '/../../config/mailing/';
 
     public static function saveGlobalSettings($settings) {
         $dir = dirname(self::$configPath);
@@ -45,6 +46,8 @@ class Storage {
         if (file_exists($filename)) {
             $checkinFile = self::$checkinsPath . basename($slug) . '.json';
             if (file_exists($checkinFile)) unlink($checkinFile);
+            $mailingFile = self::$mailingPath . basename($slug) . '.json';
+            if (file_exists($mailingFile)) unlink($mailingFile);
             return unlink($filename);
         }
         return false;
@@ -77,6 +80,32 @@ class Storage {
         }
         fclose($fp);
 
+        return $content ? json_decode($content, true) : array();
+    }
+
+    public static function saveMailingHistory($slug, $history) {
+        if (!is_dir(self::$mailingPath)) mkdir(self::$mailingPath, 0755, true);
+        $filename = self::$mailingPath . basename($slug) . '.json';
+        $fp = fopen($filename, "c");
+        if (flock($fp, LOCK_EX)) {
+            ftruncate($fp, 0);
+            fwrite($fp, json_encode($history, JSON_PRETTY_PRINT));
+            fflush($fp);
+            flock($fp, LOCK_UN);
+        }
+        fclose($fp);
+    }
+
+    public static function getMailingHistory($slug) {
+        $filename = self::$mailingPath . basename($slug) . '.json';
+        if (!file_exists($filename)) return array();
+        $fp = fopen($filename, "r");
+        $content = "";
+        if (flock($fp, LOCK_SH)) {
+            $content = stream_get_contents($fp);
+            flock($fp, LOCK_UN);
+        }
+        fclose($fp);
         return $content ? json_decode($content, true) : array();
     }
 }
