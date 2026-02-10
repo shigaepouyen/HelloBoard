@@ -8,12 +8,16 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; }
+        #notifications-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.75rem; }
+        .notification { background: white; padding: 1rem 1.5rem; border-radius: 1.25rem; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); border-left: 4px solid #2563eb; display: flex; align-items: center; gap: 0.75rem; font-size: 0.75rem; font-weight: 800; text-transform: uppercase; animation: slideIn 0.3s ease-out forwards; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         .admin-card { background: white; border-radius: 2rem; border: 1px solid #edf2f7; }
         .input-soft { background: #f1f5f9; border: 2px solid transparent; border-radius: 1.25rem; padding: 12px 16px; font-weight: 700; width: 100%; outline: none; transition: 0.2s; }
         .input-soft:focus { border-color: #2563eb; background: white; }
     </style>
 </head>
 <body class="pb-32">
+    <div id="notifications-container"></div>
     <nav class="p-6 bg-white border-b border-slate-100 sticky top-0 z-50 flex justify-between items-center shadow-sm">
         <div class="flex items-center gap-4">
             <a href="admin.php" class="flex items-center gap-2">
@@ -52,11 +56,17 @@
 
                 <div class="admin-card p-8 bg-blue-50/30 border-blue-100">
                     <h3 class="text-xs font-black uppercase text-blue-400 mb-6 italic tracking-widest border-b border-blue-50 pb-4">Mode Test (BAT)</h3>
-                    <div class="flex gap-4">
-                        <input type="email" id="test-email" class="input-soft !bg-white" placeholder="Votre email de test">
-                        <button onclick="sendTest()" id="btn-send-test" class="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs shadow-lg shadow-blue-200 hover:bg-blue-700 transition flex items-center gap-2">
-                            <i class="fa-solid fa-paper-plane"></i> Envoyer un test
-                        </button>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <input type="text" id="test-firstname" class="input-soft !bg-white" placeholder="Prénom (Test)">
+                            <input type="text" id="test-lastname" class="input-soft !bg-white" placeholder="Nom (Test)">
+                        </div>
+                        <div class="flex gap-4">
+                            <input type="email" id="test-email" class="input-soft !bg-white flex-1" placeholder="Votre email de test">
+                            <button onclick="sendTest()" id="btn-send-test" class="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs shadow-lg shadow-blue-200 hover:bg-blue-700 transition flex items-center gap-2">
+                                <i class="fa-solid fa-paper-plane"></i> Envoyer un test
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -143,6 +153,26 @@
     <script>
         const campaign = "<?= $slug ?>";
         const payers = <?= json_encode(array_values($payers)) ?>;
+
+        function notify(message, type = 'info') {
+            const container = document.getElementById('notifications-container');
+            const div = document.createElement('div');
+            div.className = 'notification';
+            if (type === 'success') div.style.borderColor = '#10b981';
+            if (type === 'error') div.style.borderColor = '#ef4444';
+
+            div.innerHTML = `
+                <i class="fa-solid ${type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-circle-exclamation' : 'fa-info-circle')}" style="color: ${type === 'success' ? '#10b981' : (type === 'error' ? '#ef4444' : '#2563eb')}"></i>
+                <span class="flex-1">${message}</span>
+            `;
+            container.appendChild(div);
+            setTimeout(() => {
+                div.style.opacity = '0';
+                div.style.transform = 'translateX(100%)';
+                div.style.transition = '0.3s';
+                setTimeout(() => div.remove(), 300);
+            }, 5000);
+        }
         const history = <?= json_encode($history) ?>;
 
         async function saveDraft() {
@@ -150,30 +180,29 @@
             const oldText = btn.innerText;
             btn.innerText = "Enregistrement...";
 
-            await fetch('admin.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    save_mailing_draft: '1',
-                    campaign: campaign,
-                    subject: document.getElementById('mail-subject').value,
-                    body: document.getElementById('mail-body').value
-                })
-            });
-
-            btn.innerText = "Brouillon enregistré !";
-            btn.classList.replace('bg-slate-100', 'bg-emerald-100');
-            btn.classList.replace('text-slate-600', 'text-emerald-600');
-            setTimeout(() => {
+            try {
+                await fetch('admin.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        save_mailing_draft: '1',
+                        campaign: campaign,
+                        subject: document.getElementById('mail-subject').value,
+                        body: document.getElementById('mail-body').value
+                    })
+                });
+                notify("Brouillon enregistré avec succès !", "success");
+            } catch (e) {
+                notify("Erreur lors de l'enregistrement.", "error");
+            } finally {
                 btn.innerText = oldText;
-                btn.classList.replace('bg-emerald-100', 'bg-slate-100');
-                btn.classList.replace('text-emerald-600', 'text-slate-600');
-            }, 2000);
+                btn.disabled = false;
+            }
         }
 
         async function sendTest() {
             const email = document.getElementById('test-email').value;
-            if (!email) return alert("Veuillez saisir un email de test.");
+            if (!email) return notify("Veuillez saisir un email de test.", "error");
 
             const btn = document.getElementById('btn-send-test');
             const oldHtml = btn.innerHTML;
@@ -187,8 +216,8 @@
                     body: new URLSearchParams({
                         campaign: campaign,
                         email: email,
-                        firstName: 'Test',
-                        lastName: 'TestUser',
+                        firstName: document.getElementById('test-firstname').value || 'Test',
+                        lastName: document.getElementById('test-lastname').value || 'TestUser',
                         subject: document.getElementById('mail-subject').value,
                         body: document.getElementById('mail-body').value,
                         is_test: '1'
@@ -196,12 +225,12 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert("Email de test envoyé avec succès !");
+                    notify("Email de test envoyé avec succès !", "success");
                 } else {
-                    alert("Erreur : " + data.error);
+                    notify("Erreur : " + data.error, "error");
                 }
             } catch (e) {
-                alert("Erreur technique lors de l'envoi.");
+                notify("Erreur technique lors de l'envoi.", "error");
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = oldHtml;
@@ -209,8 +238,6 @@
         }
 
         async function startSending() {
-            if (!confirm("Démarrer l'envoi aux payeurs restants ?")) return;
-
             document.getElementById('btn-send-all').disabled = true;
             document.getElementById('sending-status').classList.remove('hidden');
 
@@ -250,7 +277,7 @@
                         document.getElementById('progress-bar').style.width = (sentCount / totalCount * 100) + '%';
                         if (row) {
                             row.classList.remove('bg-blue-50', 'border-blue-200');
-                            row.classList.add('opacity-60');
+                            row.classList.add('opacity-60', 'bg-emerald-50/30');
                             row.querySelector('.status-sent').classList.replace('bg-slate-200', 'bg-emerald-100');
                             row.querySelector('.status-sent').classList.replace('text-slate-400', 'text-emerald-600');
                         }
