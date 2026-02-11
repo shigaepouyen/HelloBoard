@@ -20,6 +20,8 @@
         .toggle-btn.active { background: #2563eb; }
         .toggle-btn::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: 0.3s; }
         .toggle-btn.active::after { transform: translateX(20px); }
+        .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+        .collapsible-content.open { max-height: 1000px; }
     </style>
 </head>
 <body class="pb-32">
@@ -37,146 +39,62 @@
     </nav>
 
     <main class="max-w-7xl mx-auto px-4 py-12">
-        <!-- STATS BAR -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12 animate-fade-in">
-            <div class="admin-card p-6 text-center">
-                <p class="text-[9px] font-black uppercase text-slate-400 mb-1 italic tracking-widest">Emails envoyés</p>
-                <h4 class="text-3xl font-black text-slate-900"><?= $stats['total_sent'] ?></h4>
-            </div>
-            <div class="admin-card p-6 text-center border-b-4 border-blue-500">
-                <p class="text-[9px] font-black uppercase text-slate-400 mb-1 italic tracking-widest">Emails ouverts</p>
-                <div class="flex items-center justify-center gap-2">
-                    <h4 class="text-3xl font-black text-slate-900"><?= $stats['total_read'] ?></h4>
-                    <span class="text-[10px] font-black text-blue-500">(<?= $stats['total_sent'] > 0 ? round($stats['total_read']/$stats['total_sent']*100) : 0 ?>%)</span>
-                </div>
-            </div>
-            <div class="admin-card p-6 text-center border-b-4 border-emerald-500">
-                <p class="text-[9px] font-black uppercase text-slate-400 mb-1 italic tracking-widest">Réponses</p>
-                <div class="flex items-center justify-center gap-2">
-                    <h4 class="text-3xl font-black text-slate-900"><?= $stats['total_responses'] ?></h4>
-                    <span class="text-[10px] font-black text-emerald-500">(<?= $stats['total_sent'] > 0 ? round($stats['total_responses']/$stats['total_sent']*100) : 0 ?>%)</span>
-                </div>
-            </div>
-            <div class="admin-card p-6 text-center border-b-4 border-amber-500">
-                <p class="text-[9px] font-black uppercase text-slate-400 mb-1 italic tracking-widest">Satisfaction</p>
-                <h4 class="text-3xl font-black text-slate-900"><?= round($stats['avg_csat'] ?? 0) ?>%</h4>
-            </div>
-        </div>
-
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-            <!-- CONFIGURATION & FILTRES -->
-            <div class="lg:col-span-1 space-y-8">
-                <div class="admin-card p-8 bg-slate-900 text-white">
-                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-800 pb-4">Modèle d'Email</h3>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="text-[9px] font-black text-slate-500 uppercase block mb-1">Objet du mail</label>
-                            <input type="text" id="email-subject" class="w-full bg-slate-800 border-2 border-transparent focus:border-blue-500 rounded-xl p-3 text-xs font-bold outline-none transition" value="<?= htmlspecialchars($mailingDraft['subject']) ?>">
-                        </div>
-                        <div>
-                            <label class="text-[9px] font-black text-slate-500 uppercase block mb-1">Message</label>
-                            <textarea id="email-body" rows="8" class="w-full bg-slate-800 border-2 border-transparent focus:border-blue-500 rounded-xl p-4 text-[11px] font-medium outline-none transition leading-relaxed"><?= htmlspecialchars($mailingDraft['body']) ?></textarea>
-                            <div class="flex flex-wrap gap-1 mt-2">
-                                <span class="text-[8px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-black">#{{PRENOM}}</span>
-                                <span class="text-[8px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-black">#{{NOM}}</span>
-                                <span class="text-[8px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-black">#{{NOM_CAMPAGNE}}</span>
-                                <span class="text-[8px] bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded font-black">#{{SURVEY_URL}}</span>
-                            </div>
-                        </div>
-                        <button onclick="saveMailingDraft()" id="btn-save-draft" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-xs shadow-lg shadow-blue-900/20 hover:bg-blue-500 transition">
-                            Sauvegarder le modèle
-                        </button>
-                    </div>
-                </div>
+            <!-- COLONNE GAUCHE : CONFIGURATION & VERBATIMS -->
+            <div class="lg:col-span-2 space-y-8">
 
-                <div class="admin-card p-8">
-                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Questions du questionnaire</h3>
-                    <div class="space-y-4">
-                        <?php foreach($questions as $i => $q): ?>
+                <!-- MODELE D'EMAIL (COLLAPSIBLE) -->
+                <div class="admin-card overflow-hidden">
+                    <button onclick="toggleCollapsible('email-draft-collapse')" class="w-full p-8 flex justify-between items-center bg-slate-900 text-white hover:bg-slate-800 transition">
+                        <div class="flex items-center gap-4">
+                            <i class="fa-solid fa-envelope-open-text text-amber-400"></i>
+                            <h3 class="text-xs font-black uppercase italic tracking-widest">Modèle d'Email de sollicitation</h3>
+                        </div>
+                        <i class="fa-solid fa-chevron-down transition-transform duration-300" id="email-draft-icon"></i>
+                    </button>
+                    <div id="email-draft-collapse" class="collapsible-content">
+                        <div class="p-8 space-y-4">
                             <div>
-                                <label class="text-[9px] font-black text-slate-400 uppercase block mb-1">Question <?= $i+1 ?></label>
-                                <input type="text" class="question-input input-soft !py-3 !text-xs" value="<?= htmlspecialchars($q['label']) ?>" data-index="<?= $i ?>">
+                                <label class="text-[9px] font-black text-slate-500 uppercase block mb-1 tracking-widest">Objet du mail</label>
+                                <input type="text" id="email-subject" class="input-soft" value="<?= htmlspecialchars($mailingDraft['subject']) ?>">
                             </div>
-                        <?php endforeach; ?>
-                        <button onclick="saveQuestions()" id="btn-save-questions" class="w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-black uppercase text-xs hover:bg-slate-200 transition mt-4">
-                            Enregistrer les questions
-                        </button>
-                    </div>
-                </div>
-
-                <div class="admin-card p-8 bg-slate-50/50">
-                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Ciblage des destinataires</h3>
-                    <div class="space-y-6">
-                        <div class="flex items-center justify-between">
-                            <span class="text-[10px] font-black uppercase text-slate-600">Exclure si déjà envoyé (cette camp.)</span>
-                            <div class="toggle-btn active" id="filter-exclude-sent" onclick="this.classList.toggle('active'); fetchRecipients()"></div>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-[10px] font-black uppercase text-slate-600">Exclure si déjà sollicité (global)</span>
-                            <div class="toggle-btn" id="filter-exclude-ever" onclick="this.classList.toggle('active'); fetchRecipients()"></div>
-                        </div>
-                        <div class="pt-4 border-t border-slate-100">
-                            <button onclick="fetchRecipients()" id="btn-refresh-recipients" class="w-full bg-white border border-slate-200 text-slate-600 py-4 rounded-2xl font-black uppercase text-xs hover:bg-slate-50 transition">
-                                <i class="fa-solid fa-sync-alt mr-2"></i> Actualiser la liste
+                            <div>
+                                <label class="text-[9px] font-black text-slate-500 uppercase block mb-1 tracking-widest">Message</label>
+                                <textarea id="email-body" rows="8" class="input-soft font-medium leading-relaxed"><?= htmlspecialchars($mailingDraft['body']) ?></textarea>
+                                <div class="flex flex-wrap gap-1 mt-2">
+                                    <span class="text-[8px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-black">#{{PRENOM}}</span>
+                                    <span class="text-[8px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-black">#{{NOM}}</span>
+                                    <span class="text-[8px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-black">#{{NOM_CAMPAGNE}}</span>
+                                    <span class="text-[8px] bg-blue-100 text-blue-400 px-1.5 py-0.5 rounded font-black">#{{SURVEY_URL}}</span>
+                                </div>
+                            </div>
+                            <button onclick="saveMailingDraft()" id="btn-save-draft" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-xs shadow-lg shadow-blue-900/20 hover:bg-blue-500 transition">
+                                Sauvegarder le modèle
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <div class="admin-card p-8 bg-blue-50/30 border-blue-100">
-                    <h3 class="text-xs font-black uppercase text-blue-400 mb-6 italic tracking-widest border-b border-blue-50 pb-4">Mode Test (BAT)</h3>
-                    <div class="space-y-4">
-                        <div class="grid grid-cols-1 gap-4">
-                            <input type="text" id="test-firstname" class="input-soft !bg-white !text-xs !py-3" placeholder="Prénom (Test)">
-                            <input type="text" id="test-lastname" class="input-soft !bg-white !text-xs !py-3" placeholder="Nom (Test)">
-                            <input type="email" id="test-email" class="input-soft !bg-white !text-xs !py-3" placeholder="Email de test">
-                        </div>
-                        <button onclick="sendTest()" id="btn-send-test" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-blue-200 hover:bg-blue-700 transition flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-paper-plane"></i> Envoyer un test
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- LISTE DESTINATAIRES & ENVOI -->
-            <div class="lg:col-span-2 space-y-8">
+                <!-- QUESTIONS -->
                 <div class="admin-card p-8">
-                    <div class="flex justify-between items-center mb-6">
-                        <div>
-                            <h3 class="text-xs font-black uppercase text-slate-400 italic tracking-widest">Destinataires éligibles</h3>
-                            <p class="text-[9px] text-slate-300 font-bold uppercase mt-1">Sont exclus : annulés, déjà sollicités, ou événement futur.</p>
-                        </div>
-                        <span class="bg-blue-100 text-blue-600 text-[10px] font-black px-3 py-1 rounded-full" id="recipient-count">0</span>
+                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Structure du questionnaire</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <?php foreach($questions as $i => $q): ?>
+                            <div>
+                                <label class="text-[9px] font-black text-slate-400 uppercase block mb-1 italic">Question <?= $i+1 ?></label>
+                                <input type="text" class="question-input input-soft !py-3 !text-xs" value="<?= htmlspecialchars($q['label']) ?>" data-index="<?= $i ?>">
+                            </div>
+                        <?php endforeach; ?>
                     </div>
-
-                    <div id="sending-progress-container" class="hidden mb-8">
-                        <div class="flex justify-between text-[10px] font-black uppercase mb-2">
-                            <span class="text-blue-600">Progression de l'envoi</span>
-                            <span id="sending-percent" class="text-slate-400">0%</span>
-                        </div>
-                        <div class="progress-bar"><div id="sending-progress-fill" class="progress-fill"></div></div>
-                    </div>
-
-                    <div class="overflow-hidden mb-8">
-                        <div class="max-h-[400px] overflow-y-auto pr-4 space-y-2" id="recipients-list">
-                            <div class="py-10 text-center text-slate-300 font-bold italic text-sm">Chargement des destinataires...</div>
-                        </div>
-                    </div>
-
-                    <div class="pt-8 border-t border-slate-50 flex flex-col items-center">
-                        <button onclick="startSending()" id="btn-send-all" class="w-full max-w-md bg-slate-900 text-white py-6 rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl hover:bg-amber-600 transition disabled:opacity-50" disabled>
-                            Lancer la campagne de satisfaction
-                        </button>
-                        <div id="sending-status" class="mt-4 hidden text-center">
-                            <p class="text-[10px] font-black uppercase text-slate-400 animate-pulse">Envoi en cours, ne fermez pas cette page...</p>
-                        </div>
-                    </div>
+                    <button onclick="saveQuestions()" id="btn-save-questions" class="w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-black uppercase text-xs hover:bg-slate-200 transition mt-6">
+                        Enregistrer les questions
+                    </button>
                 </div>
 
                 <!-- VERBATIMS -->
                 <div class="admin-card p-8">
-                    <h3 class="text-xs font-black uppercase text-slate-400 mb-8 italic tracking-widest border-b border-slate-50 pb-4">Derniers Verbatims</h3>
+                    <h3 class="text-xs font-black uppercase text-slate-400 mb-8 italic tracking-widest border-b border-slate-50 pb-4">Derniers Verbatims collectés</h3>
                     <div class="space-y-6">
                         <?php if (empty($responses)): ?>
                             <div class="text-center py-10 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-100">
@@ -211,12 +129,99 @@
                     </div>
                 </div>
             </div>
+
+            <!-- COLONNE DROITE : STATS & ENVOI -->
+            <div class="space-y-8">
+
+                <!-- STATS & PROGRESSION -->
+                <div class="admin-card p-8">
+                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Performances</h3>
+                    <div class="grid grid-cols-2 gap-4 mb-8">
+                        <div class="text-center p-4 bg-slate-50 rounded-2xl">
+                            <p class="text-[8px] font-black uppercase text-slate-400 mb-1">Emails</p>
+                            <p class="text-xl font-black text-slate-900"><?= $stats['total_sent'] ?></p>
+                        </div>
+                        <div class="text-center p-4 bg-blue-50 rounded-2xl">
+                            <p class="text-[8px] font-black uppercase text-blue-400 mb-1">Ouverts</p>
+                            <p class="text-xl font-black text-blue-600"><?= $stats['total_read'] ?></p>
+                        </div>
+                        <div class="text-center p-4 bg-emerald-50 rounded-2xl">
+                            <p class="text-[8px] font-black uppercase text-emerald-400 mb-1">Réponses</p>
+                            <p class="text-xl font-black text-emerald-600"><?= $stats['total_responses'] ?></p>
+                        </div>
+                        <div class="text-center p-4 bg-amber-50 rounded-2xl">
+                            <p class="text-[8px] font-black uppercase text-amber-400 mb-1">Score</p>
+                            <p class="text-xl font-black text-amber-600"><?= round($stats['avg_csat'] ?? 0) ?>%</p>
+                        </div>
+                    </div>
+
+                    <div id="sending-progress-container" class="hidden mb-6">
+                        <div class="flex justify-between text-[10px] font-black uppercase mb-2">
+                            <span class="text-blue-600">Envoi en cours</span>
+                            <span id="sending-percent" class="text-slate-400">0%</span>
+                        </div>
+                        <div class="progress-bar"><div id="sending-progress-fill" class="progress-fill"></div></div>
+                    </div>
+
+                    <button onclick="startSending()" id="btn-send-all" class="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl hover:bg-amber-600 transition disabled:opacity-50" disabled>
+                        Lancer la campagne
+                    </button>
+                    <div id="sending-status" class="mt-4 hidden text-center">
+                        <p class="text-[10px] font-black uppercase text-slate-400 animate-pulse italic">Traitement par paquets...</p>
+                    </div>
+                </div>
+
+                <!-- FILTRES ET LISTE -->
+                <div class="admin-card p-8">
+                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Ciblage & Destinataires</h3>
+
+                    <div class="space-y-4 mb-6">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9px] font-black uppercase text-slate-400">Exclure si déjà envoyé</span>
+                            <div class="toggle-btn active" id="filter-exclude-sent" onclick="this.classList.toggle('active'); fetchRecipients()"></div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9px] font-black uppercase text-slate-400">Exclure si déjà sollicité</span>
+                            <div class="toggle-btn" id="filter-exclude-ever" onclick="this.classList.toggle('active'); fetchRecipients()"></div>
+                        </div>
+                    </div>
+
+                    <div class="max-h-[300px] overflow-y-auto pr-2 space-y-2 mb-6" id="recipients-list">
+                        <div class="py-10 text-center text-slate-200 font-black uppercase text-[10px] italic">Chargement...</div>
+                    </div>
+
+                    <button onclick="fetchRecipients()" class="w-full py-3 bg-slate-50 text-slate-400 rounded-xl font-black uppercase text-[10px] hover:bg-slate-100 transition">
+                        <i class="fa-solid fa-sync-alt mr-2"></i> Actualiser
+                    </button>
+                </div>
+
+                <!-- MODE TEST (BAT) -->
+                <div class="admin-card p-8 bg-blue-50/30 border-blue-100">
+                    <h3 class="text-xs font-black uppercase text-blue-400 mb-6 italic tracking-widest border-b border-blue-50 pb-4">Envoi d'un test (BAT)</h3>
+                    <div class="space-y-3">
+                        <input type="text" id="test-firstname" class="input-soft !bg-white !text-[10px] !py-3" placeholder="Prénom (Test)">
+                        <input type="text" id="test-lastname" class="input-soft !bg-white !text-[10px] !py-3" placeholder="Nom (Test)">
+                        <input type="email" id="test-email" class="input-soft !bg-white !text-[10px] !py-3" placeholder="Email de test">
+                        <button onclick="sendTest()" id="btn-send-test" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-blue-200 hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-paper-plane"></i> Tester le rendu
+                        </button>
+                    </div>
+                </div>
+
+            </div>
         </div>
     </main>
 
     <script>
         const campaign = "<?= $slug ?>";
         let recipients = [];
+
+        function toggleCollapsible(id) {
+            const content = document.getElementById(id);
+            const icon = document.getElementById(id.replace('collapse', 'icon'));
+            content.classList.toggle('open');
+            if (icon) icon.style.transform = content.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
 
         function notify(message, type = 'info') {
             const container = document.getElementById('notifications-container');
@@ -259,7 +264,7 @@
                         'questions': JSON.stringify(questions)
                     })
                 });
-                notify("Questions enregistrées avec succès !", "success");
+                notify("Structure du questionnaire enregistrée !", "success");
             } catch (e) {
                 notify("Erreur lors de l'enregistrement.", "error");
             } finally {
@@ -299,7 +304,7 @@
 
         async function fetchRecipients() {
             const listContainer = document.getElementById('recipients-list');
-            listContainer.innerHTML = '<div class="py-10 text-center text-slate-300 font-bold italic text-sm animate-pulse">Scan HelloAsso en cours...</div>';
+            listContainer.innerHTML = '<div class="py-10 text-center text-slate-200 font-black uppercase text-[10px] italic animate-pulse">Scan HelloAsso...</div>';
 
             const excludeSent = document.getElementById('filter-exclude-sent').classList.contains('active') ? '1' : '0';
             const excludeEver = document.getElementById('filter-exclude-ever').classList.contains('active') ? '1' : '0';
@@ -309,60 +314,57 @@
                 const data = await res.json();
 
                 if (!data.isEligible) {
-                    document.getElementById('recipient-count').innerText = "0";
                     document.getElementById('btn-send-all').disabled = true;
                     document.getElementById('btn-send-all').innerText = "Non éligible";
-                    listContainer.innerHTML = `<div class="py-10 px-6 text-center"><i class="fa-solid fa-clock text-3xl text-slate-100 mb-4"></i><p class="text-slate-400 font-bold text-sm">${data.reason}</p><p class="text-slate-300 text-[10px] uppercase mt-2 font-black italic">Le questionnaire pourra être envoyé après cette date.</p></div>`;
+                    listContainer.innerHTML = `<div class="py-10 px-4 text-center"><p class="text-slate-400 font-bold text-[10px] uppercase">${data.reason}</p></div>`;
                     return;
                 }
 
                 recipients = data.recipients || [];
-                document.getElementById('recipient-count').innerText = recipients.length;
                 document.getElementById('btn-send-all').disabled = (recipients.length === 0);
-                document.getElementById('btn-send-all').innerText = recipients.length > 0 ? `Lancer pour ${recipients.length} destinataires` : "Aucun destinataire éligible";
+                document.getElementById('btn-send-all').innerText = recipients.length > 0 ? `Lancer pour ${recipients.length} contacts` : "Aucun destinataire";
 
                 if (recipients.length === 0) {
-                    listContainer.innerHTML = '<div class="py-10 text-center text-slate-300 font-bold italic text-sm">Tous les contacts éligibles ont déjà été sollicités ou aucun contact trouvé.</div>';
+                    listContainer.innerHTML = '<div class="py-10 text-center text-slate-200 font-black uppercase text-[10px] italic">Tout a déjà été envoyé.</div>';
                     return;
                 }
 
                 listContainer.innerHTML = recipients.map(r => {
-                    const haToken = tokenMap.find(t => t.order_id === r.orderId);
-                    const haResp = responseMap.find(resp => resp.order_id === r.orderId);
+                    const haToken = tokenMap.find(t => t.order_id == r.orderId);
+                    const haResp = responseMap.find(resp => resp.order_id == r.orderId);
 
                     let statusHtml = '';
                     if (haToken) {
-                        statusHtml += `<i class="fa-solid fa-paper-plane text-emerald-500 mr-2" title="Envoyé le ${haToken.sent_at}"></i>`;
-                        if (haToken.read_at) statusHtml += `<i class="fa-solid fa-eye text-blue-500 mr-2" title="Lu le ${haToken.read_at}"></i>`;
-                        if (haResp) statusHtml += `<i class="fa-solid fa-star text-amber-500 mr-2" title="Répondu"></i>`;
+                        statusHtml += `<i class="fa-solid fa-paper-plane text-emerald-500 mr-1" title="Envoyé le ${haToken.sent_at}"></i>`;
+                        if (haToken.read_at) statusHtml += `<i class="fa-solid fa-eye text-blue-500 mr-1" title="Lu le ${haToken.read_at}"></i>`;
+                        if (haResp) statusHtml += `<i class="fa-solid fa-star text-amber-500 mr-1" title="Répondu"></i>`;
                     }
 
                     return `
-                        <div class="p-3 bg-slate-50 rounded-xl flex items-center justify-between gap-3 text-[10px] border border-transparent" id="row-${r.orderId}">
+                        <div class="p-2 bg-slate-50 rounded-lg flex items-center justify-between gap-2 text-[9px] border border-transparent" id="row-${r.orderId}">
                             <div class="truncate">
                                 <p class="font-black text-slate-700 truncate uppercase">${r.lastName} ${r.firstName}</p>
                                 <p class="text-slate-400 truncate">${r.email}</p>
                             </div>
                             <div class="flex items-center">
                                 ${statusHtml}
-                                <span class="text-[9px] font-black text-slate-300 bg-white px-2 py-1 rounded-lg border border-slate-100">${r.date.substring(0, 10)}</span>
                             </div>
                         </div>
                     `;
                 }).join('');
             } catch (e) {
-                listContainer.innerHTML = '<div class="py-10 text-center text-red-400 font-bold italic text-sm">Erreur lors du chargement des destinataires.</div>';
+                listContainer.innerHTML = '<div class="py-10 text-center text-red-400 font-bold italic text-sm">Erreur scan.</div>';
             }
         }
 
         async function sendTest() {
             const email = document.getElementById('test-email').value;
-            if (!email) return notify("Veuillez saisir un email de test.", "error");
+            if (!email) return notify("Email de test requis.", "error");
 
             const btn = document.getElementById('btn-send-test');
             const oldHtml = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Envoi...';
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
 
             try {
                 const res = await fetch('admin.php?action=satisfaction_send_one', {
@@ -380,12 +382,12 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    notify("Email de test envoyé avec succès !", "success");
+                    notify("BAT envoyé !", "success");
                 } else {
                     notify("Erreur : " + data.error, "error");
                 }
             } catch (e) {
-                notify("Erreur technique lors de l'envoi.", "error");
+                notify("Erreur technique.", "error");
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = oldHtml;
@@ -393,7 +395,7 @@
         }
 
         async function startSending() {
-            if (!confirm(`Voulez-vous vraiment envoyer le questionnaire à ${recipients.length} personnes ?`)) return;
+            if (!confirm(`Envoyer le questionnaire à ${recipients.length} personnes ?`)) return;
 
             const btn = document.getElementById('btn-send-all');
             btn.disabled = true;
@@ -417,13 +419,11 @@
                 const row = document.getElementById('row-' + r.orderId);
                 if (row) {
                     row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    row.classList.add('bg-blue-50', 'border-blue-200');
+                    row.classList.add('bg-blue-50');
                 }
 
                 try {
                     currentInBatch++;
-                    statusContainer.innerHTML = `<p class="text-[10px] font-black uppercase text-slate-400 text-center animate-pulse">Envoi du paquet ${batchNum} (${currentInBatch}/10)...</p>`;
-
                     const res = await fetch('admin.php?action=satisfaction_send_one', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -442,35 +442,30 @@
                     if (data.success) {
                         sentCount++;
                         if (row) {
-                            row.classList.remove('bg-blue-50', 'border-blue-200');
-                            row.classList.add('opacity-40', 'bg-emerald-50/30');
+                            row.classList.remove('bg-blue-50');
+                            row.classList.add('opacity-40', 'bg-emerald-50');
                         }
-                    } else {
-                        if (row) row.classList.replace('bg-blue-50', 'bg-red-50');
                     }
 
-                    // Update Progress
                     const pct = Math.round(((i + 1) / recipients.length) * 100);
                     progressFill.style.width = pct + '%';
                     percentLabel.innerText = pct + '%';
 
-                } catch (e) {
-                    console.error(e);
-                }
+                } catch (e) { console.error(e); }
 
                 if (currentInBatch >= 10) {
                     batchNum++;
                     currentInBatch = 0;
-                    statusContainer.innerHTML = `<p class="text-[10px] font-black uppercase text-blue-500 text-center">Temporisation de 5s...</p>`;
+                    statusContainer.innerHTML = `<p class="text-[10px] font-black uppercase text-blue-500 text-center">Pause anti-spam (5s)...</p>`;
                     await new Promise(r => setTimeout(r, 5000));
                 } else {
                     await new Promise(r => setTimeout(r, 800));
                 }
             }
 
-            statusContainer.innerHTML = '<p class="text-[10px] font-black uppercase text-emerald-500 text-center">Campagne terminée !</p>';
+            statusContainer.innerHTML = '<p class="text-[10px] font-black uppercase text-emerald-500 text-center">Terminé !</p>';
             btn.innerText = "Campagne terminée";
-            notify(`${sentCount} emails envoyés avec succès !`, "success");
+            notify(`${sentCount} emails envoyés !`, "success");
         }
 
         window.onload = fetchRecipients;

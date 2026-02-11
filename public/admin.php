@@ -671,10 +671,31 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
             $tokens = $satService->getTokensByCampaign($slug);
             $stats = $satService->getStats($slug);
 
-            $mailingDraft = $currentCamp['satisfactionMailingDraft'] ?? [
-                'subject' => "Votre avis nous intéresse : " . $currentCamp['title'],
-                'body' => "Bonjour {{PRENOM}},\n\nMerci pour votre récent achat/participation à \"{{NOM_CAMPAGNE}}\".\n\nNous aimerions recueillir votre avis via ce court questionnaire :\n{{SURVEY_URL}}\n\nCordialement,\n" . ($globals['smtpFromName'] ?? 'L\'équipe')
-            ];
+            $mailingDraft = $currentCamp['satisfactionMailingDraft'] ?? null;
+            if (!$mailingDraft) {
+                $fType = $currentCamp['formType'] ?? 'Event';
+                if ($fType === 'Shop' || $fType === 'Checkout' || $fType === 'PaymentForm' || $fType === 'Product') {
+                    $mailingDraft = [
+                        'subject' => "📦 Votre commande HelloAsso : qu'en avez-vous pensé ?",
+                        'body' => "Bonjour {{PRENOM}},\n\nVous avez récemment effectué un achat sur notre boutique HelloAsso pour \"{{NOM_CAMPAGNE}}\".\n\nNous espérons que vos articles vous apportent entière satisfaction ! Pourriez-vous prendre 1 minute pour nous donner votre avis sur votre expérience d'achat et la qualité des produits ?\n\nVotre feedback est précieux :\n{{SURVEY_URL}}\n\nÀ bientôt,\n" . ($globals['smtpFromName'] ?? 'L\'équipe')
+                    ];
+                } else if ($fType === 'Donation') {
+                    $mailingDraft = [
+                        'subject' => "❤️ Merci pour votre don : votre avis compte",
+                        'body' => "Bonjour {{PRENOM}},\n\nNous vous remercions encore pour votre généreux soutien à notre association lors de la campagne \"{{NOM_CAMPAGNE}}\".\n\nNous aimerions savoir comment vous avez trouvé le processus de don et si vous vous sentez suffisamment informé de l'usage des fonds. Cela nous aide à mieux communiquer avec nos donateurs.\n\nDonnez-nous votre avis ici :\n{{SURVEY_URL}}\n\nMerci pour votre confiance,\n" . ($globals['smtpFromName'] ?? 'L\'équipe')
+                    ];
+                } else if ($fType === 'Membership') {
+                    $mailingDraft = [
+                        'subject' => "🆔 Bienvenue parmi nous ! Votre avis sur l'adhésion",
+                        'body' => "Bonjour {{PRENOM}},\n\nBienvenue dans notre association ! Nous sommes ravis de vous compter parmi nos adhérents pour \"{{NOM_CAMPAGNE}}\".\n\nAfin de mieux accueillir nos membres, nous aimerions recueillir votre avis sur la simplicité du processus d'adhésion et vos premières impressions.\n\nRépondre au questionnaire :\n{{SURVEY_URL}}\n\nÀ très vite,\n" . ($globals['smtpFromName'] ?? 'L\'équipe')
+                    ];
+                } else {
+                    $mailingDraft = [
+                        'subject' => "🎟️ Votre avis sur l'événement : " . $currentCamp['title'],
+                        'body' => "Bonjour {{PRENOM}},\n\nMerci d'avoir participé à notre événement \"{{NOM_CAMPAGNE}}\". Nous espérons que vous avez passé un excellent moment !\n\nNous cherchons constamment à nous améliorer. Pourriez-vous nous accorder quelques instants pour nous dire ce que vous avez pensé de l'organisation et de l'accueil ?\n\nLien du questionnaire :\n{{SURVEY_URL}}\n\nMerci et à bientôt,\n" . ($globals['smtpFromName'] ?? 'L\'équipe')
+                    ];
+                }
+            }
 
             include __DIR__ . '/../templates/satisfaction.php';
             exit;

@@ -25,7 +25,8 @@ foreach ($responses as $r) {
     }
 }
 
-$questions = $satService->getQuestions($info['campaign_slug']);
+$campaign = Storage::getCampaign($info['campaign_slug']);
+$questions = $satService->getQuestions($info['campaign_slug'], $campaign['formType'] ?? null);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$alreadyResponded) {
     $ratings = [
