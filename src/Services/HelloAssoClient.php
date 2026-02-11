@@ -32,7 +32,7 @@ class HelloAssoClient {
         file_put_contents($this->logFile, $entry, FILE_APPEND);
     }
 
-    private function request($method, $url, $params = [], $token = null) {
+    private function request($method, $url, $params = [], $token = null, $retryCount = 0) {
         $ch = curl_init();
         $opts = [
             CURLOPT_URL => $url,
@@ -78,11 +78,23 @@ class HelloAssoClient {
         $decoded = json_decode($response, true);
         $this->writeToDisk('RESPONSE', "Code: $httpCode", $decoded ?: $response);
 
+        // Simple retry for 429
+        if ($httpCode === 429 && $retryCount < 2) {
+            sleep(2 * ($retryCount + 1));
+            return $this->request($method, $url, $params, $token, $retryCount + 1);
+        }
+
         return ['code' => $httpCode, 'body' => $decoded];
     }
 
     public function getAccessToken() {
         if (empty($this->clientId)) return null;
+
+        // Cache token in session to avoid 429 errors
+        $cacheKey = 'ha_token_' . md5($this->clientId);
+        if (isset($_SESSION[$cacheKey]) && $_SESSION[$cacheKey]['expires'] > time()) {
+            return $_SESSION[$cacheKey]['token'];
+        }
 
         $res = $this->request('POST', "https://api.helloasso.com/oauth2/token", [
             'client_id' => $this->clientId,
@@ -91,7 +103,13 @@ class HelloAssoClient {
         ]);
 
         if ($res['code'] === 200 && isset($res['body']['access_token'])) {
-            return $res['body']['access_token'];
+            $token = $res['body']['access_token'];
+            $expiresIn = $res['body']['expires_in'] ?? 1800;
+            $_SESSION[$cacheKey] = [
+                'token' => $token,
+                'expires' => time() + $expiresIn - 60 // 1 minute buffer
+            ];
+            return $token;
         }
         return null;
     }

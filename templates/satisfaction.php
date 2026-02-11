@@ -215,8 +215,17 @@
 
             try {
                 const res = await fetch(`admin.php?action=satisfaction_recipients&campaign=${campaign}&exclude_sent=${excludeSent}&exclude_ever=${excludeEver}`);
-                recipients = await res.json();
+                const data = await res.json();
 
+                if (!data.isEligible) {
+                    document.getElementById('recipient-count').innerText = "0";
+                    document.getElementById('btn-send-all').disabled = true;
+                    document.getElementById('btn-send-all').innerText = "Non éligible";
+                    listContainer.innerHTML = `<div class="py-10 px-6 text-center"><i class="fa-solid fa-clock text-3xl text-slate-100 mb-4"></i><p class="text-slate-400 font-bold text-sm">${data.reason}</p><p class="text-slate-300 text-[10px] uppercase mt-2 font-black italic">Le questionnaire pourra être envoyé après cette date.</p></div>`;
+                    return;
+                }
+
+                recipients = data.recipients || [];
                 document.getElementById('recipient-count').innerText = recipients.length;
                 document.getElementById('btn-send-all').disabled = (recipients.length === 0);
                 document.getElementById('btn-send-all').innerText = recipients.length > 0 ? `Lancer pour ${recipients.length} destinataires` : "Aucun destinataire éligible";

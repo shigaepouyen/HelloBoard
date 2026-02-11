@@ -228,16 +228,20 @@ if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
         // --- FILTRE ELIGIBILITE : ACTION TERMINEE ---
         $formDetails = $client->getFormDetails($currentCamp['orgSlug'], $currentCamp['formSlug'], $currentCamp['formType']);
         $isFinished = true;
+        $reason = null;
 
         if ($currentCamp['formType'] === 'Event' && !empty($formDetails['endDate'])) {
             $endDate = new DateTime($formDetails['endDate']);
             $now = new DateTime();
-            if ($endDate > $now) $isFinished = false;
+            if ($endDate > $now) {
+                $isFinished = false;
+                $reason = "L'événement n'est pas encore terminé (fin prévue le " . $endDate->format('d/m/Y à H:i') . ").";
+            }
         }
         // Pour les autres types (Shop, Donation, etc.), on considère l'action comme "terminée" dès que payée si pas de date de fin claire
 
         if (!$isFinished) {
-            echo json_encode([]);
+            echo json_encode(['success' => true, 'isEligible' => false, 'reason' => $reason, 'recipients' => []]);
             exit;
         }
 
@@ -246,8 +250,15 @@ if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
         $recipients = [];
 
         foreach ($orders as $o) {
-            // On accepte 'Paid' mais aussi potentiellement d'autres états si besoin
-            if (!in_array(($o['state'] ?? ''), ['Paid', 'Processed'])) continue;
+            // Un order est éligible si au moins un item est 'Paid' ou 'Processed'
+            $hasValidItem = false;
+            foreach ($o['items'] ?? [] as $item) {
+                if (in_array(($item['state'] ?? ''), ['Paid', 'Processed'])) {
+                    $hasValidItem = true;
+                    break;
+                }
+            }
+            if (!$hasValidItem) continue;
 
             $email = trim(strtolower($o['payer']['email'] ?? ''));
             if (!$email) continue;
@@ -264,7 +275,11 @@ if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
                 'date' => $o['date']
             ];
         }
-        echo json_encode(array_values($recipients));
+        echo json_encode([
+            'success' => true,
+            'isEligible' => true,
+            'recipients' => array_values($recipients)
+        ]);
     }
     exit;
 }
