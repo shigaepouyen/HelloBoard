@@ -46,10 +46,10 @@
 
                 <!-- MODELE D'EMAIL (COLLAPSIBLE) -->
                 <div class="admin-card overflow-hidden">
-                    <button onclick="toggleCollapsible('email-draft-collapse')" class="w-full p-8 flex justify-between items-center bg-slate-900 text-white hover:bg-slate-800 transition">
+                    <button onclick="toggleCollapsible('email-draft-collapse')" class="w-full p-8 flex justify-between items-center bg-white hover:bg-slate-50 transition">
                         <div class="flex items-center gap-4">
-                            <i class="fa-solid fa-envelope-open-text text-amber-400"></i>
-                            <h3 class="text-xs font-black uppercase italic tracking-widest">Modèle d'Email de sollicitation</h3>
+                            <i class="fa-solid fa-envelope-open-text text-amber-500"></i>
+                            <h3 class="text-xs font-black uppercase text-slate-400 italic tracking-widest">Modèle d'Email de sollicitation</h3>
                         </div>
                         <i class="fa-solid fa-chevron-down transition-transform duration-300" id="email-draft-icon"></i>
                     </button>
@@ -187,11 +187,11 @@
 
                     <div class="space-y-4 mb-6">
                         <div class="flex items-center justify-between">
-                            <span class="text-[9px] font-black uppercase text-slate-400">Exclure si déjà envoyé</span>
+                            <span class="text-[9px] font-black uppercase text-slate-400">Ignorer si déjà envoyé pour ce board</span>
                             <div class="toggle-btn active" id="filter-exclude-sent" onclick="this.classList.toggle('active'); fetchRecipients()"></div>
                         </div>
                         <div class="flex items-center justify-between">
-                            <span class="text-[9px] font-black uppercase text-slate-400">Exclure si déjà sollicité</span>
+                            <span class="text-[9px] font-black uppercase text-slate-400">Exclure si déjà sollicité auparavant (global)</span>
                             <div class="toggle-btn" id="filter-exclude-ever" onclick="this.classList.toggle('active'); fetchRecipients()"></div>
                         </div>
                     </div>
