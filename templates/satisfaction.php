@@ -14,6 +14,8 @@
         .admin-card { background: white; border-radius: 2rem; border: 1px solid #edf2f7; }
         .input-soft { background: #f1f5f9; border: 2px solid transparent; border-radius: 1.25rem; padding: 12px 16px; font-weight: 700; width: 100%; outline: none; transition: 0.2s; }
         .input-soft:focus { border-color: #2563eb; background: white; }
+        .progress-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #2563eb; width: 0%; transition: width 0.3s ease; }
         .toggle-btn { width: 44px; height: 24px; background: #cbd5e1; border-radius: 20px; position: relative; cursor: pointer; }
         .toggle-btn.active { background: #2563eb; }
         .toggle-btn::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: 0.3s; }
@@ -35,10 +37,59 @@
     </nav>
 
     <main class="max-w-7xl mx-auto px-4 py-12">
+        <!-- STATS BAR -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12 animate-fade-in">
+            <div class="admin-card p-6 text-center">
+                <p class="text-[9px] font-black uppercase text-slate-400 mb-1 italic tracking-widest">Emails envoyés</p>
+                <h4 class="text-3xl font-black text-slate-900"><?= $stats['total_sent'] ?></h4>
+            </div>
+            <div class="admin-card p-6 text-center border-b-4 border-blue-500">
+                <p class="text-[9px] font-black uppercase text-slate-400 mb-1 italic tracking-widest">Emails ouverts</p>
+                <div class="flex items-center justify-center gap-2">
+                    <h4 class="text-3xl font-black text-slate-900"><?= $stats['total_read'] ?></h4>
+                    <span class="text-[10px] font-black text-blue-500">(<?= $stats['total_sent'] > 0 ? round($stats['total_read']/$stats['total_sent']*100) : 0 ?>%)</span>
+                </div>
+            </div>
+            <div class="admin-card p-6 text-center border-b-4 border-emerald-500">
+                <p class="text-[9px] font-black uppercase text-slate-400 mb-1 italic tracking-widest">Réponses</p>
+                <div class="flex items-center justify-center gap-2">
+                    <h4 class="text-3xl font-black text-slate-900"><?= $stats['total_responses'] ?></h4>
+                    <span class="text-[10px] font-black text-emerald-500">(<?= $stats['total_sent'] > 0 ? round($stats['total_responses']/$stats['total_sent']*100) : 0 ?>%)</span>
+                </div>
+            </div>
+            <div class="admin-card p-6 text-center border-b-4 border-amber-500">
+                <p class="text-[9px] font-black uppercase text-slate-400 mb-1 italic tracking-widest">Satisfaction</p>
+                <h4 class="text-3xl font-black text-slate-900"><?= round($stats['avg_csat'] ?? 0) ?>%</h4>
+            </div>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
             <!-- CONFIGURATION & FILTRES -->
             <div class="lg:col-span-1 space-y-8">
+                <div class="admin-card p-8 bg-slate-900 text-white">
+                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-800 pb-4">Modèle d'Email</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-[9px] font-black text-slate-500 uppercase block mb-1">Objet du mail</label>
+                            <input type="text" id="email-subject" class="w-full bg-slate-800 border-2 border-transparent focus:border-blue-500 rounded-xl p-3 text-xs font-bold outline-none transition" value="<?= htmlspecialchars($mailingDraft['subject']) ?>">
+                        </div>
+                        <div>
+                            <label class="text-[9px] font-black text-slate-500 uppercase block mb-1">Message</label>
+                            <textarea id="email-body" rows="8" class="w-full bg-slate-800 border-2 border-transparent focus:border-blue-500 rounded-xl p-4 text-[11px] font-medium outline-none transition leading-relaxed"><?= htmlspecialchars($mailingDraft['body']) ?></textarea>
+                            <div class="flex flex-wrap gap-1 mt-2">
+                                <span class="text-[8px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-black">#{{PRENOM}}</span>
+                                <span class="text-[8px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-black">#{{NOM}}</span>
+                                <span class="text-[8px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded font-black">#{{NOM_CAMPAGNE}}</span>
+                                <span class="text-[8px] bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded font-black">#{{SURVEY_URL}}</span>
+                            </div>
+                        </div>
+                        <button onclick="saveMailingDraft()" id="btn-save-draft" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-xs shadow-lg shadow-blue-900/20 hover:bg-blue-500 transition">
+                            Sauvegarder le modèle
+                        </button>
+                    </div>
+                </div>
+
                 <div class="admin-card p-8">
                     <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Questions du questionnaire</h3>
                     <div class="space-y-4">
@@ -91,9 +142,20 @@
             <!-- LISTE DESTINATAIRES & ENVOI -->
             <div class="lg:col-span-2 space-y-8">
                 <div class="admin-card p-8">
-                    <div class="flex justify-between items-center mb-8 border-b border-slate-50 pb-4">
-                        <h3 class="text-xs font-black uppercase text-slate-400 italic tracking-widest">Destinataires éligibles</h3>
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-xs font-black uppercase text-slate-400 italic tracking-widest">Destinataires éligibles</h3>
+                            <p class="text-[9px] text-slate-300 font-bold uppercase mt-1">Sont exclus : annulés, déjà sollicités, ou événement futur.</p>
+                        </div>
                         <span class="bg-blue-100 text-blue-600 text-[10px] font-black px-3 py-1 rounded-full" id="recipient-count">0</span>
+                    </div>
+
+                    <div id="sending-progress-container" class="hidden mb-8">
+                        <div class="flex justify-between text-[10px] font-black uppercase mb-2">
+                            <span class="text-blue-600">Progression de l'envoi</span>
+                            <span id="sending-percent" class="text-slate-400">0%</span>
+                        </div>
+                        <div class="progress-bar"><div id="sending-progress-fill" class="progress-fill"></div></div>
                     </div>
 
                     <div class="overflow-hidden mb-8">
@@ -206,6 +268,35 @@
             }
         }
 
+        const tokenMap = <?= json_encode($tokens) ?>;
+        const responseMap = <?= json_encode($responses) ?>;
+
+        async function saveMailingDraft() {
+            const btn = document.getElementById('btn-save-draft');
+            const oldText = btn.innerText;
+            btn.innerText = "Sauvegarde...";
+            btn.disabled = true;
+
+            try {
+                await fetch('admin.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        save_satisfaction_mailing_draft: '1',
+                        campaign: campaign,
+                        subject: document.getElementById('email-subject').value,
+                        body: document.getElementById('email-body').value
+                    })
+                });
+                notify("Modèle d'email enregistré !", "success");
+            } catch (e) {
+                notify("Erreur lors de la sauvegarde.", "error");
+            } finally {
+                btn.innerText = oldText;
+                btn.disabled = false;
+            }
+        }
+
         async function fetchRecipients() {
             const listContainer = document.getElementById('recipients-list');
             listContainer.innerHTML = '<div class="py-10 text-center text-slate-300 font-bold italic text-sm animate-pulse">Scan HelloAsso en cours...</div>';
@@ -235,15 +326,30 @@
                     return;
                 }
 
-                listContainer.innerHTML = recipients.map(r => `
-                    <div class="p-3 bg-slate-50 rounded-xl flex items-center justify-between gap-3 text-[10px] border border-transparent" id="row-${r.orderId}">
-                        <div class="truncate">
-                            <p class="font-black text-slate-700 truncate uppercase">${r.lastName} ${r.firstName}</p>
-                            <p class="text-slate-400 truncate">${r.email}</p>
+                listContainer.innerHTML = recipients.map(r => {
+                    const haToken = tokenMap.find(t => t.order_id === r.orderId);
+                    const haResp = responseMap.find(resp => resp.order_id === r.orderId);
+
+                    let statusHtml = '';
+                    if (haToken) {
+                        statusHtml += `<i class="fa-solid fa-paper-plane text-emerald-500 mr-2" title="Envoyé le ${haToken.sent_at}"></i>`;
+                        if (haToken.read_at) statusHtml += `<i class="fa-solid fa-eye text-blue-500 mr-2" title="Lu le ${haToken.read_at}"></i>`;
+                        if (haResp) statusHtml += `<i class="fa-solid fa-star text-amber-500 mr-2" title="Répondu"></i>`;
+                    }
+
+                    return `
+                        <div class="p-3 bg-slate-50 rounded-xl flex items-center justify-between gap-3 text-[10px] border border-transparent" id="row-${r.orderId}">
+                            <div class="truncate">
+                                <p class="font-black text-slate-700 truncate uppercase">${r.lastName} ${r.firstName}</p>
+                                <p class="text-slate-400 truncate">${r.email}</p>
+                            </div>
+                            <div class="flex items-center">
+                                ${statusHtml}
+                                <span class="text-[9px] font-black text-slate-300 bg-white px-2 py-1 rounded-lg border border-slate-100">${r.date.substring(0, 10)}</span>
+                            </div>
                         </div>
-                        <span class="text-[9px] font-black text-slate-300 bg-white px-2 py-1 rounded-lg border border-slate-100">${r.date.substring(0, 10)}</span>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             } catch (e) {
                 listContainer.innerHTML = '<div class="py-10 text-center text-red-400 font-bold italic text-sm">Erreur lors du chargement des destinataires.</div>';
             }
@@ -267,6 +373,8 @@
                         email: email,
                         firstName: document.getElementById('test-firstname').value || 'Test',
                         lastName: document.getElementById('test-lastname').value || 'TestUser',
+                        subject: document.getElementById('email-subject').value,
+                        body: document.getElementById('email-body').value,
                         is_test: '1'
                     })
                 });
@@ -292,11 +400,20 @@
             const statusContainer = document.getElementById('sending-status');
             statusContainer.classList.remove('hidden');
 
+            const progressContainer = document.getElementById('sending-progress-container');
+            progressContainer.classList.remove('hidden');
+            const progressFill = document.getElementById('sending-progress-fill');
+            const percentLabel = document.getElementById('sending-percent');
+
             let sentCount = 0;
             let currentInBatch = 0;
             let batchNum = 1;
 
-            for (const r of recipients) {
+            const subject = document.getElementById('email-subject').value;
+            const body = document.getElementById('email-body').value;
+
+            for (let i = 0; i < recipients.length; i++) {
+                const r = recipients[i];
                 const row = document.getElementById('row-' + r.orderId);
                 if (row) {
                     row.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -316,7 +433,9 @@
                             email: r.email,
                             firstName: r.firstName,
                             lastName: r.lastName,
-                            itemName: r.itemName
+                            itemName: r.itemName,
+                            subject: subject,
+                            body: body
                         })
                     });
                     const data = await res.json();
@@ -329,6 +448,12 @@
                     } else {
                         if (row) row.classList.replace('bg-blue-50', 'bg-red-50');
                     }
+
+                    // Update Progress
+                    const pct = Math.round(((i + 1) / recipients.length) * 100);
+                    progressFill.style.width = pct + '%';
+                    percentLabel.innerText = pct + '%';
+
                 } catch (e) {
                     console.error(e);
                 }

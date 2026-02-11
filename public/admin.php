@@ -87,6 +87,24 @@ if ($action === 'dl_log') {
     }
 }
 
+// Save Satisfaction Mailing Draft
+if (isset($_POST['save_satisfaction_mailing_draft'])) {
+    $slug = $_POST['campaign'];
+    $campaigns = Storage::listCampaigns();
+    foreach($campaigns as $conf) {
+        if ($conf['slug'] === $slug) {
+            $conf['satisfactionMailingDraft'] = [
+                'subject' => $_POST['subject'],
+                'body' => $_POST['body']
+            ];
+            Storage::saveCampaign($slug, $conf);
+            echo json_encode(['success' => true]);
+            exit;
+        }
+    }
+    exit;
+}
+
 // Save Board
 if (isset($_POST['save_campaign'])) {
     $config = json_decode($_POST['config'], true);
@@ -313,13 +331,21 @@ if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http');
         $host = $_SERVER['HTTP_HOST'];
         $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
-        $surveyUrl = $protocol . '://' . $host . $path . '/satisfaction.php?t=' . $token;
+        $baseUrl = $protocol . '://' . $host . $path;
 
-        $subject = "Votre avis nous intéresse : " . $currentCamp['title'];
-        $body = "Bonjour " . $firstName . ",\n\nMerci pour votre récent achat/participation à \"" . $currentCamp['title'] . "\".\n\nNous aimerions recueillir votre avis via ce court questionnaire :\n" . $surveyUrl . "\n\nCordialement,\n" . ($globals['smtpFromName'] ?? 'L\'équipe');
+        $surveyUrl = $baseUrl . '/satisfaction.php?t=' . $token;
+        $trackingUrl = $baseUrl . '/track.php?c=' . $slug . '&t=' . $token;
+
+        $subject = $_POST['subject'] ?? ("Votre avis nous intéresse : " . $currentCamp['title']);
+        $body = $_POST['body'] ?? ("Bonjour {{PRENOM}},\n\nMerci pour votre récent achat/participation à \"" . $currentCamp['title'] . "\".\n\nNous aimerions recueillir votre avis via ce court questionnaire :\n" . $surveyUrl . "\n\nCordialement,\n" . ($globals['smtpFromName'] ?? 'L\'équipe'));
 
         try {
-            $mailer->send($email, $subject, $body, [], null, []);
+            $mailer->send($email, $subject, $body, [
+                'NOM' => strtoupper($lastName),
+                'PRENOM' => $firstName,
+                'NOM_CAMPAGNE' => $currentCamp['title'],
+                'SURVEY_URL' => $surveyUrl
+            ], $trackingUrl, []);
             echo json_encode(['success' => true]);
         } catch (Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -642,6 +668,14 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
             }
             $questions = $satService->getQuestions($slug, $currentCamp['formType']);
             $responses = $satService->getResponsesByCampaign($slug);
+            $tokens = $satService->getTokensByCampaign($slug);
+            $stats = $satService->getStats($slug);
+
+            $mailingDraft = $currentCamp['satisfactionMailingDraft'] ?? [
+                'subject' => "Votre avis nous intéresse : " . $currentCamp['title'],
+                'body' => "Bonjour {{PRENOM}},\n\nMerci pour votre récent achat/participation à \"{{NOM_CAMPAGNE}}\".\n\nNous aimerions recueillir votre avis via ce court questionnaire :\n{{SURVEY_URL}}\n\nCordialement,\n" . ($globals['smtpFromName'] ?? 'L\'équipe')
+            ];
+
             include __DIR__ . '/../templates/satisfaction.php';
             exit;
         }

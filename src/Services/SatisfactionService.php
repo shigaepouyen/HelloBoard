@@ -28,6 +28,7 @@ class SatisfactionService {
                 payer_name TEXT,
                 item_name TEXT,
                 sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                read_at DATETIME,
                 status TEXT DEFAULT 'sent'
             )");
 
@@ -122,6 +123,11 @@ class SatisfactionService {
         return $stmt->fetch();
     }
 
+    public function markAsRead($token) {
+        $stmt = $this->db->prepare("UPDATE survey_tokens SET read_at = CURRENT_TIMESTAMP WHERE token = ? AND read_at IS NULL");
+        return $stmt->execute([$token]);
+    }
+
     public function saveResponse($token, $ratings, $comment) {
         $stmt = $this->db->prepare("INSERT INTO survey_responses (token, q1, q2, q3, q4, q5, comment) VALUES (?, ?, ?, ?, ?, ?, ?)");
         return $stmt->execute([
@@ -142,8 +148,14 @@ class SatisfactionService {
         return $stmt->execute([$token]);
     }
 
+    public function getTokensByCampaign($campaignSlug) {
+        $stmt = $this->db->prepare("SELECT * FROM survey_tokens WHERE campaign_slug = ?");
+        $stmt->execute([$campaignSlug]);
+        return $stmt->fetchAll();
+    }
+
     public function getResponsesByCampaign($campaignSlug = null) {
-        $sql = "SELECT r.*, t.payer_name, t.item_name, t.campaign_slug, t.email
+        $sql = "SELECT r.*, t.payer_name, t.item_name, t.campaign_slug, t.email, t.read_at, t.sent_at
                 FROM survey_responses r
                 JOIN survey_tokens t ON r.token = t.token";
 
@@ -162,10 +174,12 @@ class SatisfactionService {
 
     public function getStats($campaignSlug = null) {
         $sql = "SELECT
-            COUNT(r.token) as total_responses,
+            COUNT(DISTINCT t.token) as total_sent,
+            COUNT(t.read_at) as total_read,
+            COUNT(DISTINCT r.token) as total_responses,
             AVG((q1 + q2 + q3 + q4 + q5 - 5) / 20.0 * 100.0) as avg_csat
-            FROM survey_responses r
-            JOIN survey_tokens t ON r.token = t.token";
+            FROM survey_tokens t
+            LEFT JOIN survey_responses r ON t.token = r.token";
 
         if ($campaignSlug) {
             $sql .= " WHERE t.campaign_slug = :slug";
