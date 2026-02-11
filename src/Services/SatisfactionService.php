@@ -42,6 +42,20 @@ class SatisfactionService {
                 comment TEXT,
                 submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )");
+
+            // Migration: Add read_at column if missing
+            try {
+                $this->db->query("SELECT read_at FROM survey_tokens LIMIT 1");
+            } catch (Exception $e) {
+                $this->db->exec("ALTER TABLE survey_tokens ADD COLUMN read_at DATETIME");
+            }
+
+            // Migration: Add status column if missing
+            try {
+                $this->db->query("SELECT status FROM survey_tokens LIMIT 1");
+            } catch (Exception $e) {
+                $this->db->exec("ALTER TABLE survey_tokens ADD COLUMN status TEXT DEFAULT 'sent'");
+            }
         } catch (PDOException $e) {
             error_log("SatisfactionService Connection Error: " . $e->getMessage());
         }
@@ -155,7 +169,7 @@ class SatisfactionService {
     }
 
     public function getResponsesByCampaign($campaignSlug = null) {
-        $sql = "SELECT r.*, t.payer_name, t.item_name, t.campaign_slug, t.email, t.read_at, t.sent_at
+        $sql = "SELECT r.*, t.payer_name, t.item_name, t.campaign_slug, t.email, t.read_at, t.sent_at, t.order_id
                 FROM survey_responses r
                 JOIN survey_tokens t ON r.token = t.token";
 
