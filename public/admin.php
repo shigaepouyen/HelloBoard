@@ -189,14 +189,17 @@ if ($action === 'mailing_send_one' && isset($_POST['campaign'])) {
 // Global Satisfaction Action (Reporting)
 if ($action === 'satisfaction_global') {
     $satService = new SatisfactionService();
+    $filterSlug = $_GET['campaign_filter'] ?? null;
+    if (empty($filterSlug)) $filterSlug = null;
+
     if (isset($_GET['delete'])) {
         $satService->deleteParticipation($_GET['delete']);
-        header('Location: admin.php?action=satisfaction_global');
+        header('Location: admin.php?action=satisfaction_global' . ($filterSlug ? '&campaign_filter='.$filterSlug : ''));
         exit;
     }
-    $stats = $satService->getStats();
-    $statsBySource = $satService->getStatsBySource();
-    $responses = $satService->getResponsesByCampaign();
+    $stats = $satService->getStats($filterSlug);
+    $statsBySource = $satService->getStatsBySource($filterSlug);
+    $responses = $satService->getResponsesByCampaign($filterSlug);
     include __DIR__ . '/../templates/satisfaction_global.php';
     exit;
 }
@@ -222,18 +225,32 @@ if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
     foreach($localCampaigns as $c) { if($c['slug'] === $slug) $currentCamp = $c; }
 
     if ($currentCamp) {
+        // --- FILTRE ELIGIBILITE : ACTION TERMINEE ---
+        $formDetails = $client->getFormDetails($currentCamp['orgSlug'], $currentCamp['formSlug'], $currentCamp['formType']);
+        $isFinished = true;
+
+        if ($currentCamp['formType'] === 'Event' && !empty($formDetails['endDate'])) {
+            $endDate = new DateTime($formDetails['endDate']);
+            $now = new DateTime();
+            if ($endDate > $now) $isFinished = false;
+        }
+        // Pour les autres types (Shop, Donation, etc.), on considère l'action comme "terminée" dès que payée si pas de date de fin claire
+
+        if (!$isFinished) {
+            echo json_encode([]);
+            exit;
+        }
+
         $satService = new SatisfactionService();
         $orders = $client->fetchAllOrders($currentCamp['orgSlug'], $currentCamp['formSlug'], $currentCamp['formType']);
         $recipients = [];
 
         foreach ($orders as $o) {
-            if (($o['state'] ?? '') !== 'Paid') continue;
+            // On accepte 'Paid' mais aussi potentiellement d'autres états si besoin
+            if (!in_array(($o['state'] ?? ''), ['Paid', 'Processed'])) continue;
 
             $email = trim(strtolower($o['payer']['email'] ?? ''));
             if (!$email) continue;
-
-            // Type filter (already handled by campaign slug usually, but just in case)
-            if ($typeFilter && $currentCamp['formType'] !== $typeFilter) continue;
 
             if ($excludeSent && $satService->isAlreadySent($slug, $o['id'])) continue;
             if ($excludeEver && $satService->hasEverReceived($email)) continue;
@@ -608,7 +625,7 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
                 header('Location: admin.php?action=satisfaction&campaign=' . $slug);
                 exit;
             }
-            $questions = $satService->getQuestions($slug);
+            $questions = $satService->getQuestions($slug, $currentCamp['formType']);
             $responses = $satService->getResponsesByCampaign($slug);
             include __DIR__ . '/../templates/satisfaction.php';
             exit;

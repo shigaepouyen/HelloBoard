@@ -148,4 +148,17 @@ class HelloAssoClient {
 
         return $orders;
     }
+
+    public function getFormDetails($orgSlug, $formSlug, $formType = 'Event') {
+        $token = $this->getAccessToken();
+        if (!$token) return null;
+
+        $url = "https://api.helloasso.com/v5/organizations/$orgSlug/forms/$formType/$formSlug/public";
+        $res = $this->request('GET', $url, [], $token);
+
+        if ($res['code'] === 200) {
+            return $res['body'];
+        }
+        return null;
+    }
 }

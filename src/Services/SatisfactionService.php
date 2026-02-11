@@ -46,7 +46,7 @@ class SatisfactionService {
         }
     }
 
-    public function getQuestions($campaignSlug) {
+    public function getQuestions($campaignSlug, $formType = null) {
         $stmt = $this->db->prepare("SELECT questions_json FROM campaign_questions WHERE campaign_slug = ?");
         $stmt->execute([$campaignSlug]);
         $row = $stmt->fetch();
@@ -55,13 +55,40 @@ class SatisfactionService {
             return json_decode($row['questions_json'], true);
         }
 
-        // Default questions
+        // Default questions adapted by formType
+        if ($formType === 'Shop' || $formType === 'Checkout' || $formType === 'PaymentForm' || $formType === 'Product') {
+            return [
+                ['label' => 'Êtes-vous satisfait de votre interaction avec l\'association ?'],
+                ['label' => 'Le processus d\'achat vous a-t-il semblé simple ?'],
+                ['label' => 'L\'objet ou le produit correspondait-il à vos attentes ?'],
+                ['label' => 'Seriez-vous prêt à commander à nouveau ou à nous recommander ?'],
+                ['label' => 'Comment évaluez-vous la qualité du retrait / livraison ?']
+            ];
+        } else if ($formType === 'Donation') {
+            return [
+                ['label' => 'Êtes-vous satisfait de votre interaction avec l\'association ?'],
+                ['label' => 'Le processus de don vous a-t-il semblé simple ?'],
+                ['label' => 'Avez-vous le sentiment que votre don est utile ?'],
+                ['label' => 'Seriez-vous prêt à nous soutenir à nouveau ?'],
+                ['label' => 'La transparence sur l\'usage des fonds vous semble-t-elle correcte ?']
+            ];
+        } else if ($formType === 'Membership') {
+            return [
+                ['label' => 'Êtes-vous satisfait de votre interaction avec l\'association ?'],
+                ['label' => 'Le processus d\'adhésion vous a-t-il semblé simple ?'],
+                ['label' => 'Les avantages de l\'adhésion répondent-ils à vos attentes ?'],
+                ['label' => 'Recommanderiez-vous notre association à votre entourage ?'],
+                ['label' => 'Le montant de la cotisation vous semble-t-il justifié ?']
+            ];
+        }
+
+        // Default / Event
         return [
             ['label' => 'Êtes-vous satisfait de votre interaction avec l\'association ?'],
-            ['label' => 'Le processus (inscription ou achat) vous a-t-il semblé simple ?'],
-            ['label' => 'Le service ou l\'objet correspondait-il à vos attentes ?'],
+            ['label' => 'Le processus d\'inscription vous a-t-il semblé simple ?'],
+            ['label' => 'L\'événement correspondait-il à vos attentes ?'],
             ['label' => 'Seriez-vous prêt à renouveler l\'expérience ou à nous recommander ?'],
-            ['label' => 'Comment évaluez-vous la réactivité de notre équipe ?']
+            ['label' => 'Comment évaluez-vous la qualité de l\'accueil / organisation ?']
         ];
     }
 
@@ -133,18 +160,27 @@ class SatisfactionService {
         return $stmt->fetchAll();
     }
 
-    public function getStats() {
-        $stmt = $this->db->query("SELECT
+    public function getStats($campaignSlug = null) {
+        $sql = "SELECT
             COUNT(r.token) as total_responses,
             AVG((q1 + q2 + q3 + q4 + q5 - 5) / 20.0 * 100.0) as avg_csat
-            FROM survey_responses r");
+            FROM survey_responses r
+            JOIN survey_tokens t ON r.token = t.token";
+
+        if ($campaignSlug) {
+            $sql .= " WHERE t.campaign_slug = :slug";
+        }
+
+        $stmt = $this->db->prepare($sql);
+        if ($campaignSlug) {
+            $stmt->bindValue(':slug', $campaignSlug);
+        }
+        $stmt->execute();
         return $stmt->fetch();
     }
 
-    public function getStatsBySource() {
-        // We might need to join with campaigns to get formType, or store it in tokens
-        // For now let's assume we can get it from campaign files
-        $responses = $this->getResponsesByCampaign();
+    public function getStatsBySource($campaignSlug = null) {
+        $responses = $this->getResponsesByCampaign($campaignSlug);
         $bySource = [];
 
         // Load campaigns to know form types

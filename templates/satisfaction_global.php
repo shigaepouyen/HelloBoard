@@ -32,9 +32,23 @@
 
     <main class="max-w-6xl mx-auto px-4 py-12">
         <div class="animate-fade-in">
-            <div class="mb-10">
-                <h2 class="text-3xl font-black italic uppercase text-slate-900">Module Satisfaction</h2>
-                <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Indicateurs de satisfaction et retours clients</p>
+            <div class="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                <div>
+                    <h2 class="text-3xl font-black italic uppercase text-slate-900">Module Satisfaction</h2>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Indicateurs de satisfaction et retours clients</p>
+                </div>
+                <div class="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+                    <form method="GET" class="flex items-center gap-2 w-full md:w-auto">
+                        <input type="hidden" name="action" value="satisfaction_global">
+                        <select name="campaign_filter" onchange="this.form.submit()" class="bg-white border border-slate-200 text-slate-600 px-4 py-3 rounded-xl font-bold text-xs uppercase outline-none focus:border-blue-500 shadow-sm w-full md:w-64">
+                            <option value="">Toutes les campagnes</option>
+                            <?php foreach($localCampaigns as $lc): ?>
+                                <option value="<?= $lc['slug'] ?>" <?= ($filterSlug === $lc['slug']) ? 'selected' : '' ?>><?= htmlspecialchars($lc['title']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </form>
+                    <a href="admin.php" class="text-xs font-black text-slate-400 uppercase hover:text-slate-900 transition">Retour</a>
+                </div>
             </div>
 
             <!-- KPI CARDS -->
@@ -78,7 +92,7 @@
                 </div>
                 <div class="divide-y divide-slate-50">
                     <?php if (empty($responses)): ?>
-                        <div class="p-20 text-center text-slate-300 font-bold italic">Aucune réponse pour le moment.</div>
+                        <div class="p-20 text-center text-slate-300 font-bold italic">Aucun avis trouvé pour cette sélection.</div>
                     <?php else: foreach ($responses as $r):
                         $avg = ($r['q1'] + $r['q2'] + $r['q3'] + $r['q4'] + $r['q5'] - 5) / 20.0 * 100.0;
                     ?>
@@ -108,7 +122,7 @@
                                                 <?php endfor; ?>
                                             </div>
                                         </div>
-                                        <a href="admin.php?action=satisfaction_global&delete=<?= $r['token'] ?>" onclick="return confirm('Supprimer cette participation ?')" class="w-10 h-10 flex items-center justify-center bg-red-50 text-red-300 rounded-xl hover:bg-red-500 hover:text-white transition shadow-sm">
+                                        <a href="admin.php?action=satisfaction_global&delete=<?= $r['token'] ?><?= $filterSlug ? '&campaign_filter='.$filterSlug : '' ?>" onclick="return confirm('Supprimer cette participation ?')" class="w-10 h-10 flex items-center justify-center bg-red-50 text-red-300 rounded-xl hover:bg-red-500 hover:text-white transition shadow-sm">
                                             <i class="fa-solid fa-trash-can text-xs"></i>
                                         </a>
                                     </div>
