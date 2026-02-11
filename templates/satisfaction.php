@@ -76,20 +76,30 @@
                     </div>
                 </div>
 
-                <!-- QUESTIONS -->
-                <div class="admin-card p-8">
-                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Structure du questionnaire</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <?php foreach($questions as $i => $q): ?>
-                            <div>
-                                <label class="text-[9px] font-black text-slate-400 uppercase block mb-1 italic">Question <?= $i+1 ?></label>
-                                <input type="text" class="question-input input-soft !py-3 !text-xs" value="<?= htmlspecialchars($q['label']) ?>" data-index="<?= $i ?>">
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                    <button onclick="saveQuestions()" id="btn-save-questions" class="w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-black uppercase text-xs hover:bg-slate-200 transition mt-6">
-                        Enregistrer les questions
+                <!-- QUESTIONS (COLLAPSIBLE) -->
+                <div class="admin-card overflow-hidden">
+                    <button onclick="toggleCollapsible('questions-collapse')" class="w-full p-8 flex justify-between items-center bg-white hover:bg-slate-50 transition">
+                        <div class="flex items-center gap-4">
+                            <i class="fa-solid fa-list-check text-blue-600"></i>
+                            <h3 class="text-xs font-black uppercase text-slate-400 italic tracking-widest">Structure du questionnaire</h3>
+                        </div>
+                        <i class="fa-solid fa-chevron-down transition-transform duration-300" id="questions-icon"></i>
                     </button>
+                    <div id="questions-collapse" class="collapsible-content">
+                        <div class="p-8 pt-0">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <?php foreach($questions as $i => $q): ?>
+                                    <div>
+                                        <label class="text-[9px] font-black text-slate-400 uppercase block mb-1 italic">Question <?= $i+1 ?></label>
+                                        <input type="text" class="question-input input-soft !py-3 !text-xs" value="<?= htmlspecialchars($q['label']) ?>" data-index="<?= $i ?>">
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <button onclick="saveQuestions()" id="btn-save-questions" class="w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-black uppercase text-xs hover:bg-slate-200 transition mt-6">
+                                Enregistrer les questions
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- VERBATIMS -->
