@@ -20,6 +20,11 @@ if ($campaign && $token) {
     if ($changed) {
         Storage::saveMailingHistory($campaign, $history);
     }
+
+    // Also check Satisfaction Service
+    require_once __DIR__ . '/../src/Services/SatisfactionService.php';
+    $satService = new SatisfactionService();
+    $satService->markAsRead($token);
 }
 
 // Serve a 1x1 transparent GIF

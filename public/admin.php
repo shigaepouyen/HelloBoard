@@ -3,6 +3,7 @@ session_start();
 $srcPath = __DIR__ . '/../src/Services/';
 require_once $srcPath . 'Storage.php';
 require_once $srcPath . 'HelloAssoClient.php';
+require_once $srcPath . 'SatisfactionService.php';
 
 $globals = Storage::getGlobalSettings();
 $adminPassword = $globals['adminPassword'] ?? null;
@@ -84,6 +85,24 @@ if ($action === 'dl_log') {
         header('Content-Type: text/plain'); header('Content-Disposition: attachment; filename="debug_helloasso.log"');
         readfile($logFile); exit;
     }
+}
+
+// Save Satisfaction Mailing Draft
+if (isset($_POST['save_satisfaction_mailing_draft'])) {
+    $slug = $_POST['campaign'];
+    $campaigns = Storage::listCampaigns();
+    foreach($campaigns as $conf) {
+        if ($conf['slug'] === $slug) {
+            $conf['satisfactionMailingDraft'] = [
+                'subject' => $_POST['subject'],
+                'body' => $_POST['body']
+            ];
+            Storage::saveCampaign($slug, $conf);
+            echo json_encode(['success' => true]);
+            exit;
+        }
+    }
+    exit;
 }
 
 // Save Board
@@ -185,6 +204,156 @@ if ($action === 'mailing_send_one' && isset($_POST['campaign'])) {
     exit;
 }
 
+// Global Satisfaction Action (Reporting)
+if ($action === 'satisfaction_global') {
+    $satService = new SatisfactionService();
+    $filterSlug = $_GET['campaign_filter'] ?? null;
+    if (empty($filterSlug)) $filterSlug = null;
+
+    if (isset($_GET['delete'])) {
+        $satService->deleteParticipation($_GET['delete']);
+        header('Location: admin.php?action=satisfaction_global' . ($filterSlug ? '&campaign_filter='.$filterSlug : ''));
+        exit;
+    }
+    $stats = $satService->getStats($filterSlug);
+    $statsBySource = $satService->getStatsBySource($filterSlug);
+    $responses = $satService->getResponsesByCampaign($filterSlug);
+    include __DIR__ . '/../templates/satisfaction_global.php';
+    exit;
+}
+
+// Save Satisfaction Questions
+if (isset($_POST['save_satisfaction_questions'])) {
+    $satService = new SatisfactionService();
+    $questions = json_decode($_POST['questions'], true);
+    $satService->saveQuestions($_POST['campaign'], $questions);
+    echo json_encode(['success' => true]);
+    exit;
+}
+
+// Get Satisfaction Recipients
+if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
+    header('Content-Type: application/json');
+    $slug = $_GET['campaign'];
+    $typeFilter = $_GET['type_filter'] ?? null;
+    $excludeSent = isset($_GET['exclude_sent']) && $_GET['exclude_sent'] === '1';
+    $excludeEver = isset($_GET['exclude_ever']) && $_GET['exclude_ever'] === '1';
+
+    $currentCamp = null;
+    foreach($localCampaigns as $c) { if($c['slug'] === $slug) $currentCamp = $c; }
+
+    if ($currentCamp) {
+        // --- FILTRE ELIGIBILITE : ACTION TERMINEE ---
+        $formDetails = $client->getFormDetails($currentCamp['orgSlug'], $currentCamp['formSlug'], $currentCamp['formType']);
+        $isFinished = true;
+        $reason = null;
+
+        if ($currentCamp['formType'] === 'Event' && !empty($formDetails['endDate'])) {
+            $endDate = new DateTime($formDetails['endDate']);
+            $now = new DateTime();
+            if ($endDate > $now) {
+                $isFinished = false;
+                $reason = "L'événement n'est pas encore terminé (fin prévue le " . $endDate->format('d/m/Y à H:i') . ").";
+            }
+        }
+        // Pour les autres types (Shop, Donation, etc.), on considère l'action comme "terminée" dès que payée si pas de date de fin claire
+
+        if (!$isFinished) {
+            echo json_encode(['success' => true, 'isEligible' => false, 'reason' => $reason, 'recipients' => []]);
+            exit;
+        }
+
+        $satService = new SatisfactionService();
+        $orders = $client->fetchAllOrders($currentCamp['orgSlug'], $currentCamp['formSlug'], $currentCamp['formType']);
+        $recipients = [];
+
+        foreach ($orders as $o) {
+            // Un order est éligible si au moins un item est 'Paid' ou 'Processed'
+            $hasValidItem = false;
+            foreach ($o['items'] ?? [] as $item) {
+                if (in_array(($item['state'] ?? ''), ['Paid', 'Processed'])) {
+                    $hasValidItem = true;
+                    break;
+                }
+            }
+            if (!$hasValidItem) continue;
+
+            $email = trim(strtolower($o['payer']['email'] ?? ''));
+            if (!$email) continue;
+
+            if ($excludeSent && $satService->isAlreadySent($slug, $o['id'])) continue;
+            if ($excludeEver && $satService->hasEverReceived($email)) continue;
+
+            $recipients[$o['id']] = [
+                'orderId' => $o['id'],
+                'email' => $email,
+                'firstName' => trim($o['payer']['firstName'] ?? ''),
+                'lastName' => trim($o['payer']['lastName'] ?? ''),
+                'itemName' => $currentCamp['title'],
+                'date' => $o['date']
+            ];
+        }
+        echo json_encode([
+            'success' => true,
+            'isEligible' => true,
+            'recipients' => array_values($recipients)
+        ]);
+    }
+    exit;
+}
+
+// Send Satisfaction Email (or Test)
+if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
+    header('Content-Type: application/json');
+    $slug = $_POST['campaign'];
+    $orderId = $_POST['orderId'] ?? ('TEST-' . bin2hex(random_bytes(4)));
+    $email = $_POST['email'];
+    $firstName = $_POST['firstName'] ?? '';
+    $lastName = $_POST['lastName'] ?? '';
+    $itemName = $_POST['itemName'] ?? '';
+    $isTest = isset($_POST['is_test']) && $_POST['is_test'] == '1';
+
+    $currentCamp = null;
+    foreach($localCampaigns as $c) { if($c['slug'] === $slug) $currentCamp = $c; }
+
+    if ($currentCamp) {
+        require_once $srcPath . 'MailService.php';
+        $mailer = new MailService($globals);
+        $satService = new SatisfactionService();
+
+        if (!$isTest && $satService->isAlreadySent($slug, $orderId)) {
+            echo json_encode(['success' => false, 'error' => 'Déjà envoyé']);
+            exit;
+        }
+
+        $token = $satService->generateToken($slug, $orderId, $email, trim($firstName . ' ' . $lastName), $itemName);
+
+        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http');
+        $host = $_SERVER['HTTP_HOST'];
+        $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+        $baseUrl = $protocol . '://' . $host . $path;
+
+        $surveyUrl = $baseUrl . '/satisfaction.php?t=' . $token;
+        $trackingUrl = $baseUrl . '/track.php?c=' . $slug . '&t=' . $token;
+
+        $subject = $_POST['subject'] ?? ("Votre avis nous intéresse : " . $currentCamp['title']);
+        $body = $_POST['body'] ?? ("Bonjour {{PRENOM}},\n\nMerci pour votre récent achat/participation à \"" . $currentCamp['title'] . "\".\n\nNous aimerions recueillir votre avis via ce court questionnaire :\n" . $surveyUrl . "\n\nCordialement,\n" . ($globals['smtpFromName'] ?? 'L\'équipe'));
+
+        try {
+            $mailer->send($email, $subject, $body, [
+                'NOM' => strtoupper($lastName),
+                'PRENOM' => $firstName,
+                'NOM_CAMPAGNE' => $currentCamp['title'],
+                'SURVEY_URL' => $surveyUrl
+            ], $trackingUrl, []);
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    }
+    exit;
+}
+
 // Sync Checkins
 if ($action === 'sync_checkins' && isset($_GET['campaign'])) {
     header('Content-Type: application/json');
@@ -245,7 +414,7 @@ if ($action === 'analyze') {
 }
 
 // Exports & Mailing View
-if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing') && isset($_GET['campaign'])) {
+if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing' || $action === 'satisfaction') && isset($_GET['campaign'])) {
     $slug = $_GET['campaign'];
     $currentCamp = null;
     foreach($localCampaigns as $c) { if($c['slug'] === $slug) $currentCamp = $c; }
@@ -490,6 +659,47 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
             include __DIR__ . '/../templates/mailing.php';
             exit;
         }
+        if ($action === 'satisfaction') {
+            $satService = new SatisfactionService();
+            if (isset($_GET['delete'])) {
+                $satService->deleteParticipation($_GET['delete']);
+                header('Location: admin.php?action=satisfaction&campaign=' . $slug);
+                exit;
+            }
+            $questions = $satService->getQuestions($slug, $currentCamp['formType']);
+            $responses = $satService->getResponsesByCampaign($slug);
+            $tokens = $satService->getTokensByCampaign($slug);
+            $stats = $satService->getStats($slug);
+
+            $mailingDraft = $currentCamp['satisfactionMailingDraft'] ?? null;
+            if (!$mailingDraft) {
+                $fType = $currentCamp['formType'] ?? 'Event';
+                if ($fType === 'Shop' || $fType === 'Checkout' || $fType === 'PaymentForm' || $fType === 'Product') {
+                    $mailingDraft = [
+                        'subject' => "📦 Votre commande HelloAsso : qu'en avez-vous pensé ?",
+                        'body' => "Bonjour {{PRENOM}},\n\nVous avez récemment effectué un achat sur notre boutique HelloAsso pour \"{{NOM_CAMPAGNE}}\".\n\nNous espérons que vos articles vous apportent entière satisfaction ! Pourriez-vous prendre 1 minute pour nous donner votre avis sur votre expérience d'achat et la qualité des produits ?\n\nVotre feedback est précieux :\n{{SURVEY_URL}}\n\nÀ bientôt,\n" . ($globals['smtpFromName'] ?? 'L\'équipe')
+                    ];
+                } else if ($fType === 'Donation') {
+                    $mailingDraft = [
+                        'subject' => "❤️ Merci pour votre don : votre avis compte",
+                        'body' => "Bonjour {{PRENOM}},\n\nNous vous remercions encore pour votre généreux soutien à notre association lors de la campagne \"{{NOM_CAMPAGNE}}\".\n\nNous aimerions savoir comment vous avez trouvé le processus de don et si vous vous sentez suffisamment informé de l'usage des fonds. Cela nous aide à mieux communiquer avec nos donateurs.\n\nDonnez-nous votre avis ici :\n{{SURVEY_URL}}\n\nMerci pour votre confiance,\n" . ($globals['smtpFromName'] ?? 'L\'équipe')
+                    ];
+                } else if ($fType === 'Membership') {
+                    $mailingDraft = [
+                        'subject' => "🆔 Bienvenue parmi nous ! Votre avis sur l'adhésion",
+                        'body' => "Bonjour {{PRENOM}},\n\nBienvenue dans notre association ! Nous sommes ravis de vous compter parmi nos adhérents pour \"{{NOM_CAMPAGNE}}\".\n\nAfin de mieux accueillir nos membres, nous aimerions recueillir votre avis sur la simplicité du processus d'adhésion et vos premières impressions.\n\nRépondre au questionnaire :\n{{SURVEY_URL}}\n\nÀ très vite,\n" . ($globals['smtpFromName'] ?? 'L\'équipe')
+                    ];
+                } else {
+                    $mailingDraft = [
+                        'subject' => "🎟️ Votre avis sur l'événement : " . $currentCamp['title'],
+                        'body' => "Bonjour {{PRENOM}},\n\nMerci d'avoir participé à notre événement \"{{NOM_CAMPAGNE}}\". Nous espérons que vous avez passé un excellent moment !\n\nNous cherchons constamment à nous améliorer. Pourriez-vous nous accorder quelques instants pour nous dire ce que vous avez pensé de l'organisation et de l'accueil ?\n\nLien du questionnaire :\n{{SURVEY_URL}}\n\nMerci et à bientôt,\n" . ($globals['smtpFromName'] ?? 'L\'équipe')
+                    ];
+                }
+            }
+
+            include __DIR__ . '/../templates/satisfaction.php';
+            exit;
+        }
     }
 }
 ?>
@@ -525,7 +735,8 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
             </a>
         </div>
         <div class="flex items-center gap-6">
-            <a href="admin.php" class="text-xs font-black uppercase tracking-widest <?= $action === 'list' ? 'text-blue-600' : 'text-slate-400' ?>">Boards</a>
+            <a href="admin.php" class="text-xs font-black uppercase tracking-widest <?= ($action === 'list' || $action === 'edit' || $action === 'scan') ? 'text-blue-600' : 'text-slate-400' ?>">Boards</a>
+            <a href="admin.php?action=satisfaction_global" class="text-xs font-black uppercase tracking-widest <?= strpos($action, 'satisfaction') !== false ? 'text-blue-600' : 'text-slate-400' ?>">Satisfaction</a>
             <a href="admin.php?action=settings" class="text-xs font-black uppercase tracking-widest <?= $action === 'settings' ? 'text-blue-600' : 'text-slate-400' ?>">Réglages</a>
             <div class="h-6 w-px bg-slate-200"></div>
             <a href="index.php" class="text-xs font-black uppercase text-slate-400 hover:text-red-500 transition">Quitter</a>
@@ -571,6 +782,7 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
                                     <a href="index.php?campaign=<?= $c['slug'] ?>" target="_blank" class="text-[10px] text-blue-500 font-black uppercase hover:underline"><i class="fa-solid fa-external-link-alt mr-1"></i> Voir</a>
                                     <a href="admin.php?action=guestlist&campaign=<?= $c['slug'] ?>" onclick="showLoader()" class="text-[10px] text-emerald-600 font-black uppercase hover:underline"><i class="fa-solid fa-clipboard-list mr-1"></i> Inscrits</a>
                                     <a href="admin.php?action=mailing&campaign=<?= $c['slug'] ?>" class="text-[10px] text-purple-600 font-black uppercase hover:underline"><i class="fa-solid fa-envelope mr-1"></i> Rappel</a>
+                                    <a href="admin.php?action=satisfaction&campaign=<?= $c['slug'] ?>" class="text-[10px] text-amber-600 font-black uppercase hover:underline"><i class="fa-solid fa-star mr-1"></i> Satisfaction</a>
                                 </div>
                             </div>
                             <div class="flex flex-wrap items-center justify-center md:justify-end gap-2 md:gap-3 w-full md:w-auto mt-2 md:mt-0">

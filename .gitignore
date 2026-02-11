@@ -6,6 +6,7 @@ config/campaigns/*.json
 
 #Logs et fichiers temporaires
 *.log
+*.db
 tmp/
 logs/
 
