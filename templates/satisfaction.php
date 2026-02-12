@@ -270,7 +270,8 @@
                     notify("Erreur : " + data.error, "error");
                 }
             } catch (e) {
-                notify("Erreur technique.", "error");
+                console.error(e);
+                notify("Erreur technique : " + e.message, "error");
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = oldHtml;

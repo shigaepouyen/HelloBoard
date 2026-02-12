@@ -335,8 +335,10 @@ if ($action === 'ai_generate') {
     try {
         $ai = new AiService($apiKey, $globals['debugMode'] ?? false);
         $generatedBody = $ai->generateEmailBody($prompt, $context, $campaignTitle);
+        if (ob_get_length()) ob_clean();
         echo json_encode(['success' => true, 'body' => $generatedBody]);
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
+        if (ob_get_length()) ob_clean();
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
     exit;

@@ -94,10 +94,16 @@ class AiService {
         }
 
         $result = json_decode($response, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $this->log("JSON DECODE ERROR: " . json_last_error_msg());
+            throw new Exception("Erreur de lecture de la réponse Mistral AI (JSON invalide).");
+        }
+
         $content = $result['choices'][0]['message']['content'] ?? "";
 
         if (empty($content)) {
             $this->log("ALERTE: Réponse vide de l'IA");
+            throw new Exception("L'IA a retourné une réponse vide.");
         }
 
         return $content;
