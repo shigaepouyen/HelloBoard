@@ -2,10 +2,21 @@
 
 class AiService {
     private string $apiKey;
+    private bool $debugMode;
     private string $baseUrl = "https://api.mistral.ai/v1/chat/completions";
+    private string $logFile = __DIR__ . '/../../logs/debug_ai.log';
 
-    public function __construct(string $apiKey) {
+    public function __construct(string $apiKey, bool $debugMode = false) {
         $this->apiKey = $apiKey;
+        $this->debugMode = $debugMode;
+    }
+
+    private function log($message) {
+        if (!$this->debugMode) return;
+        $dir = dirname($this->logFile);
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        $time = date('Y-m-d H:i:s');
+        file_put_contents($this->logFile, "[$time] $message\n", FILE_APPEND);
     }
 
     /**
@@ -42,6 +53,8 @@ class AiService {
             "temperature" => 0.7
         ];
 
+        $this->log("REQUEST to Mistral: " . json_encode($data, JSON_PRETTY_PRINT));
+
         $ch = curl_init($this->baseUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
@@ -54,6 +67,8 @@ class AiService {
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
+
+        $this->log("RESPONSE from Mistral (HTTP $httpCode): " . $response);
 
         if ($httpCode !== 200) {
             $error = json_decode($response, true);

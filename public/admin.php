@@ -75,16 +75,18 @@ if ($action === 'delete' && isset($_GET['campaign'])) {
 
 // Clear logs
 if ($action === 'clear_log') {
-    $logFile = __DIR__ . '/../logs/debug_helloasso.log';
+    $type = $_GET['type'] ?? 'helloasso';
+    $logFile = __DIR__ . '/../logs/' . ($type === 'ai' ? 'debug_ai.log' : 'debug_helloasso.log');
     if (file_exists($logFile)) unlink($logFile);
     header('Location: admin.php?action=settings'); exit;
 }
 
 // Download logs
 if ($action === 'dl_log') {
-    $logFile = __DIR__ . '/../logs/debug_helloasso.log';
+    $type = $_GET['type'] ?? 'helloasso';
+    $logFile = __DIR__ . '/../logs/' . ($type === 'ai' ? 'debug_ai.log' : 'debug_helloasso.log');
     if (file_exists($logFile)) {
-        header('Content-Type: text/plain'); header('Content-Disposition: attachment; filename="debug_helloasso.log"');
+        header('Content-Type: text/plain'); header('Content-Disposition: attachment; filename="' . basename($logFile) . '"');
         readfile($logFile); exit;
     }
 }
@@ -331,7 +333,7 @@ if ($action === 'ai_generate') {
     }
 
     try {
-        $ai = new AiService($apiKey);
+        $ai = new AiService($apiKey, $globals['debugMode'] ?? false);
         $generatedBody = $ai->generateEmailBody($prompt, $context, $campaignTitle);
         echo json_encode(['success' => true, 'body' => $generatedBody]);
     } catch (Exception $e) {
@@ -904,15 +906,29 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
                                             <p class="text-[10px] text-slate-400 font-bold">Enregistre les échanges API pour le support</p>
                                         </div>
                                     </div>
-                                    <?php
-                                    $logFile = __DIR__ . '/../logs/debug_helloasso.log';
-                                    if(file_exists($logFile)):
-                                    ?>
-                                        <div class="flex gap-2">
-                                            <a href="admin.php?action=dl_log" class="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 transition">Télécharger Log</a>
-                                            <a href="admin.php?action=clear_log" class="bg-red-50 text-red-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-red-500 hover:text-white transition">Effacer</a>
-                                        </div>
-                                    <?php endif; ?>
+                                    <div class="flex flex-col gap-2">
+                                        <?php
+                                        $logFileHA = __DIR__ . '/../logs/debug_helloasso.log';
+                                        if(file_exists($logFileHA)):
+                                        ?>
+                                            <div class="flex items-center gap-2 justify-end">
+                                                <span class="text-[9px] font-black text-slate-400 uppercase">HelloAsso :</span>
+                                                <a href="admin.php?action=dl_log&type=helloasso" class="bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-slate-50 transition">Télécharger</a>
+                                                <a href="admin.php?action=clear_log&type=helloasso" class="bg-red-50 text-red-500 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-red-500 hover:text-white transition">Effacer</a>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <?php
+                                        $logFileAI = __DIR__ . '/../logs/debug_ai.log';
+                                        if(file_exists($logFileAI)):
+                                        ?>
+                                            <div class="flex items-center gap-2 justify-end">
+                                                <span class="text-[9px] font-black text-slate-400 uppercase">Mistral AI :</span>
+                                                <a href="admin.php?action=dl_log&type=ai" class="bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-slate-50 transition">Télécharger</a>
+                                                <a href="admin.php?action=clear_log&type=ai" class="bg-red-50 text-red-500 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-red-500 hover:text-white transition">Effacer</a>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             </div>
                         </div>
