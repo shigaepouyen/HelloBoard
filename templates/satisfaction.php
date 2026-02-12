@@ -183,7 +183,7 @@
 
                 <!-- FILTRES ET LISTE -->
                 <div class="admin-card p-8">
-                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Ciblage & Destinataires</h3>
+                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Liste des payeurs</h3>
 
                     <div class="space-y-4 mb-6">
                         <div class="flex items-center justify-between">
@@ -342,16 +342,28 @@
                 listContainer.innerHTML = recipients.map(r => {
                     const haToken = tokenMap.find(t => t.order_id == r.orderId);
                     const haResp = responseMap.find(resp => resp.order_id == r.orderId);
+                    const isSent = !!haToken;
+                    const isRead = !!(haToken && haToken.read_at);
+                    const isReplied = !!haResp;
 
-                    let statusHtml = '';
-                    if (haToken) {
-                        statusHtml += `<i class="fa-solid fa-paper-plane text-emerald-500 mr-1" title="Envoyé le ${haToken.sent_at}"></i>`;
-                        if (haToken.read_at) statusHtml += `<i class="fa-solid fa-eye text-blue-500 mr-1" title="Lu le ${haToken.read_at}"></i>`;
-                        if (haResp) statusHtml += `<i class="fa-solid fa-star text-amber-500 mr-1" title="Répondu"></i>`;
-                    }
+                    let statusHtml = `
+                        <div class="flex gap-1 shrink-0">
+                            <span class="w-6 h-6 flex items-center justify-center rounded-lg ${isSent ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-400'}" title="${isSent ? 'Envoyé le ' + haToken.sent_at : 'Non envoyé'}">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </span>
+                            <span class="w-6 h-6 flex items-center justify-center rounded-lg ${isRead ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-400'}" title="${isRead ? 'Lu le ' + haToken.read_at : 'Non lu'}">
+                                <i class="fa-solid fa-eye"></i>
+                            </span>
+                            ${isReplied ? `
+                                <span class="w-6 h-6 flex items-center justify-center rounded-lg bg-amber-100 text-amber-600" title="Répondu le ${haResp.submitted_at}">
+                                    <i class="fa-solid fa-star"></i>
+                                </span>
+                            ` : ''}
+                        </div>
+                    `;
 
                     return `
-                        <div class="p-2 bg-slate-50 rounded-lg flex items-center justify-between gap-2 text-[9px] border border-transparent" id="row-${r.orderId}">
+                        <div class="p-3 bg-slate-50 rounded-xl flex items-center justify-between gap-3 text-[10px] border border-transparent transition ${isSent ? 'opacity-60' : ''}" id="row-${r.orderId}">
                             <div class="truncate">
                                 <p class="font-black text-slate-700 truncate uppercase">${r.lastName} ${r.firstName}</p>
                                 <p class="text-slate-400 truncate">${r.email}</p>
