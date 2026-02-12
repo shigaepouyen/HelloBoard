@@ -4,6 +4,7 @@ $srcPath = __DIR__ . '/../src/Services/';
 require_once $srcPath . 'Storage.php';
 require_once $srcPath . 'HelloAssoClient.php';
 require_once $srcPath . 'SatisfactionService.php';
+require_once $srcPath . 'AiService.php';
 
 $globals = Storage::getGlobalSettings();
 $adminPassword = $globals['adminPassword'] ?? null;
@@ -37,6 +38,7 @@ if (isset($_POST['save_settings'])) {
         'smtpUser' => trim($_POST['smtpUser'] ?? ''),
         'smtpPass' => trim($_POST['smtpPass'] ?? ''),
         'smtpFromName' => trim($_POST['smtpFromName'] ?? ''),
+        'mistralApiKey' => trim($_POST['mistralApiKey'] ?? ''),
         'adminPassword' => $adminPassword,
         'debugMode' => isset($_POST['debugMode'])
     ];
@@ -298,6 +300,42 @@ if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
             'isEligible' => true,
             'recipients' => array_values($recipients)
         ]);
+    }
+    exit;
+}
+
+// AI Generation
+if ($action === 'ai_generate') {
+    header('Content-Type: application/json');
+    $prompt = $_POST['prompt'] ?? '';
+    $context = $_POST['context'] ?? 'Mailing';
+    $campaignSlug = $_POST['campaign'] ?? '';
+
+    if (empty($prompt)) {
+        echo json_encode(['success' => false, 'error' => 'Prompt vide']);
+        exit;
+    }
+
+    $apiKey = $globals['mistralApiKey'] ?? '';
+    if (empty($apiKey)) {
+        echo json_encode(['success' => false, 'error' => 'Clé API Mistral non configurée']);
+        exit;
+    }
+
+    $campaignTitle = "votre campagne";
+    foreach($localCampaigns as $c) {
+        if ($c['slug'] === $campaignSlug) {
+            $campaignTitle = $c['title'];
+            break;
+        }
+    }
+
+    try {
+        $ai = new AiService($apiKey);
+        $generatedBody = $ai->generateEmailBody($prompt, $context, $campaignTitle);
+        echo json_encode(['success' => true, 'body' => $generatedBody]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
     exit;
 }
@@ -845,6 +883,14 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
                                         <input type="password" name="smtpPass" placeholder="Mot de passe d'application" value="<?= htmlspecialchars($globals['smtpPass']??'') ?>" class="input-soft">
                                     </div>
                                     <input type="text" name="smtpFromName" placeholder="Nom de l'expéditeur" value="<?= htmlspecialchars($globals['smtpFromName']??'HelloBoard') ?>" class="input-soft">
+                                </div>
+                            </div>
+
+                            <div class="pt-8 border-t border-slate-100">
+                                <label class="text-[10px] font-black text-slate-400 uppercase block mb-3 tracking-widest italic">Intelligence Artificielle (Mistral AI)</label>
+                                <div class="grid gap-4">
+                                    <input type="password" name="mistralApiKey" placeholder="Clé API Mistral (laissez vide pour désactiver)" value="<?= htmlspecialchars($globals['mistralApiKey']??'') ?>" class="input-soft">
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase">Obtenez une clé gratuite sur <a href="https://console.mistral.ai/" target="_blank" class="text-blue-500 underline">console.mistral.ai</a></p>
                                 </div>
                             </div>
 

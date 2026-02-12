@@ -60,7 +60,25 @@
                                 <input type="text" id="email-subject" class="input-soft" value="<?= htmlspecialchars($mailingDraft['subject']) ?>">
                             </div>
                             <div>
-                                <label class="text-[9px] font-black text-slate-500 uppercase block mb-1 tracking-widest">Message</label>
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="text-[9px] font-black text-slate-500 uppercase block tracking-widest">Message</label>
+                                    <?php if (!empty($globals['mistralApiKey'])): ?>
+                                        <button onclick="toggleAiPrompt()" class="text-[9px] font-black text-blue-600 uppercase flex items-center gap-1 hover:text-blue-800 transition">
+                                            <i class="fa-solid fa-wand-magic-sparkles"></i> Rédiger avec l'IA
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
+
+                                <?php if (!empty($globals['mistralApiKey'])): ?>
+                                    <div id="ai-prompt-container" class="hidden mb-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-fade-in">
+                                        <label class="text-[9px] font-black text-slate-400 uppercase block mb-2 italic text-center">Que doit contenir l'email de satisfaction ?</label>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="ai-prompt-input" class="input-soft !bg-white !text-xs flex-1" placeholder="Ex: Remercie chaleureusement, explique que l'avis aide l'asso.">
+                                            <button onclick="generateWithAi()" id="btn-generate-ai" class="bg-blue-600 text-white px-4 py-2 rounded-xl font-black uppercase text-[10px] hover:bg-blue-700 transition">Générer</button>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
+
                                 <textarea id="email-body" rows="8" class="input-soft font-medium leading-relaxed"><?= htmlspecialchars($mailingDraft['body']) ?></textarea>
                                 <div class="flex flex-wrap gap-1 mt-2">
                                     <span class="text-[8px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-black">#{{PRENOM}}</span>
@@ -215,6 +233,49 @@
     <script>
         const campaign = "<?= $slug ?>";
         let recipients = [];
+
+        function toggleAiPrompt() {
+            const container = document.getElementById('ai-prompt-container');
+            container.classList.toggle('hidden');
+            if (!container.classList.contains('hidden')) {
+                document.getElementById('ai-prompt-input').focus();
+            }
+        }
+
+        async function generateWithAi() {
+            const prompt = document.getElementById('ai-prompt-input').value;
+            if (!prompt) return notify("Veuillez saisir une instruction.", "error");
+
+            const btn = document.getElementById('btn-generate-ai');
+            const oldHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+
+            try {
+                const res = await fetch('admin.php?action=ai_generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        campaign: campaign,
+                        prompt: prompt,
+                        context: 'Satisfaction'
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('email-body').value = data.body;
+                    document.getElementById('ai-prompt-container').classList.add('hidden');
+                    notify("Message généré !", "success");
+                } else {
+                    notify("Erreur : " + data.error, "error");
+                }
+            } catch (e) {
+                notify("Erreur technique.", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+        }
 
         function toggleCollapsible(id) {
             const content = document.getElementById(id);
