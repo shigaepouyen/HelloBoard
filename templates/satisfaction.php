@@ -63,7 +63,7 @@
                                 <div class="flex justify-between items-center mb-1">
                                     <label class="text-[9px] font-black text-slate-500 uppercase block tracking-widest">Message</label>
                                     <?php if (!empty($globals['mistralApiKey'])): ?>
-                                        <button onclick="toggleAiPrompt()" class="text-[9px] font-black text-blue-600 uppercase flex items-center gap-1 hover:text-blue-800 transition">
+                                        <button type="button" onclick="toggleAiPrompt()" class="bg-indigo-500 text-white px-3 py-1 rounded-lg font-black uppercase text-[10px] hover:bg-indigo-600 transition flex items-center gap-2 shadow-sm">
                                             <i class="fa-solid fa-wand-magic-sparkles"></i> Rédiger avec l'IA
                                         </button>
                                     <?php endif; ?>

@@ -308,18 +308,21 @@ if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
 
 // AI Generation
 if ($action === 'ai_generate') {
+    ob_start();
     header('Content-Type: application/json');
     $prompt = $_POST['prompt'] ?? '';
     $context = $_POST['context'] ?? 'Mailing';
     $campaignSlug = $_POST['campaign'] ?? '';
 
     if (empty($prompt)) {
+        ob_end_clean();
         echo json_encode(['success' => false, 'error' => 'Prompt vide']);
         exit;
     }
 
     $apiKey = $globals['mistralApiKey'] ?? '';
     if (empty($apiKey)) {
+        ob_end_clean();
         echo json_encode(['success' => false, 'error' => 'Clé API Mistral non configurée']);
         exit;
     }
@@ -335,10 +338,10 @@ if ($action === 'ai_generate') {
     try {
         $ai = new AiService($apiKey, $globals['debugMode'] ?? false);
         $generatedBody = $ai->generateEmailBody($prompt, $context, $campaignTitle);
-        if (ob_get_length()) ob_clean();
+        ob_end_clean();
         echo json_encode(['success' => true, 'body' => $generatedBody]);
     } catch (Throwable $e) {
-        if (ob_get_length()) ob_clean();
+        ob_end_clean();
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
     exit;

@@ -40,14 +40,14 @@ class AiService {
 
         $systemPrompt = "Tu es un assistant expert en communication pour les associations.
         Ta mission est de rédiger uniquement le CORPS d'un email professionnel et engageant.
-        L'email sera envoyé au format HTML.
+        Important : Produis du texte brut (plain text), n'utilise AUCUNE balise HTML ni syntaxe Markdown.
         Contexte : " . ($context === 'Satisfaction' ? "Demande d'avis/satisfaction après un événement ou achat." : "Email de rappel ou information générale.") . "
         Nom de la campagne/événement : " . $campaignTitle . "
 
         Règles cruciales :
         1. Tu DOIS utiliser les variables de personnalisation suivantes quand c'est pertinent : {{PRENOM}}, {{NOM}}, {{NOM_CAMPAGNE}}" . ($context === 'Satisfaction' ? ", {{SURVEY_URL}}" : "") . ".
         2. Ne fournis QUE le corps de l'email, pas d'objet, pas de salutations introductives hors de l'email (ex: 'Voici votre email :').
-        3. Pour les liens (notamment {{SURVEY_URL}}), utilise obligatoirement des balises HTML : <a href=\"{{SURVEY_URL}}\" style=\"color: #2563eb; font-weight: bold; text-decoration: underline;\">Texte du lien</a>. N'utilise JAMAIS de syntaxe Markdown [texte](url).
+        3. Pour les liens, utilise simplement la variable entre accolades, par exemple : 'Cliquez ici : {{SURVEY_URL}}'.
         4. Utilise un ton chaleureux, associatif et professionnel.
         5. Respecte scrupuleusement les instructions du prompt utilisateur ci-dessous.";
 
