@@ -14,7 +14,12 @@ class AiService {
     private function log($message) {
         if (!$this->debugMode) return;
         $dir = dirname($this->logFile);
-        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        if (!is_dir($dir)) {
+            if (!mkdir($dir, 0755, true)) {
+                error_log("AiService: Impossible de créer le répertoire de logs $dir");
+                return;
+            }
+        }
         $time = date('Y-m-d H:i:s');
         file_put_contents($this->logFile, "[$time] $message\n", FILE_APPEND);
     }
@@ -53,7 +58,9 @@ class AiService {
             "temperature" => 0.7
         ];
 
-        $this->log("REQUEST to Mistral: " . json_encode($data, JSON_PRETTY_PRINT));
+        $this->log("--- NOUVELLE REQUÊTE ---");
+        $this->log("CONTEXTE: $context | CAMPAGNE: $campaignTitle");
+        $this->log("REQUEST DATA: " . json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
         $ch = curl_init($this->baseUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -63,19 +70,34 @@ class AiService {
             "Content-Type: application/json",
             "Authorization: Bearer " . $this->apiKey
         ]);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
 
-        $this->log("RESPONSE from Mistral (HTTP $httpCode): " . $response);
+        if ($curlError) {
+            $this->log("CURL ERROR: " . $curlError);
+            throw new Exception("Erreur de connexion à Mistral AI : " . $curlError);
+        }
+
+        $this->log("RESPONSE (HTTP $httpCode): " . $response);
 
         if ($httpCode !== 200) {
             $error = json_decode($response, true);
-            throw new Exception("Erreur Mistral AI (" . $httpCode . ") : " . ($error['message'] ?? $response));
+            $msg = $error['message'] ?? $response;
+            throw new Exception("Erreur Mistral AI ($httpCode) : " . $msg);
         }
 
         $result = json_decode($response, true);
-        return $result['choices'][0]['message']['content'] ?? "";
+        $content = $result['choices'][0]['message']['content'] ?? "";
+
+        if (empty($content)) {
+            $this->log("ALERTE: Réponse vide de l'IA");
+        }
+
+        return $content;
     }
 }
