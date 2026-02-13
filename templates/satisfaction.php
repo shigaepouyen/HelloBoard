@@ -46,6 +46,10 @@
 
                 <!-- MODELE D'EMAIL (COLLAPSIBLE) -->
                 <div class="admin-card overflow-hidden">
+                    <button onclick="toggleCollapsible('email-draft-collapse')" class="w-full p-8 flex justify-between items-center bg-white hover:bg-slate-50 transition">
+                        <div class="flex items-center gap-4">
+                            <i class="fa-solid fa-envelope-open-text text-amber-500"></i>
+                            <h3 class="text-xs font-black uppercase text-slate-400 italic tracking-widest">Modèle d'Email de sollicitation</h3>
                     <button onclick="toggleCollapsible('email-draft-collapse')" class="w-full p-8 flex justify-between items-center bg-white hover:bg-slate-50 transition border-b border-slate-50">
                         <div class="flex items-center gap-4">
                             <i class="fa-solid fa-envelope-open-text text-amber-500"></i>
@@ -94,20 +98,30 @@
                     </div>
                 </div>
 
-                <!-- QUESTIONS -->
-                <div class="admin-card p-8">
-                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Structure du questionnaire</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <?php foreach($questions as $i => $q): ?>
-                            <div>
-                                <label class="text-[9px] font-black text-slate-400 uppercase block mb-1 italic">Question <?= $i+1 ?></label>
-                                <input type="text" class="question-input input-soft !py-3 !text-xs" value="<?= htmlspecialchars($q['label']) ?>" data-index="<?= $i ?>">
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                    <button onclick="saveQuestions()" id="btn-save-questions" class="w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-black uppercase text-xs hover:bg-slate-200 transition mt-6">
-                        Enregistrer les questions
+                <!-- QUESTIONS (COLLAPSIBLE) -->
+                <div class="admin-card overflow-hidden">
+                    <button onclick="toggleCollapsible('questions-collapse')" class="w-full p-8 flex justify-between items-center bg-white hover:bg-slate-50 transition">
+                        <div class="flex items-center gap-4">
+                            <i class="fa-solid fa-list-check text-blue-600"></i>
+                            <h3 class="text-xs font-black uppercase text-slate-400 italic tracking-widest">Structure du questionnaire</h3>
+                        </div>
+                        <i class="fa-solid fa-chevron-down transition-transform duration-300" id="questions-icon"></i>
                     </button>
+                    <div id="questions-collapse" class="collapsible-content">
+                        <div class="p-8 pt-0">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <?php foreach($questions as $i => $q): ?>
+                                    <div>
+                                        <label class="text-[9px] font-black text-slate-400 uppercase block mb-1 italic">Question <?= $i+1 ?></label>
+                                        <input type="text" class="question-input input-soft !py-3 !text-xs" value="<?= htmlspecialchars($q['label']) ?>" data-index="<?= $i ?>">
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <button onclick="saveQuestions()" id="btn-save-questions" class="w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-black uppercase text-xs hover:bg-slate-200 transition mt-6">
+                                Enregistrer les questions
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- VERBATIMS -->
@@ -191,15 +205,15 @@
 
                 <!-- FILTRES ET LISTE -->
                 <div class="admin-card p-8">
-                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Ciblage & Destinataires</h3>
+                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Liste des payeurs</h3>
 
                     <div class="space-y-4 mb-6">
                         <div class="flex items-center justify-between">
-                            <span class="text-[9px] font-black uppercase text-slate-400">Exclure si déjà envoyé</span>
+                            <span class="text-[9px] font-black uppercase text-slate-400">Ignorer si déjà envoyé pour ce board</span>
                             <div class="toggle-btn active" id="filter-exclude-sent" onclick="this.classList.toggle('active'); fetchRecipients()"></div>
                         </div>
                         <div class="flex items-center justify-between">
-                            <span class="text-[9px] font-black uppercase text-slate-400">Exclure si déjà sollicité</span>
+                            <span class="text-[9px] font-black uppercase text-slate-400">Exclure si déjà sollicité auparavant (global)</span>
                             <div class="toggle-btn" id="filter-exclude-ever" onclick="this.classList.toggle('active'); fetchRecipients()"></div>
                         </div>
                     </div>
@@ -394,16 +408,28 @@
                 listContainer.innerHTML = recipients.map(r => {
                     const haToken = tokenMap.find(t => t.order_id == r.orderId);
                     const haResp = responseMap.find(resp => resp.order_id == r.orderId);
+                    const isSent = !!haToken;
+                    const isRead = !!(haToken && haToken.read_at);
+                    const isReplied = !!haResp;
 
-                    let statusHtml = '';
-                    if (haToken) {
-                        statusHtml += `<i class="fa-solid fa-paper-plane text-emerald-500 mr-1" title="Envoyé le ${haToken.sent_at}"></i>`;
-                        if (haToken.read_at) statusHtml += `<i class="fa-solid fa-eye text-blue-500 mr-1" title="Lu le ${haToken.read_at}"></i>`;
-                        if (haResp) statusHtml += `<i class="fa-solid fa-star text-amber-500 mr-1" title="Répondu"></i>`;
-                    }
+                    let statusHtml = `
+                        <div class="flex gap-1 shrink-0">
+                            <span class="w-6 h-6 flex items-center justify-center rounded-lg ${isSent ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-400'}" title="${isSent ? 'Envoyé le ' + haToken.sent_at : 'Non envoyé'}">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </span>
+                            <span class="w-6 h-6 flex items-center justify-center rounded-lg ${isRead ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-400'}" title="${isRead ? 'Lu le ' + haToken.read_at : 'Non lu'}">
+                                <i class="fa-solid fa-eye"></i>
+                            </span>
+                            ${isReplied ? `
+                                <span class="w-6 h-6 flex items-center justify-center rounded-lg bg-amber-100 text-amber-600" title="Répondu le ${haResp.submitted_at}">
+                                    <i class="fa-solid fa-star"></i>
+                                </span>
+                            ` : ''}
+                        </div>
+                    `;
 
                     return `
-                        <div class="p-2 bg-slate-50 rounded-lg flex items-center justify-between gap-2 text-[9px] border border-transparent" id="row-${r.orderId}">
+                        <div class="p-3 bg-slate-50 rounded-xl flex items-center justify-between gap-3 text-[10px] border border-transparent transition ${isSent ? 'opacity-60' : ''}" id="row-${r.orderId}">
                             <div class="truncate">
                                 <p class="font-black text-slate-700 truncate uppercase">${r.lastName} ${r.firstName}</p>
                                 <p class="text-slate-400 truncate">${r.email}</p>
