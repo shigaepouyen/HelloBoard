@@ -191,7 +191,16 @@ class SatisfactionService {
             COUNT(DISTINCT t.token) as total_sent,
             COUNT(t.read_at) as total_read,
             COUNT(DISTINCT r.token) as total_responses,
-            AVG((q1 + q2 + q3 + q4 + q5 - 5) / 20.0 * 100.0) as avg_csat
+            AVG(r.q1) as avg_q1,
+            AVG(r.q2) as avg_q2,
+            AVG(r.q3) as avg_q3,
+            AVG(r.q4) as avg_q4,
+            AVG(r.q5) as avg_q5,
+            AVG(
+                CASE WHEN ((q1 IS NOT NULL) + (q2 IS NOT NULL) + (q3 IS NOT NULL) + (q4 IS NOT NULL) + (q5 IS NOT NULL)) > 0
+                THEN (CAST(COALESCE(q1,0) + COALESCE(q2,0) + COALESCE(q3,0) + COALESCE(q4,0) + COALESCE(q5,0) AS FLOAT) - ((q1 IS NOT NULL) + (q2 IS NOT NULL) + (q3 IS NOT NULL) + (q4 IS NOT NULL) + (q5 IS NOT NULL))) / (((q1 IS NOT NULL) + (q2 IS NOT NULL) + (q3 IS NOT NULL) + (q4 IS NOT NULL) + (q5 IS NOT NULL)) * 4.0) * 100.0
+                ELSE NULL END
+            ) as avg_csat
             FROM survey_tokens t
             LEFT JOIN survey_responses r ON t.token = r.token";
 
@@ -224,7 +233,16 @@ class SatisfactionService {
             if (!isset($bySource[$type])) {
                 $bySource[$type] = ['count' => 0, 'sum_csat' => 0];
             }
-            $csat = ($r['q1'] + $r['q2'] + $r['q3'] + $r['q4'] + $r['q5'] - 5) / 20.0 * 100.0;
+
+            $sum = 0; $countQ = 0;
+            for($i=1; $i<=5; $i++) {
+                if (isset($r['q'.$i]) && $r['q'.$i] !== null) {
+                    $sum += (int)$r['q'.$i];
+                    $countQ++;
+                }
+            }
+            $csat = ($countQ > 0) ? ($sum - $countQ) / ($countQ * 4.0) * 100.0 : 0;
+
             $bySource[$type]['count']++;
             $bySource[$type]['sum_csat'] += $csat;
         }

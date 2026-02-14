@@ -31,6 +31,29 @@
     </nav>
 
     <main class="max-w-6xl mx-auto px-4 py-12">
+        <?php
+        $questions = null;
+        if ($filterSlug) {
+            $currentCamp = null;
+            foreach($localCampaigns as $lc) {
+                if ($lc['slug'] === $filterSlug) {
+                    $currentCamp = $lc;
+                    break;
+                }
+            }
+            if ($currentCamp) {
+                $questions = $satService->getQuestions($filterSlug, $currentCamp['formType']);
+            }
+        }
+        $genericLabels = [
+            'Interaction',
+            'Processus',
+            'Attentes',
+            'Fidélité',
+            'Qualité'
+        ];
+        ?>
+
         <div class="animate-fade-in">
             <div class="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                 <div>
@@ -85,6 +108,24 @@
                 <?php endforeach; ?>
             </div>
 
+            <!-- STATS PAR QUESTION -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12">
+                <?php for($i=1; $i<=5; $i++):
+                    $avg = $stats['avg_q'.$i] ?? 0;
+                    $label = ($questions && isset($questions[$i-1])) ? $questions[$i-1]['label'] : $genericLabels[$i-1];
+                ?>
+                    <div class="admin-card p-6 flex flex-col justify-center items-center text-center">
+                        <p class="text-slate-400 text-[9px] font-black uppercase tracking-widest mb-2 italic line-clamp-2 h-6" title="<?= htmlspecialchars($label) ?>">
+                            <?= htmlspecialchars($label) ?>
+                        </p>
+                        <h3 class="text-2xl font-black text-slate-900"><?= $avg ? number_format($avg, 1) : '-' ?><span class="text-xs text-slate-300 ml-1">/5</span></h3>
+                        <div class="w-full bg-slate-100 h-1.5 rounded-full mt-3 overflow-hidden">
+                            <div class="bg-blue-600 h-full rounded-full transition-all duration-500" style="width: <?= ($avg/5)*100 ?>%"></div>
+                        </div>
+                    </div>
+                <?php endfor; ?>
+            </div>
+
             <!-- RESPONSES FEED -->
             <div class="admin-card overflow-hidden">
                 <div class="p-8 bg-slate-50 border-b border-slate-100">
@@ -94,7 +135,14 @@
                     <?php if (empty($responses)): ?>
                         <div class="p-20 text-center text-slate-300 font-bold italic">Aucun avis trouvé pour cette sélection.</div>
                     <?php else: foreach ($responses as $r):
-                        $avg = ($r['q1'] + $r['q2'] + $r['q3'] + $r['q4'] + $r['q5'] - 5) / 20.0 * 100.0;
+                        $sum = 0; $countQ = 0;
+                        for($i=1; $i<=5; $i++) {
+                            if (isset($r['q'.$i]) && $r['q'.$i] !== null) {
+                                $sum += (int)$r['q'.$i];
+                                $countQ++;
+                            }
+                        }
+                        $avg = ($countQ > 0) ? ($sum - $countQ) / ($countQ * 4.0) * 100.0 : 0;
                     ?>
                         <div class="p-8 hover:bg-slate-50 transition group">
                             <div class="flex flex-col md:flex-row justify-between gap-6">
@@ -117,8 +165,11 @@
                                                 <?= round($avg) ?>%
                                             </div>
                                             <div class="flex text-[8px] gap-0.5 justify-end">
-                                                <?php for($i=1;$i<=5;$i++): ?>
-                                                    <i class="fa-solid fa-star <?= ($r['q1']+$r['q2']+$r['q3']+$r['q4']+$r['q5'])/5 >= $i ? 'text-amber-400' : 'text-slate-200' ?>"></i>
+                                                <?php
+                                                $starRating = ($countQ > 0) ? $sum / $countQ : 0;
+                                                for($i=1;$i<=5;$i++):
+                                                ?>
+                                                    <i class="fa-solid fa-star <?= $starRating >= $i ? 'text-amber-400' : 'text-slate-200' ?>"></i>
                                                 <?php endfor; ?>
                                             </div>
                                         </div>

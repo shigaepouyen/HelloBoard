@@ -712,9 +712,7 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
                 exit;
             }
             $questions = $satService->getQuestions($slug, $currentCamp['formType']);
-            $responses = $satService->getResponsesByCampaign($slug);
             $tokens = $satService->getTokensByCampaign($slug);
-            $stats = $satService->getStats($slug);
 
             $mailingDraft = $currentCamp['satisfactionMailingDraft'] ?? null;
             if (!$mailingDraft) {
