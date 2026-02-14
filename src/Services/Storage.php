@@ -154,4 +154,29 @@ class Storage {
         if (file_exists($file)) return unlink($file);
         return false;
     }
+
+    public static function saveCustomLogo($file) {
+        $dir = __DIR__ . '/../../public/assets/img/';
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowed = ['jpg', 'jpeg', 'png', 'gif', 'svg'];
+
+        if (!in_array($ext, $allowed)) {
+            return false;
+        }
+
+        $target = $dir . 'custom_logo.' . $ext;
+
+        if (move_uploaded_file($file['tmp_name'], $target)) {
+            // Remove other existing custom logos only after success
+            foreach (glob($dir . 'custom_logo.*') as $existing) {
+                if (realpath($existing) !== realpath($target)) {
+                    unlink($existing);
+                }
+            }
+            return 'assets/img/custom_logo.' . $ext;
+        }
+        return false;
+    }
 }
