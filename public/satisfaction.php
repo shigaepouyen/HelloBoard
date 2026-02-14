@@ -46,11 +46,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$alreadyResponded) {
 }
 
 $emojis = [
-    1 => ['char' => '😠', 'color' => 'bg-red-50 text-red-500 border-red-100', 'active' => 'bg-red-500 text-white border-red-500', 'label' => 'Décevant'],
-    2 => ['char' => '🙁', 'color' => 'bg-orange-50 text-orange-500 border-orange-100', 'active' => 'bg-orange-500 text-white border-orange-500', 'label' => 'Peu satisfaisant'],
-    3 => ['char' => '😐', 'color' => 'bg-amber-50 text-amber-500 border-amber-100', 'active' => 'bg-amber-500 text-white border-amber-500', 'label' => 'Moyen'],
-    4 => ['char' => '🙂', 'color' => 'bg-lime-50 text-lime-500 border-lime-100', 'active' => 'bg-lime-500 text-white border-lime-500', 'label' => 'Satisfait'],
-    5 => ['char' => '😄', 'color' => 'bg-emerald-50 text-emerald-500 border-emerald-100', 'active' => 'bg-emerald-500 text-white border-emerald-500', 'label' => 'Excellent']
+    1 => ['char' => '😠', 'color' => 'bg-red-50 text-red-500 border-red-100', 'active' => 'bg-red-500 text-white border-red-500'],
+    2 => ['char' => '🙁', 'color' => 'bg-orange-50 text-orange-500 border-orange-100', 'active' => 'bg-orange-500 text-white border-orange-500'],
+    3 => ['char' => '😐', 'color' => 'bg-amber-50 text-amber-500 border-amber-100', 'active' => 'bg-amber-500 text-white border-amber-500'],
+    4 => ['char' => '🙂', 'color' => 'bg-lime-50 text-lime-500 border-lime-100', 'active' => 'bg-lime-500 text-white border-lime-500'],
+    5 => ['char' => '😄', 'color' => 'bg-emerald-50 text-emerald-500 border-emerald-100', 'active' => 'bg-emerald-500 text-white border-emerald-500']
 ];
 
 ?>
@@ -65,8 +65,8 @@ $emojis = [
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; color: #1e293b; overflow-x: hidden; }
-        .rating-btn { width: 100%; aspect-ratio: 1/1; border-radius: 1.5rem; border: 2px solid transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
-        .rating-btn .emoji { font-size: 1.75rem; transition: 0.3s; }
+        .rating-btn { width: 100%; aspect-ratio: 1/1; border-radius: 1.5rem; border: 2px solid transparent; display: flex; align-items: center; justify-content: center; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+        .rating-btn .emoji { font-size: 2rem; transition: 0.3s; }
         .rating-btn:hover { transform: translateY(-5px); }
         .rating-btn.active { transform: scale(1.05); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
         .rating-btn.active .emoji { transform: scale(1.2); }
@@ -138,11 +138,10 @@ $emojis = [
                                 <span class="text-blue-600 mr-1"><?= $idx ?>.</span> <?= htmlspecialchars($q['label']) ?>
                             </h2>
 
-                            <div class="grid grid-cols-5 gap-2 md:gap-4">
+                            <div class="grid grid-cols-5 gap-3 md:gap-4">
                                 <?php foreach($emojis as $val => $e): ?>
                                     <div class="rating-btn <?= $e['color'] ?>" onclick="setRating(<?= $idx ?>, <?= $val ?>, this)" data-val="<?= $val ?>">
-                                        <span class="emoji mb-1"><?= $e['char'] ?></span>
-                                        <span class="text-[8px] font-black uppercase text-center hidden md:block"><?= $e['label'] ?></span>
+                                        <span class="emoji"><?= $e['char'] ?></span>
                                     </div>
                                 <?php endforeach; ?>
                             </div>
