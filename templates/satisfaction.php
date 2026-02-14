@@ -46,10 +46,6 @@
 
                 <!-- MODELE D'EMAIL (COLLAPSIBLE) -->
                 <div class="admin-card overflow-hidden">
-                    <button onclick="toggleCollapsible('email-draft-collapse')" class="w-full p-8 flex justify-between items-center bg-white hover:bg-slate-50 transition">
-                        <div class="flex items-center gap-4">
-                            <i class="fa-solid fa-envelope-open-text text-amber-500"></i>
-                            <h3 class="text-xs font-black uppercase text-slate-400 italic tracking-widest">Modèle d'Email de sollicitation</h3>
                     <button onclick="toggleCollapsible('email-draft-collapse')" class="w-full p-8 flex justify-between items-center bg-white hover:bg-slate-50 transition border-b border-slate-50">
                         <div class="flex items-center gap-4">
                             <i class="fa-solid fa-envelope-open-text text-amber-500"></i>
