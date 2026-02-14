@@ -193,21 +193,36 @@ $emojis = [
 
         function updateUI() {
             // Update indicator
-            document.getElementById('step-indicator').innerText = `Question ${currentStep} / ${totalSteps}`;
+            const stepInd = document.getElementById('step-indicator');
+            const percInd = document.getElementById('percent-indicator');
+            const progFill = document.getElementById('progress-fill');
+
+            if (stepInd) stepInd.innerText = `Question ${currentStep} / ${totalSteps}`;
 
             // Update progress
             const progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
-            document.getElementById('progress-fill').style.width = `${progress}%`;
-            document.getElementById('percent-indicator').innerText = `${Math.round(progress)}%`;
+            if (progFill) progFill.style.width = `${progress}%`;
+            if (percInd) percInd.innerText = `${Math.round(progress)}%`;
 
             // Update dots
             document.querySelectorAll('.step-dot').forEach(dot => {
-                dot.className = 'w-1.5 h-1.5 rounded-full transition-all duration-300 ' +
-                                (parseInt(dot.dataset.step) === currentStep ? 'bg-blue-600 w-4' : (parseInt(dot.dataset.step) < currentStep ? 'bg-blue-300' : 'bg-slate-200'));
+                const step = parseInt(dot.dataset.step);
+
+                // Reset classes
+                dot.classList.remove('bg-blue-600', 'w-4', 'bg-blue-300', 'bg-slate-200');
+
+                if (step === currentStep) {
+                    dot.classList.add('bg-blue-600', 'w-4');
+                } else if (step < currentStep) {
+                    dot.classList.add('bg-blue-300');
+                } else {
+                    dot.classList.add('bg-slate-200');
+                }
             });
 
             // Update prev button
-            document.getElementById('prev-btn').disabled = (currentStep === 1);
+            const prevBtn = document.getElementById('prev-btn');
+            if (prevBtn) prevBtn.disabled = (currentStep === 1);
         }
 
         function setRating(qIdx, val, el) {
