@@ -26,6 +26,13 @@ class Storage {
         return file_put_contents($filename, json_encode($data, JSON_PRETTY_PRINT));
     }
 
+    public static function getCampaign($slug) {
+        $filename = self::$campaignsPath . basename($slug) . '.json';
+        if (!file_exists($filename)) return null;
+        $content = file_get_contents($filename);
+        return $content ? json_decode($content, true) : null;
+    }
+
     public static function listCampaigns() {
         if (!is_dir(self::$campaignsPath)) return array();
         $files = glob(self::$campaignsPath . '*.json');
