@@ -98,7 +98,7 @@ if ($isAdmin) {
     <body class="min-h-screen pb-20">
         <nav class="p-4 md:p-6 bg-white sticky top-0 z-50 flex justify-between items-center shadow-sm">
             <div class="flex items-center gap-3">
-                <img src="assets/img/logo.svg" alt="HelloBoard" class="w-8 h-8">
+                <img src="<?= $globals['customLogo'] ?? 'assets/img/logo.svg' ?>" alt="HelloBoard" class="h-8">
                 <h1 class="font-black italic uppercase text-slate-900 text-sm md:text-base">Console Admin</h1>
             </div>
             <div class="flex gap-4">
@@ -170,8 +170,8 @@ if ($isAdmin) {
     </head>
     <body class="min-h-screen flex items-center justify-center p-6">
         <div class="w-full max-w-md bg-white rounded-[2.5rem] p-10 text-center shadow-2xl">
-            <div class="w-20 h-20 mx-auto mb-8">
-                <img src="assets/img/logo.svg" alt="HelloBoard" class="w-full h-full">
+            <div class="mb-8">
+                <img src="<?= $globals['customLogo'] ?? 'assets/img/logo.svg' ?>" alt="HelloBoard" class="max-h-20 mx-auto">
             </div>
             <h2 class="text-2xl font-black italic uppercase text-slate-900 mb-2">Espace Privé</h2>
             <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">HelloBoard Admin</p>

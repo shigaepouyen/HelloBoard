@@ -17,7 +17,7 @@ if (isset($_POST['login'])) {
 
 if ($adminPassword && !isset($_SESSION['authenticated'])) {
     ?>
-    <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Admin</title><script src="https://cdn.tailwindcss.com"></script><style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap');body{font-family:'Plus Jakarta Sans',sans-serif;background:#0f172a;}</style></head><body class="min-h-screen flex items-center justify-center p-6"><div class="w-full max-w-md bg-white rounded-[3rem] p-10 text-center"><div class="w-20 h-20 mx-auto mb-8"><img src="assets/img/logo.svg" alt="HelloBoard" class="w-full h-full"></div><h2 class="text-3xl font-black mb-10 italic uppercase">Console Admin</h2><form method="POST" class="space-y-4"><input type="password" name="password" class="w-full bg-slate-50 border-2 border-transparent focus:border-blue-600 rounded-[1.5rem] p-5 text-2xl text-center outline-none" placeholder="••••••" required autofocus><button type="submit" name="login" class="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black uppercase text-xs">Accéder</button></form><?php if(isset($loginError)): ?><p class="text-red-500 font-bold mt-4"><?= $loginError ?></p><?php endif; ?></div></body></html>
+    <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Admin</title><script src="https://cdn.tailwindcss.com"></script><style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap');body{font-family:'Plus Jakarta Sans',sans-serif;background:#0f172a;}</style></head><body class="min-h-screen flex items-center justify-center p-6"><div class="w-full max-w-md bg-white rounded-[3rem] p-10 text-center"><div class="w-20 h-20 mx-auto mb-8 flex items-center justify-center"><img src="<?= $globals['customLogo'] ?? 'assets/img/logo.svg' ?>" alt="HelloBoard" class="max-w-full max-h-20 object-contain"></div><h2 class="text-3xl font-black mb-10 italic uppercase">Console Admin</h2><form method="POST" class="space-y-4"><input type="password" name="password" class="w-full bg-slate-50 border-2 border-transparent focus:border-blue-600 rounded-[1.5rem] p-5 text-2xl text-center outline-none" placeholder="••••••" required autofocus><button type="submit" name="login" class="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black uppercase text-xs">Accéder</button></form><?php if(isset($loginError)): ?><p class="text-red-500 font-bold mt-4"><?= $loginError ?></p><?php endif; ?></div></body></html>
     <?php exit;
 }
 
@@ -40,8 +40,15 @@ if (isset($_POST['save_settings'])) {
         'smtpFromName' => trim($_POST['smtpFromName'] ?? ''),
         'mistralApiKey' => trim($_POST['mistralApiKey'] ?? ''),
         'adminPassword' => $adminPassword,
-        'debugMode' => isset($_POST['debugMode'])
+        'debugMode' => isset($_POST['debugMode']),
+        'customLogo' => $globals['customLogo'] ?? null
     ];
+
+    if (!empty($_FILES['customLogoFile']['name'])) {
+        $logoPath = Storage::saveCustomLogo($_FILES['customLogoFile']);
+        if ($logoPath) $newSettings['customLogo'] = $logoPath;
+    }
+
     Storage::saveGlobalSettings($newSettings);
     header('Location: admin.php?action=settings&saved=1'); exit;
 }
@@ -773,7 +780,7 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
     <nav class="p-4 md:p-6 bg-white border-b border-slate-100 sticky top-0 z-50 flex justify-between items-center shadow-sm">
         <div class="flex items-center gap-4">
             <a href="admin.php" class="flex items-center gap-2">
-                <img src="assets/img/logo.svg" alt="HelloBoard" class="w-8 h-8">
+                <img src="<?= $globals['customLogo'] ?? 'assets/img/logo.svg' ?>" alt="HelloBoard" class="w-8 h-8 object-contain">
                 <h1 class="font-black italic uppercase text-slate-900 hidden md:block">Console Admin</h1>
             </a>
         </div>
@@ -861,9 +868,26 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
                 <?php endif; ?>
 
                 <div class="admin-card p-6 md:p-10 mb-8">
-                    <form method="POST">
+                    <form method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="save_settings" value="1">
                         <div class="space-y-8">
                             <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase block mb-3 tracking-widest italic">Apparence & Logo</label>
+                                <div class="flex items-center gap-6 bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                                    <div class="w-20 h-20 bg-white rounded-xl border border-slate-200 flex items-center justify-center overflow-hidden p-2">
+                                        <img src="<?= $globals['customLogo'] ?? 'assets/img/logo.svg' ?>" alt="Logo" class="max-w-full max-h-full object-contain">
+                                    </div>
+                                    <div class="flex-1">
+                                        <input type="file" name="customLogoFile" id="customLogoFile" class="hidden" accept="image/*" onchange="this.form.submit()">
+                                        <label for="customLogoFile" class="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-[10px] font-black uppercase hover:bg-slate-50 transition cursor-pointer inline-block mb-2">
+                                            <i class="fa-solid fa-upload mr-2"></i> Changer le logo
+                                        </label>
+                                        <p class="text-[9px] text-slate-400 font-bold uppercase">Format suggéré : SVG ou PNG transparent, carré ou horizontal.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pt-8 border-t border-slate-100">
                                 <label class="text-[10px] font-black text-slate-400 uppercase block mb-3 tracking-widest italic">Identifiants HelloAsso</label>
                                 <div class="grid gap-4">
                                     <input type="text" name="clientId" placeholder="Client ID" value="<?= htmlspecialchars($globals['clientId']??'') ?>" class="input-soft" required>
