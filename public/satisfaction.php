@@ -81,6 +81,12 @@ $emojis = [
             to { opacity: 1; transform: translateX(0); }
         }
 
+        .animate-fade-in { animation: fadeIn 0.8s ease-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .progress-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
         .progress-fill { height: 100%; background: #3b82f6; transition: width 0.4s ease-out; }
     </style>

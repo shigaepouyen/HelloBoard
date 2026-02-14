@@ -73,7 +73,7 @@
         <div class="max-w-4xl mx-auto bg-white/80 backdrop-blur-xl rounded-[2.5rem] border border-white px-6 py-4 flex items-center justify-between shadow-sm">
             
             <div class="flex items-center gap-3 relative min-w-0">
-                <img src="assets/img/logo.svg" alt="HelloBoard" class="w-6 h-6 shrink-0">
+                <img src="<?= $globals['customLogo'] ?? 'assets/img/logo.svg' ?>" alt="HelloBoard" class="h-6 shrink-0">
                 <?php if (count($campaigns) > 1): ?>
                     <div class="relative group max-w-full">
                         <select onchange="window.location.href=this.value" class="appearance-none bg-transparent pl-0 pr-6 py-1 text-sm font-black italic uppercase tracking-tighter cursor-pointer focus:outline-none text-slate-900 hover:text-blue-600 transition truncate max-w-[200px] sm:max-w-md">
