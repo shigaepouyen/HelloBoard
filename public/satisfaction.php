@@ -126,7 +126,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$alreadyResponded) {
     </div>
 
     <script>
-        const ratings = { q1: null, q2: null, q3: null, q4: null, q5: null };
+        const ratings = {};
+        document.querySelectorAll('.question-block').forEach(block => {
+            ratings['q' + block.dataset.index] = null;
+        });
 
         function setRating(qIdx, val, el) {
             // Remove active class from siblings
