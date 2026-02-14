@@ -124,69 +124,13 @@
                     </div>
                 </div>
 
-                <!-- VERBATIMS -->
-                <div class="admin-card p-8">
-                    <h3 class="text-xs font-black uppercase text-slate-400 mb-8 italic tracking-widest border-b border-slate-50 pb-4">Derniers Verbatims collectés</h3>
-                    <div class="space-y-6">
-                        <?php if (empty($responses)): ?>
-                            <div class="text-center py-10 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-100">
-                                <p class="text-slate-300 font-black uppercase text-[10px] italic">Aucune réponse collectée pour le moment.</p>
-                            </div>
-                        <?php else: foreach($responses as $r):
-                            $avg = ($r['q1'] + $r['q2'] + $r['q3'] + $r['q4'] + $r['q5'] - 5) / 20.0 * 100.0;
-                        ?>
-                            <div class="bg-slate-50 p-6 rounded-[1.5rem] border border-slate-100">
-                                <div class="flex justify-between items-start mb-4">
-                                    <div>
-                                        <p class="text-xs font-black text-slate-900">Avis de <?= htmlspecialchars($r['payer_name']) ?></p>
-                                        <p class="text-[10px] text-slate-400 font-bold uppercase mt-1">Sur : <?= htmlspecialchars($r['item_name']) ?> — <?= date('d/m/Y', strtotime($r['submitted_at'])) ?></p>
-                                    </div>
-                                    <div class="flex items-center gap-3">
-                                        <div class="text-right">
-                                            <span class="text-lg font-black <?= $avg >= 75 ? 'text-emerald-500' : ($avg >= 50 ? 'text-amber-500' : 'text-red-500') ?>"><?= round($avg) ?>%</span>
-                                            <div class="flex text-[8px] gap-0.5">
-                                                <?php for($i=1;$i<=5;$i++): ?>
-                                                    <i class="fa-solid fa-star <?= ($r['q1']+$r['q2']+$r['q3']+$r['q4']+$r['q5'])/5 >= $i ? 'text-amber-400' : 'text-slate-200' ?>"></i>
-                                                <?php endfor; ?>
-                                            </div>
-                                        </div>
-                                        <a href="admin.php?action=satisfaction&campaign=<?= $slug ?>&delete=<?= $r['token'] ?>" onclick="return confirm('Supprimer cette participation ?')" class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-300 rounded-lg hover:bg-red-500 hover:text-white transition shadow-sm">
-                                            <i class="fa-solid fa-trash-can text-[10px]"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                                <p class="text-sm text-slate-600 italic leading-relaxed">"<?= htmlspecialchars($r['comment']) ?: 'Pas de commentaire' ?>."</p>
-                            </div>
-                        <?php endforeach; endif; ?>
-                    </div>
-                </div>
             </div>
 
             <!-- COLONNE DROITE : STATS & ENVOI -->
             <div class="space-y-8">
 
-                <!-- STATS & PROGRESSION -->
+                <!-- ENVOI & PROGRESSION -->
                 <div class="admin-card p-8">
-                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Performances</h3>
-                    <div class="grid grid-cols-2 gap-4 mb-8">
-                        <div class="text-center p-4 bg-slate-50 rounded-2xl">
-                            <p class="text-[8px] font-black uppercase text-slate-400 mb-1">Emails</p>
-                            <p class="text-xl font-black text-slate-900"><?= $stats['total_sent'] ?></p>
-                        </div>
-                        <div class="text-center p-4 bg-blue-50 rounded-2xl">
-                            <p class="text-[8px] font-black uppercase text-blue-400 mb-1">Ouverts</p>
-                            <p class="text-xl font-black text-blue-600"><?= $stats['total_read'] ?></p>
-                        </div>
-                        <div class="text-center p-4 bg-emerald-50 rounded-2xl">
-                            <p class="text-[8px] font-black uppercase text-emerald-400 mb-1">Réponses</p>
-                            <p class="text-xl font-black text-emerald-600"><?= $stats['total_responses'] ?></p>
-                        </div>
-                        <div class="text-center p-4 bg-amber-50 rounded-2xl">
-                            <p class="text-[8px] font-black uppercase text-amber-400 mb-1">Score</p>
-                            <p class="text-xl font-black text-amber-600"><?= round($stats['avg_csat'] ?? 0) ?>%</p>
-                        </div>
-                    </div>
-
                     <div id="sending-progress-container" class="hidden mb-6">
                         <div class="flex justify-between text-[10px] font-black uppercase mb-2">
                             <span class="text-blue-600">Envoi en cours</span>
@@ -350,7 +294,7 @@
         }
 
         const tokenMap = <?= json_encode($tokens) ?>;
-        const responseMap = <?= json_encode($responses) ?>;
+        const responseMap = [];
 
         async function saveMailingDraft() {
             const btn = document.getElementById('btn-save-draft');
