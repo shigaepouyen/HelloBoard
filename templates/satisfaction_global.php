@@ -45,6 +45,11 @@
                 $questions = $satService->getQuestions($filterSlug, $currentCamp['formType']);
             }
         }
+        $campaignsQuestions = [];
+        foreach ($localCampaigns as $lc) {
+            $campaignsQuestions[$lc['slug']] = $satService->getQuestions($lc['slug'], $lc['formType']);
+        }
+
         $genericLabels = [
             'Interaction',
             'Processus',
@@ -157,8 +162,28 @@
                                     <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm italic text-slate-600 leading-relaxed">
                                         "<?= htmlspecialchars($r['comment']) ?: 'Pas de commentaire' ?>."
                                     </div>
+                                    <!-- Détails des réponses -->
+                                    <div id="details-<?= $r['token'] ?>" class="hidden mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-fade-in">
+                                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                            <?php
+                                            $qLabels = $campaignsQuestions[$r['campaign_slug']] ?? $genericLabels;
+                                            for($i=1; $i<=5; $i++):
+                                                $score = $r['q'.$i];
+                                                $qItem = $qLabels[$i-1] ?? $genericLabels[$i-1];
+                                                $label = is_array($qItem) ? ($qItem['label'] ?? '') : $qItem;
+                                            ?>
+                                                <div class="flex flex-col items-center text-center">
+                                                    <p class="text-[8px] font-black uppercase text-slate-400 mb-1 h-8 line-clamp-2" title="<?= htmlspecialchars($label) ?>"><?= htmlspecialchars($label) ?></p>
+                                                    <div class="flex items-center gap-1">
+                                                        <span class="text-sm font-black text-slate-700"><?= $score ?: '-' ?></span>
+                                                        <i class="fa-solid fa-star text-[10px] <?= $score ? 'text-amber-400' : 'text-slate-200' ?>"></i>
+                                                    </div>
+                                                </div>
+                                            <?php endfor; ?>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="w-full md:w-32 flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-2">
+                                <div class="w-full md:w-48 flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-2">
                                     <div class="flex items-center gap-3">
                                         <div class="text-right">
                                             <div class="text-3xl font-black <?= $avg >= 75 ? 'text-emerald-500' : ($avg >= 50 ? 'text-amber-500' : 'text-red-500') ?>">
@@ -173,11 +198,16 @@
                                                 <?php endfor; ?>
                                             </div>
                                         </div>
-                                        <a href="admin.php?action=satisfaction_global&delete=<?= $r['token'] ?><?= $filterSlug ? '&campaign_filter='.$filterSlug : '' ?>" onclick="return confirm('Supprimer cette participation ?')" class="w-10 h-10 flex items-center justify-center bg-red-50 text-red-300 rounded-xl hover:bg-red-500 hover:text-white transition shadow-sm">
-                                            <i class="fa-solid fa-trash-can text-xs"></i>
-                                        </a>
+                                        <div class="flex gap-2">
+                                            <button onclick="toggleDetails('<?= $r['token'] ?>')" class="w-10 h-10 flex items-center justify-center bg-blue-50 text-blue-400 rounded-xl hover:bg-blue-600 hover:text-white transition shadow-sm" title="Détails des réponses">
+                                                <i class="fa-solid fa-info text-xs"></i>
+                                            </button>
+                                            <a href="admin.php?action=satisfaction_global&delete=<?= $r['token'] ?><?= $filterSlug ? '&campaign_filter='.$filterSlug : '' ?>" onclick="return confirm('Supprimer cette participation ?')" class="w-10 h-10 flex items-center justify-center bg-red-50 text-red-300 rounded-xl hover:bg-red-500 hover:text-white transition shadow-sm">
+                                                <i class="fa-solid fa-trash-can text-xs"></i>
+                                            </a>
+                                        </div>
                                     </div>
-                                    <p class="text-[9px] text-slate-300 font-black uppercase mt-2"><?= date('d/m/Y', strtotime($r['submitted_at'])) ?></p>
+                                    <p class="text-[9px] text-slate-300 font-black uppercase mt-2"><?= date('d/m/Y à H:i', strtotime($r['submitted_at'])) ?></p>
                                 </div>
                             </div>
                         </div>
@@ -186,5 +216,14 @@
             </div>
         </div>
     </main>
+
+    <script>
+    function toggleDetails(token) {
+        const el = document.getElementById('details-' + token);
+        if (el) {
+            el.classList.toggle('hidden');
+        }
+    }
+    </script>
 </body>
 </html>
