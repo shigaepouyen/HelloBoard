@@ -450,11 +450,17 @@
                     row.classList.add('bg-blue-50');
                 }
 
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000);
+
                 try {
                     currentInBatch++;
+                    statusContainer.innerHTML = `<p class="text-[10px] font-black uppercase text-slate-400 text-center animate-pulse">Envoi du paquet ${batchNum} (${currentInBatch}/10)...</p>`;
+
                     const res = await fetch('admin.php?action=satisfaction_send_one', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        signal: controller.signal,
                         body: new URLSearchParams({
                             campaign: campaign,
                             orderId: r.orderId,
@@ -473,13 +479,19 @@
                             row.classList.remove('bg-blue-50');
                             row.classList.add('opacity-40', 'bg-emerald-50');
                         }
+                    } else {
+                        console.error("Erreur pour " + r.email + ": " + data.error);
+                        if (row) row.classList.replace('bg-blue-50', 'bg-red-50');
                     }
-
+                } catch (e) {
+                    console.error("Erreur technique pour " + r.email, e);
+                    if (row) row.classList.replace('bg-blue-50', 'bg-red-50');
+                } finally {
+                    clearTimeout(timeoutId);
                     const pct = Math.round(((i + 1) / recipients.length) * 100);
                     progressFill.style.width = pct + '%';
                     percentLabel.innerText = pct + '%';
-
-                } catch (e) { console.error(e); }
+                }
 
                 if (currentInBatch >= 10) {
                     batchNum++;

@@ -352,6 +352,9 @@
                     row.classList.add('bg-blue-50', 'border-blue-200');
                 }
 
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000);
+
                 try {
                     currentInBatch++;
                     statusContainer.innerHTML = `<p class="text-[10px] font-black uppercase text-slate-400 text-center animate-pulse">Envoi du paquet ${batchNum} (${currentInBatch}/10)...</p>`;
@@ -359,6 +362,7 @@
                     const res = await fetch('admin.php?action=mailing_send_one', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        signal: controller.signal,
                         body: new URLSearchParams({
                             campaign: campaign,
                             email: p.email,
@@ -386,6 +390,9 @@
                     }
                 } catch (e) {
                     console.error("Erreur technique pour " + p.email, e);
+                    if (row) row.classList.replace('bg-blue-50', 'bg-red-50');
+                } finally {
+                    clearTimeout(timeoutId);
                 }
 
                 if (currentInBatch >= 10) {

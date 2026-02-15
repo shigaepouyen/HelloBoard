@@ -45,6 +45,7 @@ class MailService {
         $hostPrefix = ($this->port === 465) ? 'ssl://' : 'tcp://';
         $socket = stream_socket_client($hostPrefix . $this->host . ':' . $this->port, $errno, $errstr, $timeout);
         if (!$socket) throw new Exception("Connexion SMTP échouée: $errstr");
+        stream_set_timeout($socket, 10);
 
         $this->expect($socket, '220');
 
@@ -58,6 +59,7 @@ class MailService {
             if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
                 throw new Exception("Échec de l'activation TLS");
             }
+            stream_set_timeout($socket, 10);
             $this->sendCmd($socket, "EHLO " . $helloHost);
             $this->expect($socket, '250');
         }
