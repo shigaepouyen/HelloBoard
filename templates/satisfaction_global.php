@@ -75,7 +75,30 @@
                             <?php endforeach; ?>
                         </select>
                     </form>
+                    <?php if ($filterSlug): ?>
+                        <button onclick="analyzeSatisfaction()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 transition shadow-lg shadow-indigo-100 flex items-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Analyse IA
+                        </button>
+                    <?php endif; ?>
                     <a href="admin.php" class="text-xs font-black text-slate-400 uppercase hover:text-slate-900 transition">Retour</a>
+                </div>
+            </div>
+
+            <!-- AI ANALYSIS -->
+            <div id="ai-analysis-container" class="hidden mb-12 animate-fade-in">
+                <div class="admin-card p-8 border-2 border-indigo-50 bg-indigo-50/10">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                            <i class="fa-solid fa-robot text-sm"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-black uppercase text-indigo-600 italic tracking-widest">Analyse Intelligente</h3>
+                            <p class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Expert en Expérience Client (Mistral AI)</p>
+                        </div>
+                    </div>
+                    <div id="ai-analysis-content" class="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
+                        <!-- Content will be injected here -->
+                    </div>
                 </div>
             </div>
 
@@ -222,6 +245,56 @@
         const el = document.getElementById('details-' + token);
         if (el) {
             el.classList.toggle('hidden');
+        }
+    }
+
+    function showLoader() {
+        const loader = document.createElement('div');
+        loader.id = 'global-loader';
+        loader.innerHTML = `
+            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] flex items-center justify-center">
+                <div class="bg-white p-8 rounded-[2rem] text-center shadow-2xl animate-fade-in">
+                    <div class="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p class="font-black uppercase text-xs tracking-widest text-slate-900">Analyse en cours...</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase mt-2">L'IA parcourt vos retours, un instant</p>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(loader);
+    }
+
+    async function analyzeSatisfaction() {
+        const container = document.getElementById('ai-analysis-container');
+        const content = document.getElementById('ai-analysis-content');
+        const campaignSlug = '<?= $filterSlug ?>';
+
+        if (!campaignSlug) return;
+
+        showLoader();
+        container.classList.add('hidden');
+
+        try {
+            const formData = new FormData();
+            formData.append('campaign', campaignSlug);
+
+            const res = await fetch('admin.php?action=ai_analyze_satisfaction', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                content.innerText = data.analysis;
+                container.classList.remove('hidden');
+                container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                alert("Erreur : " + data.error);
+            }
+        } catch (e) {
+            alert("Erreur lors de l'analyse IA.");
+        } finally {
+            const loader = document.getElementById('global-loader');
+            if (loader) loader.remove();
         }
     }
     </script>
