@@ -66,7 +66,10 @@ class AiService {
             }
             $formattedResponses .= "--- Avis anonyme ---\n";
             $formattedResponses .= "Notes : " . (empty($scores) ? 'N/A' : implode(', ', $scores)) . "\n";
-            $formattedResponses .= "Commentaire : " . ($r['comment'] ?: 'Pas de commentaire') . "\n\n";
+            if (isset($r['comment']) && $r['comment'] !== '') {
+                $formattedResponses .= "Commentaire : " . $r['comment'] . "\n";
+            }
+            $formattedResponses .= "\n";
         }
 
         $systemPrompt = "Tu es un Expert en Expérience Client et Analyse de Satisfaction, spécialisé dans le secteur associatif et de la jeunesse.
