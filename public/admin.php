@@ -359,6 +359,7 @@ if ($action === 'ai_analyze_satisfaction') {
     ob_start();
     header('Content-Type: application/json');
     $campaignSlug = $_POST['campaign'] ?? '';
+    $forceRefresh = isset($_POST['refresh']) && $_POST['refresh'] === '1';
 
     if (empty($campaignSlug)) {
         ob_end_clean();
@@ -366,15 +367,31 @@ if ($action === 'ai_analyze_satisfaction') {
         exit;
     }
 
-    $apiKey = $globals['mistralApiKey'] ?? '';
-    if (empty($apiKey)) {
-        ob_end_clean();
-        echo json_encode(['success' => false, 'error' => 'Clé API Mistral non configurée']);
-        exit;
-    }
-
     try {
         $satService = new SatisfactionService();
+
+        // Check cache
+        if (!$forceRefresh) {
+            $cached = $satService->getAnalysis($campaignSlug);
+            if ($cached) {
+                ob_end_clean();
+                echo json_encode([
+                    'success' => true,
+                    'analysis' => $cached['analysis_text'],
+                    'updated_at' => $cached['updated_at'],
+                    'cached' => true
+                ]);
+                exit;
+            }
+        }
+
+        $apiKey = $globals['mistralApiKey'] ?? '';
+        if (empty($apiKey)) {
+            ob_end_clean();
+            echo json_encode(['success' => false, 'error' => 'Clé API Mistral non configurée']);
+            exit;
+        }
+
         $responses = $satService->getResponsesByCampaign($campaignSlug);
 
         $campaignTitle = $campaignSlug;
@@ -392,8 +409,16 @@ if ($action === 'ai_analyze_satisfaction') {
         $ai = new AiService($apiKey, $globals['debugMode'] ?? false);
         $analysis = $ai->analyzeSatisfaction($campaignTitle, $questions, $responses);
 
+        $satService->saveAnalysis($campaignSlug, $analysis);
+        $updatedAt = date('Y-m-d H:i:s');
+
         ob_end_clean();
-        echo json_encode(['success' => true, 'analysis' => $analysis]);
+        echo json_encode([
+            'success' => true,
+            'analysis' => $analysis,
+            'updated_at' => $updatedAt,
+            'cached' => false
+        ]);
     } catch (Throwable $e) {
         ob_end_clean();
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);

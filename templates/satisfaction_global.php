@@ -97,23 +97,39 @@
                 </div>
             </div>
 
-            <!-- AI ANALYSIS -->
-            <div id="ai-analysis-container" class="hidden mb-12 animate-fade-in">
-                <div class="admin-card p-8 border-2 border-indigo-50 bg-indigo-50/10">
-                    <div class="flex items-center gap-3 mb-6">
-                        <div class="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
-                            <i class="fa-solid fa-robot text-sm"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-xs font-black uppercase text-indigo-600 italic tracking-widest">Analyse Intelligente</h3>
-                            <p class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Expert en Expérience Client (Mistral AI)</p>
-                        </div>
+    <!-- AI ANALYSIS MODAL -->
+    <div id="ai-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closeAiModal()"></div>
+        <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden relative z-10 flex flex-col animate-fade-in">
+            <div class="p-8 border-b border-slate-100 flex justify-between items-center bg-indigo-50/30">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                        <i class="fa-solid fa-robot text-xl"></i>
                     </div>
-                    <div id="ai-analysis-content" class="text-slate-700 text-sm leading-relaxed prose-ai">
-                        <!-- Content will be injected here -->
+                    <div>
+                        <h3 class="text-xs font-black uppercase text-indigo-600 italic tracking-widest">Rapport d'Analyse Intelligente</h3>
+                        <p id="ai-modal-date" class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Chargement...</p>
                     </div>
                 </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="analyzeSatisfaction(true)" class="bg-white border border-indigo-100 text-indigo-600 px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-600 hover:text-white transition flex items-center gap-2">
+                        <i class="fa-solid fa-sync-alt"></i> Relancer
+                    </button>
+                    <button onclick="closeAiModal()" class="w-10 h-10 flex items-center justify-center bg-slate-100 text-slate-400 rounded-xl hover:bg-red-500 hover:text-white transition">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
             </div>
+            <div class="flex-1 overflow-y-auto p-8 md:p-12">
+                <div id="ai-modal-content" class="text-slate-700 text-sm leading-relaxed prose-ai">
+                    <!-- Content will be injected here -->
+                </div>
+            </div>
+            <div class="p-6 bg-slate-50 border-t border-slate-100 text-center">
+                <p class="text-[9px] text-slate-400 font-bold uppercase italic">Analyse générée par Mistral AI — Expert en Expérience Client</p>
+            </div>
+        </div>
+    </div>
 
             <!-- KPI CARDS -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -276,19 +292,25 @@
         document.body.appendChild(loader);
     }
 
-    async function analyzeSatisfaction() {
-        const container = document.getElementById('ai-analysis-container');
-        const content = document.getElementById('ai-analysis-content');
+    function closeAiModal() {
+        document.getElementById('ai-modal').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    async function analyzeSatisfaction(refresh = false) {
+        const modal = document.getElementById('ai-modal');
+        const content = document.getElementById('ai-modal-content');
+        const dateEl = document.getElementById('ai-modal-date');
         const campaignSlug = '<?= $filterSlug ?>';
 
         if (!campaignSlug) return;
 
         showLoader();
-        container.classList.add('hidden');
 
         try {
             const formData = new FormData();
             formData.append('campaign', campaignSlug);
+            if (refresh) formData.append('refresh', '1');
 
             const res = await fetch('admin.php?action=ai_analyze_satisfaction', {
                 method: 'POST',
@@ -298,8 +320,12 @@
 
             if (data.success) {
                 content.innerHTML = marked.parse(data.analysis);
-                container.classList.remove('hidden');
-                container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (data.updated_at) {
+                    const date = new Date(data.updated_at.replace(' ', 'T'));
+                    dateEl.innerText = "Dernière analyse : " + date.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                }
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
             } else {
                 alert("Erreur : " + data.error);
             }
