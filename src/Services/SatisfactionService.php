@@ -43,6 +43,12 @@ class SatisfactionService {
                 submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )");
 
+            $this->db->exec("CREATE TABLE IF NOT EXISTS campaign_analysis (
+                campaign_slug TEXT PRIMARY KEY,
+                analysis_text TEXT,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )");
+
             // Migration: Add read_at column if missing
             try {
                 $this->db->query("SELECT read_at FROM survey_tokens LIMIT 1");
@@ -214,6 +220,17 @@ class SatisfactionService {
         }
         $stmt->execute();
         return $stmt->fetch();
+    }
+
+    public function getAnalysis($campaignSlug) {
+        $stmt = $this->db->prepare("SELECT * FROM campaign_analysis WHERE campaign_slug = ?");
+        $stmt->execute([$campaignSlug]);
+        return $stmt->fetch();
+    }
+
+    public function saveAnalysis($campaignSlug, $text) {
+        $stmt = $this->db->prepare("INSERT OR REPLACE INTO campaign_analysis (campaign_slug, analysis_text, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)");
+        return $stmt->execute([$campaignSlug, $text]);
     }
 
     public function getStatsBySource($campaignSlug = null) {

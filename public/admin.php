@@ -354,6 +354,78 @@ if ($action === 'ai_generate') {
     exit;
 }
 
+// AI Satisfaction Analysis
+if ($action === 'ai_analyze_satisfaction') {
+    ob_start();
+    header('Content-Type: application/json');
+    $campaignSlug = $_POST['campaign'] ?? '';
+    $forceRefresh = isset($_POST['refresh']) && $_POST['refresh'] === '1';
+
+    if (empty($campaignSlug)) {
+        ob_end_clean();
+        echo json_encode(['success' => false, 'error' => 'Campagne non spécifiée']);
+        exit;
+    }
+
+    try {
+        $satService = new SatisfactionService();
+
+        // Check cache
+        if (!$forceRefresh) {
+            $cached = $satService->getAnalysis($campaignSlug);
+            if ($cached) {
+                ob_end_clean();
+                echo json_encode([
+                    'success' => true,
+                    'analysis' => $cached['analysis_text'],
+                    'updated_at' => $cached['updated_at'],
+                    'cached' => true
+                ]);
+                exit;
+            }
+        }
+
+        $apiKey = $globals['mistralApiKey'] ?? '';
+        if (empty($apiKey)) {
+            ob_end_clean();
+            echo json_encode(['success' => false, 'error' => 'Clé API Mistral non configurée']);
+            exit;
+        }
+
+        $responses = $satService->getResponsesByCampaign($campaignSlug);
+
+        $campaignTitle = $campaignSlug;
+        $formType = 'Event';
+        foreach($localCampaigns as $c) {
+            if ($c['slug'] === $campaignSlug) {
+                $campaignTitle = $c['title'];
+                $formType = $c['formType'] ?? 'Event';
+                break;
+            }
+        }
+
+        $questions = $satService->getQuestions($campaignSlug, $formType);
+
+        $ai = new AiService($apiKey, $globals['debugMode'] ?? false);
+        $analysis = $ai->analyzeSatisfaction($campaignTitle, $questions, $responses);
+
+        $satService->saveAnalysis($campaignSlug, $analysis);
+        $updatedAt = date('Y-m-d H:i:s');
+
+        ob_end_clean();
+        echo json_encode([
+            'success' => true,
+            'analysis' => $analysis,
+            'updated_at' => $updatedAt,
+            'cached' => false
+        ]);
+    } catch (Throwable $e) {
+        ob_end_clean();
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
 // Send Satisfaction Email (or Test)
 if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
     header('Content-Type: application/json');

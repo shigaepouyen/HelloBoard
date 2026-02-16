@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Reporting Satisfaction — HelloBoard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap');
@@ -11,6 +12,18 @@
         .admin-card { background: white; border-radius: 2rem; border: 1px solid #edf2f7; }
         .animate-fade-in { animation: fadeIn 0.4s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Styles pour le rendu Markdown de l'IA */
+        .prose-ai h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 1rem; color: #1e1b4b; margin-top: 1.5rem; }
+        .prose-ai h2 { font-size: 1.25rem; font-weight: 800; margin-top: 1.5rem; margin-bottom: 0.75rem; color: #1e1b4b; }
+        .prose-ai h3 { font-size: 1.125rem; font-weight: 800; margin-top: 1.25rem; margin-bottom: 0.5rem; color: #1e1b4b; }
+        .prose-ai h4 { font-size: 1rem; font-weight: 800; margin-top: 1rem; margin-bottom: 0.5rem; color: #1e1b4b; }
+        .prose-ai p { margin-bottom: 1rem; }
+        .prose-ai ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
+        .prose-ai li { margin-bottom: 0.25rem; }
+        .prose-ai strong { font-weight: 800; color: #312e81; }
+        .prose-ai em { font-style: italic; }
+        .prose-ai blockquote { border-left: 4px solid #e0e7ff; padding-left: 1rem; font-style: italic; margin-bottom: 1rem; color: #4338ca; }
     </style>
 </head>
 <body class="pb-32">
@@ -75,9 +88,48 @@
                             <?php endforeach; ?>
                         </select>
                     </form>
+                    <?php if ($filterSlug): ?>
+                        <button onclick="analyzeSatisfaction()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 transition shadow-lg shadow-indigo-100 flex items-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Analyse IA
+                        </button>
+                    <?php endif; ?>
                     <a href="admin.php" class="text-xs font-black text-slate-400 uppercase hover:text-slate-900 transition">Retour</a>
                 </div>
             </div>
+
+    <!-- AI ANALYSIS MODAL -->
+    <div id="ai-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closeAiModal()"></div>
+        <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden relative z-10 flex flex-col animate-fade-in">
+            <div class="p-8 border-b border-slate-100 flex justify-between items-center bg-indigo-50/30">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                        <i class="fa-solid fa-robot text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xs font-black uppercase text-indigo-600 italic tracking-widest">Rapport d'Analyse Intelligente</h3>
+                        <p id="ai-modal-date" class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Chargement...</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="analyzeSatisfaction(true)" class="bg-white border border-indigo-100 text-indigo-600 px-4 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-600 hover:text-white transition flex items-center gap-2">
+                        <i class="fa-solid fa-sync-alt"></i> Relancer
+                    </button>
+                    <button onclick="closeAiModal()" class="w-10 h-10 flex items-center justify-center bg-slate-100 text-slate-400 rounded-xl hover:bg-red-500 hover:text-white transition">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-8 md:p-12">
+                <div id="ai-modal-content" class="text-slate-700 text-sm leading-relaxed prose-ai">
+                    <!-- Content will be injected here -->
+                </div>
+            </div>
+            <div class="p-6 bg-slate-50 border-t border-slate-100 text-center">
+                <p class="text-[9px] text-slate-400 font-bold uppercase italic">Analyse générée par Mistral AI — Expert en Expérience Client</p>
+            </div>
+        </div>
+    </div>
 
             <!-- KPI CARDS -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -222,6 +274,66 @@
         const el = document.getElementById('details-' + token);
         if (el) {
             el.classList.toggle('hidden');
+        }
+    }
+
+    function showLoader() {
+        const loader = document.createElement('div');
+        loader.id = 'global-loader';
+        loader.innerHTML = `
+            <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[9999] flex items-center justify-center">
+                <div class="bg-white p-8 rounded-[2rem] text-center shadow-2xl animate-fade-in">
+                    <div class="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p class="font-black uppercase text-xs tracking-widest text-slate-900">Analyse en cours...</p>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase mt-2">L'IA parcourt vos retours, un instant</p>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(loader);
+    }
+
+    function closeAiModal() {
+        document.getElementById('ai-modal').classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    async function analyzeSatisfaction(refresh = false) {
+        const modal = document.getElementById('ai-modal');
+        const content = document.getElementById('ai-modal-content');
+        const dateEl = document.getElementById('ai-modal-date');
+        const campaignSlug = '<?= $filterSlug ?>';
+
+        if (!campaignSlug) return;
+
+        showLoader();
+
+        try {
+            const formData = new FormData();
+            formData.append('campaign', campaignSlug);
+            if (refresh) formData.append('refresh', '1');
+
+            const res = await fetch('admin.php?action=ai_analyze_satisfaction', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                content.innerHTML = marked.parse(data.analysis);
+                if (data.updated_at) {
+                    const date = new Date(data.updated_at.replace(' ', 'T'));
+                    dateEl.innerText = "Dernière analyse : " + date.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                }
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            } else {
+                alert("Erreur : " + data.error);
+            }
+        } catch (e) {
+            alert("Erreur lors de l'analyse IA.");
+        } finally {
+            const loader = document.getElementById('global-loader');
+            if (loader) loader.remove();
         }
     }
     </script>
