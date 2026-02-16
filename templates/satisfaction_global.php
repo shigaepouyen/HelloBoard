@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Reporting Satisfaction — HelloBoard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap');
@@ -11,6 +12,18 @@
         .admin-card { background: white; border-radius: 2rem; border: 1px solid #edf2f7; }
         .animate-fade-in { animation: fadeIn 0.4s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Styles pour le rendu Markdown de l'IA */
+        .prose-ai h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 1rem; color: #1e1b4b; margin-top: 1.5rem; }
+        .prose-ai h2 { font-size: 1.25rem; font-weight: 800; margin-top: 1.5rem; margin-bottom: 0.75rem; color: #1e1b4b; }
+        .prose-ai h3 { font-size: 1.125rem; font-weight: 800; margin-top: 1.25rem; margin-bottom: 0.5rem; color: #1e1b4b; }
+        .prose-ai h4 { font-size: 1rem; font-weight: 800; margin-top: 1rem; margin-bottom: 0.5rem; color: #1e1b4b; }
+        .prose-ai p { margin-bottom: 1rem; }
+        .prose-ai ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
+        .prose-ai li { margin-bottom: 0.25rem; }
+        .prose-ai strong { font-weight: 800; color: #312e81; }
+        .prose-ai em { font-style: italic; }
+        .prose-ai blockquote { border-left: 4px solid #e0e7ff; padding-left: 1rem; font-style: italic; margin-bottom: 1rem; color: #4338ca; }
     </style>
 </head>
 <body class="pb-32">
@@ -96,7 +109,7 @@
                             <p class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Expert en Expérience Client (Mistral AI)</p>
                         </div>
                     </div>
-                    <div id="ai-analysis-content" class="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
+                    <div id="ai-analysis-content" class="text-slate-700 text-sm leading-relaxed prose-ai">
                         <!-- Content will be injected here -->
                     </div>
                 </div>
@@ -284,7 +297,7 @@
             const data = await res.json();
 
             if (data.success) {
-                content.innerText = data.analysis;
+                content.innerHTML = marked.parse(data.analysis);
                 container.classList.remove('hidden');
                 container.scrollIntoView({ behavior: 'smooth', block: 'center' });
             } else {
