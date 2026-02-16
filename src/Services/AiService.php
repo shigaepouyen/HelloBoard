@@ -64,7 +64,7 @@ class AiService {
             for($i=1; $i<=5; $i++) {
                 if (isset($r['q'.$i]) && $r['q'.$i] !== null) $scores[] = "Q$i: " . $r['q'.$i] . "/5";
             }
-            $formattedResponses .= "--- Avis de " . ($r['payer_name'] ?? 'Anonyme') . " ---\n";
+            $formattedResponses .= "--- Avis anonyme ---\n";
             $formattedResponses .= "Notes : " . (empty($scores) ? 'N/A' : implode(', ', $scores)) . "\n";
             $formattedResponses .= "Commentaire : " . ($r['comment'] ?: 'Pas de commentaire') . "\n\n";
         }
@@ -86,6 +86,7 @@ class AiService {
         5. Conseils et pistes pour aller plus loin (basés sur les retours).
 
         Règles importantes :
+        - CONFIDENTIALITÉ : Ne cite JAMAIS de noms ou prénoms de personnes dans ton rapport, même s'ils apparaissent dans les commentaires. Utilise des termes génériques (ex: \"un participant\", \"un parent\").
         - Sois constructif, analytique et bienveillant.
         - Cite des passages de verbatims pour illustrer tes points.
         - Utilise un ton professionnel adapté au monde associatif.
