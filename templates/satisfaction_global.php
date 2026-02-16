@@ -261,9 +261,11 @@
                                     <p class="text-[10px] text-slate-400 font-bold uppercase mb-4 italic">
                                         <i class="fa-solid fa-shopping-bag mr-1"></i> <?= htmlspecialchars($r['item_name']) ?>
                                     </p>
-                                    <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm italic text-slate-600 leading-relaxed">
-                                        "<?= htmlspecialchars($r['comment']) ?: 'Pas de commentaire' ?>."
-                                    </div>
+                                    <?php if (isset($r['comment']) && $r['comment'] !== ''): ?>
+                                        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm italic text-slate-600 leading-relaxed">
+                                            "<?= htmlspecialchars($r['comment']) ?>."
+                                        </div>
+                                    <?php endif; ?>
                                     <!-- Détails des réponses -->
                                     <div id="details-<?= $r['token'] ?>" class="hidden mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-fade-in">
                                         <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
