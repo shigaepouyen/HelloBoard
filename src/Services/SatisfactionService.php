@@ -49,6 +49,14 @@ class SatisfactionService {
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )");
 
+            $this->db->exec("CREATE TABLE IF NOT EXISTS survey_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token TEXT,
+                status TEXT,
+                error_message TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )");
+
             // Migration: Add read_at column if missing
             try {
                 $this->db->query("SELECT read_at FROM survey_tokens LIMIT 1");
@@ -242,6 +250,17 @@ class SatisfactionService {
     public function saveAnalysis($campaignSlug, $text) {
         $stmt = $this->db->prepare("INSERT OR REPLACE INTO campaign_analysis (campaign_slug, analysis_text, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)");
         return $stmt->execute([$campaignSlug, $text]);
+    }
+
+    public function addAttempt($token, $status, $error = null) {
+        $stmt = $this->db->prepare("INSERT INTO survey_attempts (token, status, error_message) VALUES (?, ?, ?)");
+        return $stmt->execute([$token, $status, $error]);
+    }
+
+    public function getAttempts($token) {
+        $stmt = $this->db->prepare("SELECT * FROM survey_attempts WHERE token = ? ORDER BY created_at DESC");
+        $stmt->execute([$token]);
+        return $stmt->fetchAll();
     }
 
     public function getStatsBySource($campaignSlug = null) {
