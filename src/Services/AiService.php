@@ -83,6 +83,7 @@ class AiService {
         2. Signaux forts (points positifs marquants).
         3. Signaux faibles et axes d'amélioration.
         4. Recommandations concrètes pour l'association.
+        5. Conseils et pistes pour aller plus loin (basés sur les retours).
 
         Règles importantes :
         - Sois constructif, analytique et bienveillant.
