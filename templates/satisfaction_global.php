@@ -30,7 +30,7 @@
     <nav class="p-4 md:p-6 bg-white border-b border-slate-100 sticky top-0 z-50 flex justify-between items-center shadow-sm">
         <div class="flex items-center gap-4">
             <a href="admin.php" class="flex items-center gap-2">
-                <img src="assets/img/logo.svg" alt="HelloBoard" class="w-8 h-8">
+                <img src="<?= $globals['customLogo'] ?? 'assets/img/logo.svg' ?>" alt="HelloBoard" class="w-8 h-8 object-contain">
                 <h1 class="font-black italic uppercase text-slate-900 hidden md:block">Console Admin</h1>
             </a>
         </div>
