@@ -22,6 +22,12 @@
         .toggle-btn.active::after { transform: translateX(20px); }
         .collapsible-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
         .collapsible-content.open { max-height: 1000px; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: 0.3s; }
+        .modal-overlay.open { opacity: 1; pointer-events: auto; }
+        .modal-content { background: white; width: 100%; max-width: 500px; border-radius: 2.5rem; transform: translateY(20px); transition: 0.3s; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+        .modal-overlay.open .modal-content { transform: translateY(0); }
+        .step-line { flex: 1; height: 2px; background: #f1f5f9; position: relative; }
+        .step-line.done { background: #10b981; }
     </style>
 </head>
 <body class="pb-32">
@@ -29,7 +35,7 @@
     <nav class="p-6 bg-white border-b border-slate-100 sticky top-0 z-50 flex justify-between items-center shadow-sm">
         <div class="flex items-center gap-4">
             <a href="admin.php" class="flex items-center gap-2">
-                <img src="assets/img/logo.svg" alt="HelloBoard" class="w-8 h-8">
+                <img src="<?= $globals['customLogo'] ?? 'assets/img/logo.svg' ?>" alt="HelloBoard" class="w-8 h-8 object-contain">
                 <h1 class="font-black italic uppercase text-slate-900">Console Admin</h1>
             </a>
             <div class="h-6 w-px bg-slate-200 mx-2"></div>
@@ -202,6 +208,52 @@
         </div>
     </main>
 
+    <!-- Modal History -->
+    <div id="modal-history" class="modal-overlay p-4" onclick="if(event.target === this) closeHistory()">
+        <div class="modal-content overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-8 border-b border-slate-50 flex justify-between items-center">
+                <div>
+                    <h3 id="modal-title" class="text-xl font-black text-slate-900 uppercase italic">Suivi Satisfaction</h3>
+                    <p id="modal-subtitle" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Détails et historique des sollicitations</p>
+                </div>
+                <button onclick="closeHistory()" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 transition">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+
+            <div class="p-8 overflow-y-auto flex-1 space-y-8">
+                <!-- Workflow Visuel -->
+                <div class="flex items-center gap-2">
+                    <div class="flex flex-col items-center gap-2">
+                        <div id="step-sent-icon" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm">1</div>
+                        <span class="text-[8px] font-black uppercase text-slate-400">Envoyé</span>
+                    </div>
+                    <div id="line-sent-read" class="step-line"></div>
+                    <div class="flex flex-col items-center gap-2">
+                        <div id="step-read-icon" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm">2</div>
+                        <span class="text-[8px] font-black uppercase text-slate-400">Lu</span>
+                    </div>
+                </div>
+
+                <!-- Liste des tentatives -->
+                <div class="space-y-4">
+                    <h4 class="text-[10px] font-black uppercase text-slate-400 italic tracking-widest flex items-center gap-2">
+                        <i class="fa-solid fa-history"></i> Historique des envois
+                    </h4>
+                    <div id="attempts-list" class="space-y-2">
+                        <!-- Rempli en JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
+                <button id="modal-resend-btn" class="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase text-xs shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-sync-alt"></i> Renvoyer le questionnaire
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const campaign = "<?= $slug ?>";
         let recipients = [];
@@ -307,8 +359,8 @@
             }
         }
 
-        const tokenMap = <?= json_encode($tokens) ?>;
-        const responseMap = [];
+        let tokenMap = <?= json_encode($tokens) ?>;
+        let responseMap = [];
 
         async function saveMailingDraft() {
             const btn = document.getElementById('btn-save-draft');
@@ -355,6 +407,8 @@
                 }
 
                 recipients = data.recipients || [];
+                tokenMap = data.tokens || [];
+                responseMap = data.responses || [];
                 document.getElementById('btn-send-all').disabled = (recipients.length === 0);
                 document.getElementById('btn-send-all').innerText = recipients.length > 0 ? `Lancer pour ${recipients.length} contacts` : "Aucun destinataire";
 
@@ -369,9 +423,13 @@
                     const isSent = !!haToken;
                     const isRead = !!(haToken && haToken.read_at);
                     const isReplied = !!haResp;
+                    const token = haToken ? haToken.token : '';
 
                     let statusHtml = `
                         <div class="flex gap-1 shrink-0">
+                            <button onclick="openSatisfactionHistory('${token}', '${r.email}', '${r.firstName.replace(/'/g, "\\'")}', '${r.lastName.replace(/'/g, "\\'")}', '${r.orderId}', '${r.itemName.replace(/'/g, "\\'")}')" class="w-6 h-6 flex items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white transition" title="Détails du suivi">
+                                <i class="fa-solid fa-info-circle text-[10px]"></i>
+                            </button>
                             ${isSent ? `
                                 <button onclick="resendOne('${r.orderId}', '${r.email}', '${r.firstName.replace(/'/g, "\\'")}', '${r.lastName.replace(/'/g, "\\'")}', '${r.itemName.replace(/'/g, "\\'")}')" class="w-6 h-6 flex items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-500 hover:text-white transition" title="Déjà envoyé le ${haToken.sent_at}. Cliquez pour renvoyer.">
                                     <i class="fa-solid fa-sync-alt text-[8px]"></i>
@@ -513,6 +571,12 @@
                 const data = await res.json();
                 if (data.success) {
                     notify("Email renvoyé avec succès !", "success");
+                    if (document.getElementById('modal-history').classList.contains('open')) {
+                        // Re-fetch history to show the new attempt
+                        // We need the token.
+                        const haToken = tokenMap.find(t => t.order_id == orderId);
+                        if (haToken) openSatisfactionHistory(haToken.token, email, firstName, lastName, orderId, itemName);
+                    }
                 } else {
                     notify("Erreur : " + data.error, "error");
                 }
@@ -605,6 +669,89 @@
             statusContainer.innerHTML = '<p class="text-[10px] font-black uppercase text-emerald-500 text-center">Terminé !</p>';
             btn.innerText = "Campagne terminée";
             notify(`${sentCount} emails envoyés !`, "success");
+        }
+
+        async function openSatisfactionHistory(token, email, firstName, lastName, orderId, itemName) {
+            const modal = document.getElementById('modal-history');
+            const attemptsList = document.getElementById('attempts-list');
+            const title = document.getElementById('modal-title');
+
+            title.innerText = firstName + ' ' + lastName;
+            attemptsList.innerHTML = '<div class="py-10 text-center animate-pulse text-slate-300 font-black uppercase text-[10px]">Chargement...</div>';
+
+            modal.classList.add('open');
+
+            const resBtn = document.getElementById('modal-resend-btn');
+            resBtn.onclick = () => resendOne(orderId, email, firstName, lastName, itemName);
+
+            try {
+                const res = await fetch(`admin.php?action=get_recipient_history&campaign=${campaign}&token=${token}&type=satisfaction`);
+                const data = await res.json();
+
+                if (data.success) {
+                    // Visual Workflow
+                    const stepSent = document.getElementById('step-sent-icon');
+                    const stepRead = document.getElementById('step-read-icon');
+                    const line = document.getElementById('line-sent-read');
+
+                    if (data.sent_at) {
+                        stepSent.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm bg-emerald-500 text-white";
+                        stepSent.innerHTML = '<i class="fa-solid fa-check"></i>';
+                    } else {
+                        stepSent.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm bg-slate-100 text-slate-300";
+                        stepSent.innerHTML = '1';
+                    }
+
+                    if (data.read_at) {
+                        stepRead.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm bg-blue-500 text-white";
+                        stepRead.innerHTML = '<i class="fa-solid fa-eye"></i>';
+                        line.className = "step-line done bg-emerald-500";
+                    } else {
+                        stepRead.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm bg-slate-100 text-slate-300";
+                        stepRead.innerHTML = '2';
+                        line.className = "step-line";
+                    }
+
+                    // Attempts
+                    if (data.attempts && data.attempts.length > 0) {
+                        attemptsList.innerHTML = data.attempts.map(a => `
+                            <div class="p-4 rounded-2xl border ${a.status === 'success' ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}">
+                                <div class="flex justify-between items-start mb-1">
+                                    <span class="text-[10px] font-black uppercase ${a.status === 'success' ? 'text-emerald-600' : 'text-red-600'}">
+                                        <i class="fa-solid ${a.status === 'success' ? 'fa-check-circle' : 'fa-times-circle'} mr-1"></i>
+                                        ${a.status === 'success' ? 'Envoyé avec succès' : 'Échec de l\'envoi'}
+                                    </span>
+                                    <span class="text-[9px] font-bold text-slate-400">${new Date(a.created_at).toLocaleString('fr-FR')}</span>
+                                </div>
+                                ${a.error_message ? `<p class="text-[10px] font-medium text-red-400 mt-2 bg-white/50 p-2 rounded-lg border border-red-50">${a.error_message}</p>` : ''}
+                            </div>
+                        `).join('');
+                    } else if (data.sent_at) {
+                         // Fallback for old history format
+                         attemptsList.innerHTML = `
+                            <div class="p-4 rounded-2xl border bg-emerald-50 border-emerald-100">
+                                <div class="flex justify-between items-start">
+                                    <span class="text-[10px] font-black uppercase text-emerald-600">
+                                        <i class="fa-solid fa-check-circle mr-1"></i> Envoyé avec succès
+                                    </span>
+                                    <span class="text-[9px] font-bold text-slate-400">${new Date(data.sent_at).toLocaleString('fr-FR')}</span>
+                                </div>
+                            </div>
+                         `;
+                    } else {
+                        attemptsList.innerHTML = '<p class="text-[10px] text-slate-400 text-center py-4 font-bold uppercase italic">Aucune tentative enregistrée.</p>';
+                    }
+                } else {
+                    attemptsList.innerHTML = `<p class="text-red-500 text-center font-bold">${data.error}</p>`;
+                }
+            } catch (e) {
+                console.error(e);
+                attemptsList.innerHTML = '<p class="text-red-500 text-center">Erreur lors de la récupération.</p>';
+            }
+        }
+
+        function closeHistory() {
+            document.getElementById('modal-history').classList.remove('open');
         }
 
         window.onload = fetchRecipients;

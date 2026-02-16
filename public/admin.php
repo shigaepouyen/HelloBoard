@@ -212,16 +212,30 @@ if ($action === 'mailing_send_one' && isset($_POST['campaign'])) {
             ], $trackingUrl, $attachmentPaths);
 
             if (!$isTest) {
-                $history[$targetEmail] = [
-                    'sent_at' => date('Y-m-d H:i:s'),
-                    'token' => $token,
-                    'read_at' => $history[$targetEmail]['read_at'] ?? null
+                if (!isset($history[$targetEmail])) $history[$targetEmail] = [];
+                $history[$targetEmail]['sent_at'] = date('Y-m-d H:i:s');
+                $history[$targetEmail]['token'] = $token;
+                if (!isset($history[$targetEmail]['attempts'])) $history[$targetEmail]['attempts'] = [];
+                $history[$targetEmail]['attempts'][] = [
+                    'date' => date('Y-m-d H:i:s'),
+                    'status' => 'success'
                 ];
                 Storage::saveMailingHistory($slug, $history);
             }
 
             echo json_encode(['success' => true]);
         } catch (Exception $e) {
+            if (!$isTest) {
+                if (!isset($history[$targetEmail])) $history[$targetEmail] = [];
+                $history[$targetEmail]['token'] = $token;
+                if (!isset($history[$targetEmail]['attempts'])) $history[$targetEmail]['attempts'] = [];
+                $history[$targetEmail]['attempts'][] = [
+                    'date' => date('Y-m-d H:i:s'),
+                    'status' => 'error',
+                    'error' => $e->getMessage()
+                ];
+                Storage::saveMailingHistory($slug, $history);
+            }
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
     }
@@ -288,6 +302,7 @@ if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
     foreach($localCampaigns as $c) { if($c['slug'] === $slug) $currentCamp = $c; }
 
     if ($currentCamp) {
+        $satService = new SatisfactionService();
         // --- FILTRE ELIGIBILITE : ACTION TERMINEE ---
         $formDetails = $client->getFormDetails($currentCamp['orgSlug'], $currentCamp['formSlug'], $currentCamp['formType']);
         $isFinished = true;
@@ -341,7 +356,9 @@ if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
         echo json_encode([
             'success' => true,
             'isEligible' => true,
-            'recipients' => array_values($recipients)
+            'recipients' => array_values($recipients),
+            'tokens' => $satService->getTokensByCampaign($slug),
+            'responses' => $satService->getResponsesByCampaign($slug)
         ]);
     }
     exit;
@@ -384,6 +401,61 @@ if ($action === 'ai_generate') {
     } catch (Throwable $e) {
         ob_end_clean();
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// Get Recipient History (Mailing or Satisfaction)
+if ($action === 'get_recipient_history') {
+    header('Content-Type: application/json');
+    $slug = $_GET['campaign'] ?? '';
+    $email = $_GET['email'] ?? '';
+    $token = $_GET['token'] ?? ''; // For satisfaction, token is better
+    $type = $_GET['type'] ?? 'mailing';
+
+    if ($type === 'mailing') {
+        $history = Storage::getMailingHistory($slug);
+        $data = $history[$email] ?? null;
+        if ($data) {
+            echo json_encode([
+                'success' => true,
+                'email' => $email,
+                'sent_at' => $data['sent_at'] ?? null,
+                'read_at' => $data['read_at'] ?? null,
+                'attempts' => $data['attempts'] ?? []
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Destinataire non trouvé']);
+        }
+    } else {
+        $satService = new SatisfactionService();
+        $tokenInfo = null;
+        if ($token) {
+            $tokenInfo = $satService->getTokenInfo($token);
+        } else if ($email) {
+            // Find most recent token for this email/campaign
+            $tokens = $satService->getTokensByCampaign($slug);
+            foreach($tokens as $t) {
+                if ($t['email'] === $email) {
+                    $tokenInfo = $t;
+                    break;
+                }
+            }
+        }
+
+        if ($tokenInfo) {
+            $attempts = $satService->getAttempts($tokenInfo['token']);
+            echo json_encode([
+                'success' => true,
+                'email' => $tokenInfo['email'],
+                'payer_name' => $tokenInfo['payer_name'],
+                'sent_at' => $tokenInfo['sent_at'],
+                'read_at' => $tokenInfo['read_at'],
+                'attempts' => $attempts
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Token non trouvé']);
+        }
     }
     exit;
 }
@@ -488,7 +560,6 @@ if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
             }
             $existing = $satService->getTokenByOrder($slug, $orderId);
             $token = $existing['token'] ?? null;
-            if ($token) $satService->updateSentDate($token);
         }
 
         if (!$token) {
@@ -513,8 +584,17 @@ if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
                 'NOM_CAMPAGNE' => $currentCamp['title'],
                 'SURVEY_URL' => $surveyUrl
             ], $trackingUrl, []);
+
+            if (!$isTest) {
+                $satService->updateSentDate($token);
+                $satService->addAttempt($token, 'success');
+            }
+
             echo json_encode(['success' => true]);
         } catch (Exception $e) {
+            if (!$isTest && $token) {
+                $satService->addAttempt($token, 'error', $e->getMessage());
+            }
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
     }
