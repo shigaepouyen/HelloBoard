@@ -165,6 +165,56 @@
                 <?php endforeach; ?>
             </div>
 
+            <!-- SUIVI PAR CAMPAGNE -->
+            <div class="admin-card overflow-hidden mb-12">
+                <div class="p-8 bg-slate-50 border-b border-slate-100">
+                    <h3 class="text-xs font-black uppercase text-slate-400 italic tracking-widest">Suivi des envois par campagne</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="text-[10px] font-black uppercase text-slate-400 border-b border-slate-50">
+                                <th class="p-6">Campagne</th>
+                                <th class="p-6 text-center">Envoyés</th>
+                                <th class="p-6 text-center">Lus (%)</th>
+                                <th class="p-6 text-center">Réponses (%)</th>
+                                <th class="p-6 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-50">
+                            <?php if (empty($campaignSummary)): ?>
+                                <tr><td colspan="5" class="p-10 text-center text-slate-300 font-bold italic">Aucune donnée d'envoi.</td></tr>
+                            <?php else: foreach ($campaignSummary as $row):
+                                $cTitle = $row['campaign_slug'];
+                                foreach($localCampaigns as $lc) if($lc['slug'] === $row['campaign_slug']) $cTitle = $lc['title'];
+
+                                $readPct = $row['total_sent'] > 0 ? round(($row['total_read'] / $row['total_sent']) * 100) : 0;
+                                $repliedPct = $row['total_sent'] > 0 ? round(($row['total_replied'] / $row['total_sent']) * 100) : 0;
+                            ?>
+                                <tr class="hover:bg-slate-50/50 transition">
+                                    <td class="p-6">
+                                        <p class="font-black text-slate-800 text-sm"><?= htmlspecialchars($cTitle) ?></p>
+                                        <p class="text-[9px] text-slate-300 font-bold uppercase"><?= $row['campaign_slug'] ?></p>
+                                    </td>
+                                    <td class="p-6 text-center font-black text-slate-600"><?= $row['total_sent'] ?></td>
+                                    <td class="p-6 text-center">
+                                        <span class="font-black text-blue-600"><?= $readPct ?>%</span>
+                                        <p class="text-[8px] text-slate-300 font-bold uppercase"><?= $row['total_read'] ?> ouvertures</p>
+                                    </td>
+                                    <td class="p-6 text-center">
+                                        <span class="font-black text-emerald-600"><?= $repliedPct ?>%</span>
+                                        <p class="text-[8px] text-slate-300 font-bold uppercase"><?= $row['total_replied'] ?> réponses</p>
+                                    </td>
+                                    <td class="p-6 text-right">
+                                        <a href="admin.php?action=satisfaction&campaign=<?= $row['campaign_slug'] ?>" class="text-[10px] font-black uppercase text-blue-500 hover:underline">Gérer</a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- STATS PAR QUESTION -->
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12">
                 <?php for($i=1; $i<=5; $i++):

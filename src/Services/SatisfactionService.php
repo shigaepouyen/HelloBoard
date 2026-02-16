@@ -125,6 +125,17 @@ class SatisfactionService {
         return $token;
     }
 
+    public function getTokenByOrder($campaignSlug, $orderId) {
+        $stmt = $this->db->prepare("SELECT * FROM survey_tokens WHERE campaign_slug = ? AND order_id = ?");
+        $stmt->execute([$campaignSlug, $orderId]);
+        return $stmt->fetch();
+    }
+
+    public function updateSentDate($token) {
+        $stmt = $this->db->prepare("UPDATE survey_tokens SET sent_at = CURRENT_TIMESTAMP WHERE token = ?");
+        return $stmt->execute([$token]);
+    }
+
     public function isAlreadySent($campaignSlug, $orderId) {
         $stmt = $this->db->prepare("SELECT COUNT(*) FROM survey_tokens WHERE campaign_slug = ? AND order_id = ?");
         $stmt->execute([$campaignSlug, $orderId]);
@@ -272,5 +283,16 @@ class SatisfactionService {
             ];
         }
         return $result;
+    }
+
+    public function getSummaryPerCampaign() {
+        $sql = "SELECT campaign_slug,
+                COUNT(*) as total_sent,
+                COUNT(read_at) as total_read,
+                (SELECT COUNT(*) FROM survey_responses r WHERE r.token IN (SELECT token FROM survey_tokens t2 WHERE t2.campaign_slug = t.campaign_slug)) as total_replied
+                FROM survey_tokens t
+                GROUP BY campaign_slug";
+        $stmt = $this->db->query($sql);
+        return $stmt->fetchAll();
     }
 }
