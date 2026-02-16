@@ -166,7 +166,7 @@ if ($action === 'delete_attachment' && isset($_GET['campaign']) && isset($_GET['
     exit;
 }
 
-// Send One Email
+// Send One Email (Mailing module)
 if ($action === 'mailing_send_one' && isset($_POST['campaign'])) {
     header('Content-Type: application/json');
     $slug = $_POST['campaign'];
@@ -174,6 +174,7 @@ if ($action === 'mailing_send_one' && isset($_POST['campaign'])) {
     $firstName = $_POST['firstName'] ?? '';
     $lastName = $_POST['lastName'] ?? '';
     $isTest = isset($_POST['is_test']) && $_POST['is_test'] == '1';
+    $force = isset($_POST['force']) && $_POST['force'] == '1';
 
     $campaigns = Storage::listCampaigns();
     $currentCamp = null;
@@ -185,11 +186,13 @@ if ($action === 'mailing_send_one' && isset($_POST['campaign'])) {
 
         $history = Storage::getMailingHistory($slug);
         if (!$isTest && !empty($history[$targetEmail]['sent_at'])) {
-            echo json_encode(['success' => false, 'error' => 'Déjà envoyé']);
-            exit;
+            if (!$force) {
+                echo json_encode(['success' => false, 'error' => 'Déjà envoyé']);
+                exit;
+            }
         }
 
-        $token = bin2hex(random_bytes(16));
+        $token = $history[$targetEmail]['token'] ?? bin2hex(random_bytes(16));
         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http');
         $host = $_SERVER['HTTP_HOST'];
         $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
@@ -212,7 +215,7 @@ if ($action === 'mailing_send_one' && isset($_POST['campaign'])) {
                 $history[$targetEmail] = [
                     'sent_at' => date('Y-m-d H:i:s'),
                     'token' => $token,
-                    'read_at' => null
+                    'read_at' => $history[$targetEmail]['read_at'] ?? null
                 ];
                 Storage::saveMailingHistory($slug, $history);
             }
@@ -221,6 +224,26 @@ if ($action === 'mailing_send_one' && isset($_POST['campaign'])) {
         } catch (Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
+    }
+    exit;
+}
+
+// Export Mailing CSV
+if ($action === 'mailing_export_csv' && isset($_GET['campaign'])) {
+    $slug = $_GET['campaign'];
+    $history = Storage::getMailingHistory($slug);
+
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename=mailing_logs_' . $slug . '_' . date('Y-m-d') . '.csv');
+    $output = fopen('php://output', 'w');
+    fputcsv($output, ['Email', 'Dernier Envoi', 'Lu le'], ',', '"', "\\");
+
+    foreach ($history as $email => $h) {
+        fputcsv($output, [
+            $email,
+            $h['sent_at'] ?? '?',
+            $h['read_at'] ?? 'Non lu'
+        ], ',', '"', "\\");
     }
     exit;
 }
