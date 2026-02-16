@@ -6,6 +6,7 @@ class MailService {
     private $user;
     private $pass;
     private $fromName;
+    private $debugMode;
 
     public function __construct($config) {
         $this->host = $config['smtpHost'] ?? 'smtp.gmail.com';
@@ -13,6 +14,14 @@ class MailService {
         $this->user = $config['smtpUser'] ?? '';
         $this->pass = $config['smtpPass'] ?? '';
         $this->fromName = $config['smtpFromName'] ?? 'HelloBoard';
+        $this->debugMode = $config['debugMode'] ?? false;
+    }
+
+    private function log($message) {
+        if (!$this->debugMode) return;
+        $dir = __DIR__ . '/../../logs';
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        file_put_contents($dir . '/debug_mail.log', date('[Y-m-d H:i:s] ') . $message . "\n", FILE_APPEND);
     }
 
     public function send($to, $subject, $body, $vars = [], $trackingUrl = '', $attachments = []) {
@@ -41,10 +50,14 @@ class MailService {
     }
 
     private function smtpSend($to, $subject, $body, $attachments = []) {
+        $this->log("Tentative d'envoi à: $to");
         $timeout = 10;
         $hostPrefix = ($this->port === 465) ? 'ssl://' : 'tcp://';
         $socket = stream_socket_client($hostPrefix . $this->host . ':' . $this->port, $errno, $errstr, $timeout);
-        if (!$socket) throw new Exception("Connexion SMTP échouée: $errstr");
+        if (!$socket) {
+            $this->log("Connexion échouée: $errstr");
+            throw new Exception("Connexion SMTP échouée: $errstr");
+        }
         stream_set_timeout($socket, 10);
 
         $this->expect($socket, '220');
@@ -57,6 +70,7 @@ class MailService {
             $this->sendCmd($socket, "STARTTLS");
             $this->expect($socket, '220');
             if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+                $this->log("Échec de l'activation TLS");
                 throw new Exception("Échec de l'activation TLS");
             }
             stream_set_timeout($socket, 10);
@@ -67,9 +81,9 @@ class MailService {
         if ($this->user && $this->pass) {
             $this->sendCmd($socket, "AUTH LOGIN");
             $this->expect($socket, '334');
-            $this->sendCmd($socket, base64_encode($this->user));
+            $this->sendCmd($socket, base64_encode($this->user), true);
             $this->expect($socket, '334');
-            $this->sendCmd($socket, base64_encode($this->pass));
+            $this->sendCmd($socket, base64_encode($this->pass), true);
             $this->expect($socket, '235');
         }
 
@@ -118,11 +132,13 @@ class MailService {
 
         $this->sendCmd($socket, "QUIT");
         fclose($socket);
+        $this->log("Email envoyé avec succès.");
 
         return true;
     }
 
-    private function sendCmd($socket, $cmd) {
+    private function sendCmd($socket, $cmd, $isSecret = false) {
+        $this->log("> " . ($isSecret ? "******" : $cmd));
         fwrite($socket, $cmd . "\r\n");
     }
 
@@ -132,7 +148,9 @@ class MailService {
             $response .= $line;
             if (isset($line[3]) && $line[3] == ' ') break;
         }
+        $this->log("< " . trim($response));
         if (strpos($response, $code) !== 0) {
+            $this->log("ERREUR: Attendu $code");
             throw new Exception("Erreur SMTP: attendu $code, reçu " . $response);
         }
     }

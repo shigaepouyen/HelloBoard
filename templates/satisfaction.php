@@ -145,7 +145,12 @@
 
                 <!-- FILTRES ET LISTE -->
                 <div class="admin-card p-8">
-                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Liste des payeurs</h3>
+                    <div class="flex justify-between items-start mb-6 border-b border-slate-50 pb-4">
+                        <h3 class="text-xs font-black uppercase text-slate-400 italic tracking-widest">Liste des payeurs</h3>
+                        <a href="admin.php?action=satisfaction_export_csv&campaign=<?= $slug ?>" class="text-[9px] font-black uppercase text-blue-500 hover:underline">
+                            <i class="fa-solid fa-file-csv mr-1"></i> Export Logs
+                        </a>
+                    </div>
 
                     <div class="space-y-4 mb-6">
                         <div class="flex items-center justify-between">
@@ -176,6 +181,19 @@
                         <input type="email" id="test-email" class="input-soft !bg-white !text-[10px] !py-3" placeholder="Email de test">
                         <button onclick="sendTest()" id="btn-send-test" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-blue-200 hover:bg-blue-700 transition flex items-center justify-center gap-2">
                             <i class="fa-solid fa-paper-plane"></i> Tester le rendu
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ENVOI MANUEL (UNITAIRE) -->
+                <div class="admin-card p-8 border-emerald-100 bg-emerald-50/20">
+                    <h3 class="text-xs font-black uppercase text-emerald-600 mb-6 italic tracking-widest border-b border-emerald-50 pb-4">Envoi manuel unitaire</h3>
+                    <div class="space-y-3">
+                        <input type="text" id="manual-firstname" class="input-soft !bg-white !text-[10px] !py-3" placeholder="Prénom">
+                        <input type="text" id="manual-lastname" class="input-soft !bg-white !text-[10px] !py-3" placeholder="Nom">
+                        <input type="email" id="manual-email" class="input-soft !bg-white !text-[10px] !py-3" placeholder="Email du destinataire">
+                        <button onclick="sendManual()" id="btn-send-manual" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-user-plus"></i> Envoyer le questionnaire
                         </button>
                     </div>
                 </div>
@@ -354,9 +372,15 @@
 
                     let statusHtml = `
                         <div class="flex gap-1 shrink-0">
-                            <span class="w-6 h-6 flex items-center justify-center rounded-lg ${isSent ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-400'}" title="${isSent ? 'Envoyé le ' + haToken.sent_at : 'Non envoyé'}">
-                                <i class="fa-solid fa-paper-plane"></i>
-                            </span>
+                            ${isSent ? `
+                                <button onclick="resendOne('${r.orderId}', '${r.email}', '${r.firstName.replace(/'/g, "\\'")}', '${r.lastName.replace(/'/g, "\\'")}', '${r.itemName.replace(/'/g, "\\'")}')" class="w-6 h-6 flex items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-500 hover:text-white transition" title="Déjà envoyé le ${haToken.sent_at}. Cliquez pour renvoyer.">
+                                    <i class="fa-solid fa-sync-alt text-[8px]"></i>
+                                </button>
+                            ` : `
+                                <span class="w-6 h-6 flex items-center justify-center rounded-lg bg-slate-200 text-slate-400" title="Non envoyé">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                </span>
+                            `}
                             <span class="w-6 h-6 flex items-center justify-center rounded-lg ${isRead ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-400'}" title="${isRead ? 'Lu le ' + haToken.read_at : 'Non lu'}">
                                 <i class="fa-solid fa-eye"></i>
                             </span>
@@ -419,6 +443,81 @@
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = oldHtml;
+            }
+        }
+
+        async function sendManual() {
+            const email = document.getElementById('manual-email').value;
+            const firstName = document.getElementById('manual-firstname').value;
+            const lastName = document.getElementById('manual-lastname').value;
+            if (!email || !firstName || !lastName) return notify("Tous les champs sont requis.", "error");
+
+            const btn = document.getElementById('btn-send-manual');
+            const oldHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+
+            try {
+                const res = await fetch('admin.php?action=satisfaction_send_one', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        campaign: campaign,
+                        email: email,
+                        firstName: firstName,
+                        lastName: lastName,
+                        itemName: "Envoi manuel",
+                        subject: document.getElementById('email-subject').value,
+                        body: document.getElementById('email-body').value
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    notify("Email envoyé !", "success");
+                    document.getElementById('manual-email').value = "";
+                    document.getElementById('manual-firstname').value = "";
+                    document.getElementById('manual-lastname').value = "";
+                    fetchRecipients();
+                } else {
+                    notify("Erreur : " + data.error, "error");
+                }
+            } catch (e) {
+                notify("Erreur technique.", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = oldHtml;
+            }
+        }
+
+        async function resendOne(orderId, email, firstName, lastName, itemName) {
+            if (!confirm(`Renvoyer l'email à ${email} ?`)) return;
+
+            notify("Renvoi en cours...", "info");
+
+            try {
+                const res = await fetch('admin.php?action=satisfaction_send_one', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        campaign: campaign,
+                        orderId: orderId,
+                        email: email,
+                        firstName: firstName,
+                        lastName: lastName,
+                        itemName: itemName,
+                        subject: document.getElementById('email-subject').value,
+                        body: document.getElementById('email-body').value,
+                        force: '1'
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    notify("Email renvoyé avec succès !", "success");
+                } else {
+                    notify("Erreur : " + data.error, "error");
+                }
+            } catch (e) {
+                notify("Erreur technique.", "error");
             }
         }
 

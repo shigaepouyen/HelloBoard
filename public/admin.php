@@ -83,7 +83,12 @@ if ($action === 'delete' && isset($_GET['campaign'])) {
 // Clear logs
 if ($action === 'clear_log') {
     $type = $_GET['type'] ?? 'helloasso';
-    $logFile = __DIR__ . '/../logs/' . ($type === 'ai' ? 'debug_ai.log' : 'debug_helloasso.log');
+    $files = [
+        'ai' => 'debug_ai.log',
+        'helloasso' => 'debug_helloasso.log',
+        'mail' => 'debug_mail.log'
+    ];
+    $logFile = __DIR__ . '/../logs/' . ($files[$type] ?? 'debug_helloasso.log');
     if (file_exists($logFile)) unlink($logFile);
     header('Location: admin.php?action=settings'); exit;
 }
@@ -91,7 +96,12 @@ if ($action === 'clear_log') {
 // Download logs
 if ($action === 'dl_log') {
     $type = $_GET['type'] ?? 'helloasso';
-    $logFile = __DIR__ . '/../logs/' . ($type === 'ai' ? 'debug_ai.log' : 'debug_helloasso.log');
+    $files = [
+        'ai' => 'debug_ai.log',
+        'helloasso' => 'debug_helloasso.log',
+        'mail' => 'debug_mail.log'
+    ];
+    $logFile = __DIR__ . '/../logs/' . ($files[$type] ?? 'debug_helloasso.log');
     if (file_exists($logFile)) {
         header('Content-Type: text/plain'); header('Content-Disposition: attachment; filename="' . basename($logFile) . '"');
         readfile($logFile); exit;
@@ -229,6 +239,7 @@ if ($action === 'satisfaction_global') {
     $stats = $satService->getStats($filterSlug);
     $statsBySource = $satService->getStatsBySource($filterSlug);
     $responses = $satService->getResponsesByCampaign($filterSlug);
+    $campaignSummary = $satService->getSummaryPerCampaign();
     include __DIR__ . '/../templates/satisfaction_global.php';
     exit;
 }
@@ -364,6 +375,7 @@ if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
     $lastName = $_POST['lastName'] ?? '';
     $itemName = $_POST['itemName'] ?? '';
     $isTest = isset($_POST['is_test']) && $_POST['is_test'] == '1';
+    $force = isset($_POST['force']) && $_POST['force'] == '1';
 
     $currentCamp = null;
     foreach($localCampaigns as $c) { if($c['slug'] === $slug) $currentCamp = $c; }
@@ -373,12 +385,20 @@ if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
         $mailer = new MailService($globals);
         $satService = new SatisfactionService();
 
+        $token = null;
         if (!$isTest && $satService->isAlreadySent($slug, $orderId)) {
-            echo json_encode(['success' => false, 'error' => 'Déjà envoyé']);
-            exit;
+            if (!$force) {
+                echo json_encode(['success' => false, 'error' => 'Déjà envoyé']);
+                exit;
+            }
+            $existing = $satService->getTokenByOrder($slug, $orderId);
+            $token = $existing['token'] ?? null;
+            if ($token) $satService->updateSentDate($token);
         }
 
-        $token = $satService->generateToken($slug, $orderId, $email, trim($firstName . ' ' . $lastName), $itemName);
+        if (!$token) {
+            $token = $satService->generateToken($slug, $orderId, $email, trim($firstName . ' ' . $lastName), $itemName);
+        }
 
         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http');
         $host = $_SERVER['HTTP_HOST'];
@@ -402,6 +422,47 @@ if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
         } catch (Exception $e) {
             echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
+    }
+    exit;
+}
+
+// Export Satisfaction CSV
+if ($action === 'satisfaction_export_csv' && isset($_GET['campaign'])) {
+    $slug = $_GET['campaign'];
+    $satService = new SatisfactionService();
+    $tokens = $satService->getTokensByCampaign($slug);
+    $responses = $satService->getResponsesByCampaign($slug);
+    $respMap = [];
+    foreach($responses as $r) { $respMap[$r['token']] = $r; }
+
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename=satisfaction_logs_' . $slug . '_' . date('Y-m-d') . '.csv');
+    $output = fopen('php://output', 'w');
+    fputcsv($output, ['Date Envoi', 'Nom', 'Email', 'Objet HelloAsso', 'Lu le', 'Répondu le', 'Score Moyen'], ',', '"', "\\");
+
+    foreach ($tokens as $t) {
+        $resp = $respMap[$t['token']] ?? null;
+        $avg = null;
+        if ($resp) {
+            $sum = 0; $countQ = 0;
+            for($i=1; $i<=5; $i++) {
+                if (isset($resp['q'.$i]) && $resp['q'.$i] !== null) {
+                    $sum += (int)$resp['q'.$i];
+                    $countQ++;
+                }
+            }
+            $avg = ($countQ > 0) ? round(($sum - $countQ) / ($countQ * 4.0) * 100) . '%' : '';
+        }
+
+        fputcsv($output, [
+            $t['sent_at'],
+            $t['payer_name'],
+            $t['email'],
+            $t['item_name'],
+            $t['read_at'] ?? 'Non lu',
+            $resp ? $resp['submitted_at'] : 'Non répondu',
+            $avg
+        ], ',', '"', "\\");
     }
     exit;
 }
@@ -953,6 +1014,17 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
                                                 <span class="text-[9px] font-black text-slate-400 uppercase">Mistral AI :</span>
                                                 <a href="admin.php?action=dl_log&type=ai" class="bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-slate-50 transition">Télécharger</a>
                                                 <a href="admin.php?action=clear_log&type=ai" class="bg-red-50 text-red-500 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-red-500 hover:text-white transition">Effacer</a>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <?php
+                                        $logFileMail = __DIR__ . '/../logs/debug_mail.log';
+                                        if(file_exists($logFileMail)):
+                                        ?>
+                                            <div class="flex items-center gap-2 justify-end">
+                                                <span class="text-[9px] font-black text-slate-400 uppercase">Emails (SMTP) :</span>
+                                                <a href="admin.php?action=dl_log&type=mail" class="bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-slate-50 transition">Télécharger</a>
+                                                <a href="admin.php?action=clear_log&type=mail" class="bg-red-50 text-red-500 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase hover:bg-red-500 hover:text-white transition">Effacer</a>
                                             </div>
                                         <?php endif; ?>
                                     </div>
