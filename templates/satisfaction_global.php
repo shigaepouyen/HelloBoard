@@ -316,8 +316,17 @@
                             <div class="flex flex-col md:flex-row justify-between gap-6">
                                 <div class="flex-1">
                                     <div class="flex items-center gap-3 mb-2">
-                                        <h4 class="font-black text-slate-800">Avis de <?= htmlspecialchars($r['payer_name']) ?></h4>
-                                        <span class="text-[9px] font-black px-2 py-0.5 rounded bg-slate-100 text-slate-400 uppercase"><?= htmlspecialchars($r['email']) ?></span>
+                                        <?php
+                                            $nameParts = explode(' ', trim($r['payer_name']));
+                                            $fName = $nameParts[0] ?? '';
+                                            $lInitial = isset($nameParts[1]) ? ' ' . mb_substr($nameParts[1], 0, 1) . '.' : '';
+                                            $anonymizedName = $fName . $lInitial;
+                                        ?>
+                                        <h4 class="font-black text-slate-800">
+                                            <span class="print:hidden">Avis de <?= htmlspecialchars($r['payer_name']) ?></span>
+                                            <span class="hidden print:inline">Avis de <?= htmlspecialchars($anonymizedName) ?></span>
+                                        </h4>
+                                        <span class="text-[9px] font-black px-2 py-0.5 rounded bg-slate-100 text-slate-400 uppercase print:hidden"><?= htmlspecialchars($r['email']) ?></span>
                                     </div>
                                     <p class="text-[10px] text-slate-400 font-bold uppercase mb-4 italic">
                                         <i class="fa-solid fa-shopping-bag mr-1"></i> <?= htmlspecialchars($r['item_name']) ?>
