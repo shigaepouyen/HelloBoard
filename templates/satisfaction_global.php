@@ -29,7 +29,7 @@
             /* Masquer les éléments inutiles */
             nav, .mb-10 > div:last-child, button, .text-right a, .fa-trash-can, #global-loader,
             #ai-modal .fixed.inset-0.bg-slate-900\/60,
-            #ai-modal .p-8.border-b,
+            #ai-modal .p-8.border-b button,
             #ai-modal .p-6.bg-slate-50,
             .divide-y .flex.gap-2 {
                 display: none !important;
@@ -55,16 +55,19 @@
                 box-shadow: none !important;
                 z-index: auto !important;
                 order: -1 !important;
+                break-after: page !important;
+                page-break-after: always !important;
             }
             #ai-modal:not(.is-ready-for-print) { display: none !important; }
 
             #ai-modal .bg-white {
-                border: 1px solid #eee !important;
-                border-radius: 2rem !important;
-                margin-bottom: 2rem !important;
+                border: none !important;
+                margin-bottom: 0 !important;
                 box-shadow: none !important;
             }
+            #ai-modal .p-8.border-b { border: none !important; padding-left: 0 !important; padding-right: 0 !important; }
             #ai-modal .flex-1 { padding: 0 !important; overflow: visible !important; }
+            #ai-modal-content { font-size: 11pt !important; line-height: 1.6 !important; color: black !important; }
 
             /* Grid layout fixes for print */
             .grid { display: grid !important; gap: 1rem !important; }
@@ -75,7 +78,9 @@
             .lg\:grid-cols-5 { grid-template-columns: repeat(5, 1fr) !important; }
 
             /* Verbatims */
-            .admin-card { border: 1px solid #eee !important; border-radius: 2rem !important; break-inside: avoid; }
+            .admin-card { border: 1px solid #eee !important; border-radius: 2rem !important; }
+            .grid .admin-card { break-inside: avoid; } /* Avoid breaking KPI cards */
+            .divide-y > div { break-inside: avoid; padding: 1.5rem 0 !important; border-bottom: 1px solid #eee !important; }
             [id^="details-"] { display: block !important; }
             .p-8 { padding: 1.5rem !important; }
 
