@@ -79,13 +79,21 @@
             .md\:grid-cols-3 { grid-template-columns: repeat(3, 1fr) !important; }
             .lg\:grid-cols-4 { grid-template-columns: repeat(4, 1fr) !important; }
             .lg\:grid-cols-5 { grid-template-columns: repeat(5, 1fr) !important; }
+            .print\:grid-cols-5 { grid-template-columns: repeat(5, 1fr) !important; }
 
             /* Verbatims */
             .admin-card { border: 1px solid #eee !important; border-radius: 2rem !important; }
             .grid .admin-card { break-inside: avoid; } /* Avoid breaking KPI cards */
-            .divide-y > div { break-inside: avoid; padding: 1.5rem 0 !important; border-bottom: 1px solid #eee !important; }
+            .divide-y > div { break-inside: avoid; padding: 1rem 0 !important; border-bottom: 1px solid #eee !important; }
             [id^="details-"] { display: block !important; }
             .p-8 { padding: 1.5rem !important; }
+            .print\:p-8 { padding: 0.75rem !important; }
+
+            /* Labels des questions plus petits en print pour gagner de la place */
+            [id^="details-"] p { font-size: 7px !important; line-height: 1.1 !important; height: 16px !important; margin-bottom: 4px !important; }
+            [id^="details-"] .fa-star { font-size: 8px !important; }
+            [id^="details-"] span { font-size: 11px !important; }
+            [id^="details-"] > div { gap: 0.5rem !important; }
 
             /* Page breaks */
             h2, h3 { break-after: avoid; }
@@ -201,7 +209,7 @@
     </div>
 
             <!-- KPI CARDS -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 print:grid-cols-4 gap-6 mb-12">
                 <div class="admin-card p-8 flex flex-col justify-center items-center text-center">
                     <p class="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2 italic">Score CSAT Global</p>
                     <h3 class="text-5xl font-black <?= $stats['avg_csat'] >= 75 ? 'text-emerald-500' : ($stats['avg_csat'] >= 50 ? 'text-amber-500' : 'text-red-500') ?>">
@@ -285,7 +293,7 @@
             </div>
 
             <!-- STATS PAR QUESTION -->
-            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-12">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 print:grid-cols-5 gap-4 mb-12">
                 <?php for($i=1; $i<=5; $i++):
                     $avg = $stats['avg_q'.$i] ?? 0;
                     $label = ($questions && isset($questions[$i-1])) ? $questions[$i-1]['label'] : $genericLabels[$i-1];
@@ -320,33 +328,39 @@
                         }
                         $avg = ($countQ > 0) ? ($sum - $countQ) / ($countQ * 4.0) * 100.0 : 0;
                     ?>
-                        <div class="p-8 hover:bg-slate-50 transition group">
-                            <div class="flex flex-col md:flex-row justify-between gap-6">
+                        <div class="p-8 hover:bg-slate-50 transition group print:p-0">
+                            <div class="flex flex-col md:flex-row justify-between gap-6 print:gap-2">
                                 <div class="flex-1">
-                                    <div class="flex items-center gap-3 mb-2">
+                                    <div class="flex items-center justify-between md:justify-start gap-3 mb-2 print:mb-1">
                                         <?php
                                             $nameParts = explode(' ', trim($r['payer_name']));
                                             $fName = $nameParts[0] ?? '';
                                             $lInitial = isset($nameParts[1]) ? ' ' . mb_substr($nameParts[1], 0, 1) . '.' : '';
                                             $anonymizedName = $fName . $lInitial;
                                         ?>
-                                        <h4 class="font-black text-slate-800">
-                                            <span class="print:hidden">Avis de <?= htmlspecialchars($r['payer_name']) ?></span>
-                                            <span class="hidden print:inline">Avis de <?= htmlspecialchars($anonymizedName) ?></span>
-                                        </h4>
-                                        <span class="text-[9px] font-black px-2 py-0.5 rounded bg-slate-100 text-slate-400 uppercase print:hidden"><?= htmlspecialchars($r['email']) ?></span>
+                                        <div class="flex items-center gap-3">
+                                            <h4 class="font-black text-slate-800">
+                                                <span class="print:hidden">Avis de <?= htmlspecialchars($r['payer_name']) ?></span>
+                                                <span class="hidden print:inline text-sm">Avis de <?= htmlspecialchars($anonymizedName) ?></span>
+                                            </h4>
+                                            <span class="text-[9px] font-black px-2 py-0.5 rounded bg-slate-100 text-slate-400 uppercase print:hidden"><?= htmlspecialchars($r['email']) ?></span>
+                                        </div>
+                                        <div class="hidden print:flex items-center gap-4">
+                                            <span class="text-xl font-black <?= $avg >= 75 ? 'text-emerald-500' : ($avg >= 50 ? 'text-amber-500' : 'text-red-500') ?>"><?= round($avg) ?>%</span>
+                                            <span class="text-[9px] text-slate-300 font-black uppercase"><?= date('d/m/Y', strtotime($r['submitted_at'])) ?></span>
+                                        </div>
                                     </div>
-                                    <p class="text-[10px] text-slate-400 font-bold uppercase mb-4 italic">
+                                    <p class="text-[10px] text-slate-400 font-bold uppercase mb-4 italic print:mb-2 print:text-[8px]">
                                         <i class="fa-solid fa-shopping-bag mr-1"></i> <?= htmlspecialchars($r['item_name']) ?>
                                     </p>
                                     <?php if (isset($r['comment']) && $r['comment'] !== ''): ?>
-                                        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm italic text-slate-600 leading-relaxed">
+                                        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm italic text-slate-600 leading-relaxed print:p-3 print:rounded-xl print:text-sm print:border-slate-50">
                                             "<?= htmlspecialchars($r['comment']) ?>."
                                         </div>
                                     <?php endif; ?>
                                     <!-- Détails des réponses -->
-                                    <div id="details-<?= $r['token'] ?>" class="hidden mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-fade-in">
-                                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                                    <div id="details-<?= $r['token'] ?>" class="hidden mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-fade-in print:mt-2 print:p-2 print:bg-transparent print:border-none">
+                                        <div class="grid grid-cols-1 md:grid-cols-5 print:grid-cols-5 gap-4 print:gap-2">
                                             <?php
                                             $qLabels = $campaignsQuestions[$r['campaign_slug']] ?? $genericLabels;
                                             for($i=1; $i<=5; $i++):
@@ -365,7 +379,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="w-full md:w-48 flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-2">
+                                <div class="w-full md:w-48 flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-2 print:hidden">
                                     <div class="flex items-center gap-3">
                                         <div class="text-right">
                                             <div class="text-3xl font-black <?= $avg >= 75 ? 'text-emerald-500' : ($avg >= 50 ? 'text-amber-500' : 'text-red-500') ?>">
