@@ -64,6 +64,9 @@
                 border: none !important;
                 margin-bottom: 0 !important;
                 box-shadow: none !important;
+                max-height: none !important;
+                overflow: visible !important;
+                display: block !important;
             }
             #ai-modal .p-8.border-b { border: none !important; padding-left: 0 !important; padding-right: 0 !important; }
             #ai-modal .flex-1 { padding: 0 !important; overflow: visible !important; }
