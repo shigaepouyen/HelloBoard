@@ -24,6 +24,72 @@
         .prose-ai strong { font-weight: 800; color: #312e81; }
         .prose-ai em { font-style: italic; }
         .prose-ai blockquote { border-left: 4px solid #e0e7ff; padding-left: 1rem; font-style: italic; margin-bottom: 1rem; color: #4338ca; }
+
+        @media print {
+            /* Masquer les éléments inutiles */
+            nav, .mb-10 > div:last-child, button, .text-right a, .fa-trash-can, #global-loader,
+            #ai-modal .fixed.inset-0.bg-slate-900\/60,
+            #ai-modal .p-8.border-b button,
+            #ai-modal .p-6.bg-slate-50,
+            .divide-y .flex.gap-2 {
+                display: none !important;
+            }
+
+            body { background: white !important; padding-bottom: 0 !important; }
+            .max-w-6xl { max-width: 100% !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }
+            main { padding: 0 !important; display: flex !important; flex-direction: column !important; }
+            .animate-fade-in { animation: none !important; transform: none !important; display: flex !important; flex-direction: column !important; }
+
+            /* Section Analyse IA - En haut lors de l'impression */
+            .mb-10 { order: -2 !important; }
+            #ai-modal {
+                display: block !important;
+                position: static !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                inset: auto !important;
+                width: 100% !important;
+                max-width: none !important;
+                max-height: none !important;
+                overflow: visible !important;
+                box-shadow: none !important;
+                z-index: auto !important;
+                order: -1 !important;
+                break-after: page !important;
+                page-break-after: always !important;
+            }
+            #ai-modal:not(.is-ready-for-print) { display: none !important; }
+
+            #ai-modal .bg-white {
+                border: none !important;
+                margin-bottom: 0 !important;
+                box-shadow: none !important;
+                max-height: none !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+            #ai-modal .p-8.border-b { border: none !important; padding-left: 0 !important; padding-right: 0 !important; }
+            #ai-modal .flex-1 { padding: 0 !important; overflow: visible !important; }
+            #ai-modal-content { font-size: 11pt !important; line-height: 1.6 !important; color: black !important; }
+
+            /* Grid layout fixes for print */
+            .grid { display: grid !important; gap: 1rem !important; }
+            .md\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
+            .md\:grid-cols-4 { grid-template-columns: repeat(4, 1fr) !important; }
+            .md\:grid-cols-3 { grid-template-columns: repeat(3, 1fr) !important; }
+            .lg\:grid-cols-4 { grid-template-columns: repeat(4, 1fr) !important; }
+            .lg\:grid-cols-5 { grid-template-columns: repeat(5, 1fr) !important; }
+
+            /* Verbatims */
+            .admin-card { border: 1px solid #eee !important; border-radius: 2rem !important; }
+            .grid .admin-card { break-inside: avoid; } /* Avoid breaking KPI cards */
+            .divide-y > div { break-inside: avoid; padding: 1.5rem 0 !important; border-bottom: 1px solid #eee !important; }
+            [id^="details-"] { display: block !important; }
+            .p-8 { padding: 1.5rem !important; }
+
+            /* Page breaks */
+            h2, h3 { break-after: avoid; }
+        }
     </style>
 </head>
 <body class="pb-32">
@@ -91,6 +157,9 @@
                     <?php if ($filterSlug): ?>
                         <button onclick="analyzeSatisfaction()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-700 transition shadow-lg shadow-indigo-100 flex items-center gap-2">
                             <i class="fa-solid fa-wand-magic-sparkles"></i> Analyse IA
+                        </button>
+                        <button onclick="printSatisfaction()" class="bg-slate-800 text-white px-6 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-900 transition shadow-lg flex items-center gap-2">
+                            <i class="fa-solid fa-print"></i> Imprimer
                         </button>
                     <?php endif; ?>
                     <a href="admin.php" class="text-xs font-black text-slate-400 uppercase hover:text-slate-900 transition">Retour</a>
@@ -255,8 +324,17 @@
                             <div class="flex flex-col md:flex-row justify-between gap-6">
                                 <div class="flex-1">
                                     <div class="flex items-center gap-3 mb-2">
-                                        <h4 class="font-black text-slate-800">Avis de <?= htmlspecialchars($r['payer_name']) ?></h4>
-                                        <span class="text-[9px] font-black px-2 py-0.5 rounded bg-slate-100 text-slate-400 uppercase"><?= htmlspecialchars($r['email']) ?></span>
+                                        <?php
+                                            $nameParts = explode(' ', trim($r['payer_name']));
+                                            $fName = $nameParts[0] ?? '';
+                                            $lInitial = isset($nameParts[1]) ? ' ' . mb_substr($nameParts[1], 0, 1) . '.' : '';
+                                            $anonymizedName = $fName . $lInitial;
+                                        ?>
+                                        <h4 class="font-black text-slate-800">
+                                            <span class="print:hidden">Avis de <?= htmlspecialchars($r['payer_name']) ?></span>
+                                            <span class="hidden print:inline">Avis de <?= htmlspecialchars($anonymizedName) ?></span>
+                                        </h4>
+                                        <span class="text-[9px] font-black px-2 py-0.5 rounded bg-slate-100 text-slate-400 uppercase print:hidden"><?= htmlspecialchars($r['email']) ?></span>
                                     </div>
                                     <p class="text-[10px] text-slate-400 font-bold uppercase mb-4 italic">
                                         <i class="fa-solid fa-shopping-bag mr-1"></i> <?= htmlspecialchars($r['item_name']) ?>
@@ -347,6 +425,29 @@
     function closeAiModal() {
         document.getElementById('ai-modal').classList.add('hidden');
         document.body.style.overflow = '';
+    }
+
+    async function printSatisfaction() {
+        const campaignSlug = '<?= $filterSlug ?>';
+        if (!campaignSlug) return;
+
+        const content = document.getElementById('ai-modal-content');
+        const modal = document.getElementById('ai-modal');
+
+        // Si l'analyse n'est pas chargée ou vide
+        if (!content.innerText.trim() || content.innerText === 'Chargement...') {
+            await analyzeSatisfaction();
+        }
+
+        // On marque le modal comme prêt pour l'impression (pour le CSS)
+        modal.classList.add('is-ready-for-print');
+
+        // Petit délai pour s'assurer que le rendu est fini
+        setTimeout(() => {
+            window.print();
+            // On nettoie après l'impression (certains navigateurs bloquent le JS pendant l'impression)
+            modal.classList.remove('is-ready-for-print');
+        }, 500);
     }
 
     async function analyzeSatisfaction(refresh = false) {

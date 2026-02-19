@@ -81,21 +81,21 @@ class AiService {
         Voici les données brutes des réponses (notes sur 5 et verbatims) :
         $formattedResponses
 
-        Ton analyse doit être structurée ainsi :
+        Ton analyse doit être parfaitement structurée, cohérente et fluide.
+        Elle doit être organisée ainsi :
         1. Synthèse globale de la satisfaction.
         2. Signaux forts (points positifs marquants).
         3. Signaux faibles et axes d'amélioration.
         4. Recommandations concrètes pour l'association.
-        5. Conseils et pistes pour aller plus loin (basés sur les retours).
 
         Règles importantes :
+        - STRUCTURE ET COHÉRENCE : Assure-toi que l'analyse suit une progression logique. Évite les redondances entre les sections.
+        - CITATIONS : Tu peux citer des passages de verbatims pour illustrer tes points, mais NE RÉPÈTE JAMAIS la même citation plusieurs fois dans le rapport. Choisis les plus pertinentes.
         - CONFIDENTIALITÉ : Ne cite JAMAIS de noms ou prénoms de personnes dans ton rapport, même s'ils apparaissent dans les commentaires. Utilise des termes génériques (ex: \"un participant\", \"un parent\").
-        - Sois constructif, analytique et bienveillant.
-        - Cite des passages de verbatims pour illustrer tes points.
-        - Utilise un ton professionnel adapté au monde associatif.
-        - N'hésite pas à souligner des points spécifiques à la jeunesse si pertinent.
-        - Produis du texte clair, tu peux utiliser des tirets pour les listes.
-        - Ne dépasse pas 500 mots.";
+        - TON : Utilise un ton professionnel, constructif et bienveillant, adapté au monde associatif.
+        - Jeunesse : N'hésite pas à souligner des points spécifiques à la jeunesse si pertinent.
+        - FORMAT : Produis du texte clair avec une mise en forme Markdown légère (gras, listes à puces) pour faciliter la lecture.
+        - LIMITE : Ne dépasse pas 500 mots.";
 
         return $this->callMistral($systemPrompt, "Peux-tu me faire l'analyse de cette campagne ?", 0.5, "SATISFACTION_ANALYSIS $campaignTitle");
     }
