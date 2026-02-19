@@ -86,7 +86,6 @@ class AiService {
         2. Signaux forts (points positifs marquants).
         3. Signaux faibles et axes d'amélioration.
         4. Recommandations concrètes pour l'association.
-        5. Conseils et pistes pour aller plus loin (basés sur les retours).
 
         Règles importantes :
         - CONFIDENTIALITÉ : Ne cite JAMAIS de noms ou prénoms de personnes dans ton rapport, même s'ils apparaissent dans les commentaires. Utilise des termes génériques (ex: \"un participant\", \"un parent\").
