@@ -96,6 +96,8 @@
             .print\:mt-0 { margin-top: 0 !important; }
             .print\:mt-4 { margin-top: 1rem !important; }
             .print\:p-0 { padding: 0 !important; }
+            .print\:px-6 { padding-left: 1.5rem !important; padding-right: 1.5rem !important; }
+            .print\:py-4 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
             .print\:pl-6 { padding-left: 1.5rem !important; }
             .print\:gap-2 { gap: 0.5rem !important; }
             .print\:gap-4 { gap: 1rem !important; }
@@ -367,7 +369,7 @@
                         }
                         $avg = ($countQ > 0) ? ($sum - $countQ) / ($countQ * 4.0) * 100.0 : 0;
                     ?>
-                        <div class="p-8 hover:bg-slate-50 transition group print:p-0">
+                        <div class="p-8 hover:bg-slate-50 transition group print:px-6 print:py-4">
                             <div class="flex flex-col md:flex-row justify-between gap-6 print:gap-2">
                                 <div class="flex-1">
                                     <div class="flex items-center justify-between md:justify-start gap-3 mb-2 print:mb-1">
