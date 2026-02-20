@@ -89,11 +89,17 @@
             .p-8 { padding: 1.5rem !important; }
             .print\:p-8 { padding: 0.75rem !important; }
 
-            /* Labels des questions plus petits en print pour gagner de la place */
-            [id^="details-"] p { font-size: 7px !important; line-height: 1.1 !important; height: 16px !important; margin-bottom: 4px !important; }
-            [id^="details-"] .fa-star { font-size: 8px !important; }
-            [id^="details-"] span { font-size: 11px !important; }
-            [id^="details-"] > div { gap: 0.5rem !important; }
+            /* Expert Print Style */
+            [id^="details-"] { display: block !important; margin-top: 0 !important; padding: 0 !important; background: transparent !important; border: none !important; }
+            [id^="details-"] p { font-size: 8pt !important; line-height: 1.2 !important; height: auto !important; margin-bottom: 0 !important; text-transform: none !important; letter-spacing: normal !important; font-weight: 600 !important; color: #475569 !important; text-align: left !important; }
+            [id^="details-"] .fa-star { font-size: 7pt !important; }
+            [id^="details-"] span { font-size: 9pt !important; }
+            [id^="details-"] .grid { gap: 0.5rem 1.5rem !important; }
+
+            .print\:border-l-4 { border-left: 4px solid #f1f5f9 !important; }
+            .print\:italic { font-style: italic !important; }
+            .print\:text-slate-600 { color: #475569 !important; }
+            .print\:leading-relaxed { line-height: 1.6 !important; }
 
             /* Page breaks */
             h2, h3 { break-after: avoid; }
@@ -353,29 +359,41 @@
                                     <p class="text-[10px] text-slate-400 font-bold uppercase mb-4 italic print:mb-2 print:text-[8px]">
                                         <i class="fa-solid fa-shopping-bag mr-1"></i> <?= htmlspecialchars($r['item_name']) ?>
                                     </p>
-                                    <?php if (isset($r['comment']) && $r['comment'] !== ''): ?>
-                                        <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm italic text-slate-600 leading-relaxed print:p-3 print:rounded-xl print:text-sm print:border-slate-50">
-                                            "<?= htmlspecialchars($r['comment']) ?>."
-                                        </div>
-                                    <?php endif; ?>
-                                    <!-- Détails des réponses -->
-                                    <div id="details-<?= $r['token'] ?>" class="hidden mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-fade-in print:mt-2 print:p-2 print:bg-transparent print:border-none">
-                                        <div class="grid grid-cols-1 md:grid-cols-5 print:grid-cols-5 gap-4 print:gap-2">
-                                            <?php
-                                            $qLabels = $campaignsQuestions[$r['campaign_slug']] ?? $genericLabels;
-                                            for($i=1; $i<=5; $i++):
-                                                $score = $r['q'.$i];
-                                                $qItem = $qLabels[$i-1] ?? $genericLabels[$i-1];
-                                                $label = is_array($qItem) ? ($qItem['label'] ?? '') : $qItem;
-                                            ?>
-                                                <div class="flex flex-col items-center text-center">
-                                                    <p class="text-[8px] font-black uppercase text-slate-400 mb-1 h-8 line-clamp-2" title="<?= htmlspecialchars($label) ?>"><?= htmlspecialchars($label) ?></p>
-                                                    <div class="flex items-center gap-1">
-                                                        <span class="text-sm font-black text-slate-700"><?= $score ?: '-' ?></span>
-                                                        <i class="fa-solid fa-star text-[10px] <?= $score ? 'text-amber-400' : 'text-slate-200' ?>"></i>
+
+                                    <?php
+                                        $hasComment = isset($r['comment']) && $r['comment'] !== '';
+                                        $qLabels = $campaignsQuestions[$r['campaign_slug']] ?? $genericLabels;
+                                    ?>
+
+                                    <div class="print:flex print:gap-8 print:items-start print:mt-4">
+                                        <?php if ($hasComment): ?>
+                                            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm italic text-slate-600 leading-relaxed print:p-0 print:border-none print:shadow-none print:bg-transparent print:flex-1 print:border-l-4 print:border-slate-100 print:pl-6 print:italic print:text-slate-600 print:leading-relaxed print:text-sm">
+                                                "<?= htmlspecialchars($r['comment']) ?>."
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <!-- Détails des réponses -->
+                                        <div id="details-<?= $r['token'] ?>" class="hidden mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-fade-in print:mt-0 print:p-0 print:bg-transparent print:border-none <?= $hasComment ? 'print:w-[45%] print:shrink-0' : 'print:w-full' ?>">
+                                            <div class="grid grid-cols-1 md:grid-cols-5 <?= $hasComment ? 'print:grid-cols-1' : 'print:grid-cols-2' ?> gap-4 print:gap-x-8 print:gap-y-2">
+                                                <?php
+                                                for($i=1; $i<=5; $i++):
+                                                    $score = $r['q'.$i];
+                                                    $qItem = $qLabels[$i-1] ?? $genericLabels[$i-1];
+                                                    $label = is_array($qItem) ? ($qItem['label'] ?? '') : $qItem;
+                                                ?>
+                                                    <div class="flex flex-col items-center text-center print:flex-row print:text-left print:gap-2">
+                                                        <div class="hidden print:flex items-center gap-1 w-7 shrink-0">
+                                                            <span class="font-black text-slate-700"><?= $score ?: '-' ?></span>
+                                                            <i class="fa-solid fa-star text-amber-400 <?= $score ? '' : 'opacity-20' ?>"></i>
+                                                        </div>
+                                                        <p class="text-[8px] font-black uppercase text-slate-400 mb-1 h-8 line-clamp-2 print:h-auto print:line-clamp-none print:mb-0" title="<?= htmlspecialchars($label) ?>"><?= htmlspecialchars($label) ?></p>
+                                                        <div class="flex items-center gap-1 print:hidden">
+                                                            <span class="text-sm font-black text-slate-700"><?= $score ?: '-' ?></span>
+                                                            <i class="fa-solid fa-star text-[10px] <?= $score ? 'text-amber-400' : 'text-slate-200' ?>"></i>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            <?php endfor; ?>
+                                                <?php endfor; ?>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
