@@ -1,22 +1,22 @@
-# HelloBoard 2
+# 🎭 HelloBoard 2
 
 HelloBoard 2 est une application web PHP dediee au pilotage de campagnes HelloAsso pour les associations.
 Elle combine un dashboard live, un module d'emargement, un module de mailing avec suivi de lecture, et un module satisfaction avec reporting.
 
-## Sommaire
+## 📚 Sommaire
 
-- Presentation
-- Fonctionnalites
-- Architecture
-- Fonctionnement detaille
-- Installation
-- Configuration
-- Exploitation quotidienne
-- Securite et bonnes pratiques
-- Depannage
-- Licence
+- 🎯 Presentation
+- ✨ Fonctionnalites
+- 🏗️ Architecture
+- ⚙️ Fonctionnement detaille
+- 🚀 Installation
+- 🔧 Configuration
+- 🧭 Exploitation quotidienne
+- 🔐 Securite et bonnes pratiques
+- 🛠️ Depannage
+- 📄 Licence
 
-## Presentation
+## 🎯 Presentation
 
 L'objectif de HelloBoard 2 est de transformer les donnees HelloAsso (inscriptions, commandes, dons, adhesions) en outils actionnables pour les equipes terrain:
 
@@ -31,23 +31,23 @@ Le projet privilegie la simplicite:
 - Stockage local JSON + SQLite.
 - Interface admin centralisee.
 
-## Fonctionnalites
+## ✨ Fonctionnalites
 
-### 1) Dashboard live
+### 📊 1) Dashboard live
 
 - KPIs: recettes, volume, dons, progression vs objectifs.
 - Visualisations: timeline, heatmap, repartitions, vues adaptees au type de formulaire.
 - Support de plusieurs types HelloAsso: `Event`, `Shop`, `Membership`, `Donation`, `Crowdfunding`, etc.
 - Partage securise d'un board via `shareToken`.
 
-### 2) Guestlist / emargement
+### 📝 2) Guestlist / emargement
 
 - Pointage en temps reel.
 - Synchronisation entre plusieurs postes.
 - Export CSV.
 - Impression optimisee.
 
-### 3) Mailing
+### 📧 3) Mailing
 
 - Brouillons par campagne.
 - Envoi test, envoi unitaire, envoi de masse.
@@ -55,7 +55,7 @@ Le projet privilegie la simplicite:
 - Historique d'envoi et de lecture.
 - Pixel de tracking via `public/track.php`.
 
-### 4) Satisfaction
+### 😊 4) Satisfaction
 
 - Envoi de questionnaires via token unique.
 - Formulaire public dedie (`public/satisfaction.php`).
@@ -63,13 +63,13 @@ Le projet privilegie la simplicite:
 - Export CSV des retours.
 - Analyse IA optionnelle des verbatims.
 
-### 5) IA (optionnel)
+### 🤖 5) IA (optionnel)
 
 - Generation de contenu email.
 - Analyse de campagnes satisfaction.
 - Integration Mistral via `mistralApiKey`.
 
-## Architecture
+## 🏗️ Architecture
 
 ```text
 HelloBoard/
@@ -102,9 +102,9 @@ HelloBoard/
 `-- readme.md
 ```
 
-## Fonctionnement detaille
+## ⚙️ Fonctionnement detaille
 
-### Cycle standard d'utilisation
+### 🔄 Cycle standard d'utilisation
 
 1. Configurer les identifiants globaux dans l'admin (`action=settings`).
 2. Scanner les formulaires HelloAsso.
@@ -115,7 +115,7 @@ HelloBoard/
 - mailing pour rappels et communication
 - satisfaction pour feedback post-action
 
-### Stockage des donnees
+### 💾 Stockage des donnees
 
 - `config/settings.json`: credentials et reglages globaux.
 - `config/campaigns/*.json`: configuration metier par board.
@@ -123,9 +123,9 @@ HelloBoard/
 - `config/mailing/*.json`: historique d'envois/lectures.
 - `config/satisfaction.db`: questionnaires/reponses/statistiques.
 
-## Installation
+## 🚀 Installation
 
-### Prerequis
+### ✅ Prerequis
 
 - PHP 8.0 ou superieur.
 - Extension PHP `curl`.
@@ -133,7 +133,7 @@ HelloBoard/
 - `config/`
 - `logs/` (si debug active)
 
-### Installation locale (rapide)
+### 💻 Installation locale (rapide)
 
 Depuis la racine du projet:
 
@@ -146,14 +146,14 @@ Puis ouvrir:
 - `http://localhost:8080/admin.php` (configuration et pilotage)
 - `http://localhost:8080/index.php` (supervision / dashboards)
 
-### Installation serveur (Apache/Nginx)
+### 🌐 Installation serveur (Apache/Nginx)
 
 - Pointer le `DocumentRoot` sur `public/`.
 - Interdire l'acces HTTP direct au dossier `config/`.
 - Verifier les droits d'ecriture sur `config/`.
 - Utiliser HTTPS en production.
 
-## Configuration
+## 🔧 Configuration
 
 La configuration centrale est `config/settings.json`.
 
@@ -170,7 +170,7 @@ Configuration par campagne:
 - Creee depuis `admin.php` puis stockee dans `config/campaigns/<slug>.json`.
 - Inclut slug, type de formulaire, objectifs, regles de mapping, token de partage.
 
-## Exploitation quotidienne
+## 🧭 Exploitation quotidienne
 
 - Ouvrir la supervision pour consulter l'etat de toutes les campagnes.
 - Entrer dans une campagne pour visualiser les KPIs live.
@@ -179,7 +179,7 @@ Configuration par campagne:
 - Envoyer un questionnaire satisfaction apres la campagne.
 - Exporter les CSV pour archivage ou reporting.
 
-## Securite et bonnes pratiques
+## 🔐 Securite et bonnes pratiques
 
 - Ne jamais versionner `config/settings.json`.
 - Conserver la protection du dossier `config/`.
@@ -188,14 +188,14 @@ Configuration par campagne:
 - Desactiver le debug en production.
 - Sauvegarder regulierement `config/` (incluant `satisfaction.db`).
 
-## Depannage
+## 🛠️ Depannage
 
 - Si le dashboard ne charge pas: verifier `clientId/clientSecret/orgSlug`.
 - Si le mailing echoue: verifier SMTP (hote, port, auth, TLS).
 - Si le tracking n'apparait pas: verifier l'accessibilite de `track.php`.
 - Si les check-ins ne se sauvegardent pas: verifier les droits sur `config/checkins/`.
 
-## Licence
+## 📄 Licence
 
 Copyright (c) 2025 Shigaepouyen - Jean-Christophe CAMuS - Tous droits reserves.
 
