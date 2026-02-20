@@ -136,7 +136,7 @@ $title = htmlspecialchars($currentCamp['title']);
                 <a href="admin.php?action=export_csv&campaign=<?= $slug ?>" onclick="return btnDownloadLoading(this)" class="flex-1 md:flex-none justify-center bg-white/10 hover:bg-white/20 text-white px-4 py-2 md:px-6 md:py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center gap-2">
                     <i class="fa-solid fa-download"></i> CSV
                 </a>
-                <button onclick="window.print()" class="flex-1 md:flex-none justify-center bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 md:px-6 md:py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center gap-2">
+                <button onclick="printGuestList()" class="flex-1 md:flex-none justify-center bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 md:px-6 md:py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest transition flex items-center gap-2">
                     <i class="fa-solid fa-print"></i> Imprimer
                 </button>
             </div>
@@ -278,6 +278,17 @@ $title = htmlspecialchars($currentCamp['title']);
     </div>
 
     <script>
+        function printGuestList() {
+            const originalTitle = document.title;
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('fr-FR').replace(/\//g, '-');
+            const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h');
+            const campaignTitle = <?= json_encode($currentCamp['title']) ?>;
+            document.title = `Liste Presence - ${campaignTitle} - ${dateStr} ${timeStr}`;
+            window.print();
+            document.title = originalTitle;
+        }
+
         function btnDownloadLoading(btn) {
             if (btn.dataset.loading === 'true') return false;
             btn.dataset.loading = 'true';

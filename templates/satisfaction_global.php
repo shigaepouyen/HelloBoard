@@ -175,8 +175,12 @@
             }
         }
         $campaignsQuestions = [];
+        $currentCampaignTitle = 'Toutes les campagnes';
         foreach ($localCampaigns as $lc) {
             $campaignsQuestions[$lc['slug']] = $satService->getQuestions($lc['slug'], $lc['formType']);
+            if ($filterSlug === $lc['slug']) {
+                $currentCampaignTitle = $lc['title'];
+            }
         }
 
         $genericLabels = [
@@ -468,6 +472,8 @@
     </main>
 
     <script>
+    const currentCampaignTitle = <?= json_encode($currentCampaignTitle) ?>;
+
     function toggleDetails(token) {
         const el = document.getElementById('details-' + token);
         if (el) {
@@ -510,11 +516,19 @@
         // On marque le modal comme prêt pour l'impression (pour le CSS)
         modal.classList.add('is-ready-for-print');
 
+        // Configurer le titre pour le nom du fichier imprimé
+        const originalTitle = document.title;
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('fr-FR').replace(/\//g, '-');
+        const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h');
+        document.title = `Rapport Satisfaction - ${currentCampaignTitle} - ${dateStr} ${timeStr}`;
+
         // Petit délai pour s'assurer que le rendu est fini
         setTimeout(() => {
             window.print();
             // On nettoie après l'impression (certains navigateurs bloquent le JS pendant l'impression)
             modal.classList.remove('is-ready-for-print');
+            document.title = originalTitle;
         }, 500);
     }
 
