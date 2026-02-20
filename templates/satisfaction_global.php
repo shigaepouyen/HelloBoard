@@ -26,6 +26,8 @@
         .prose-ai blockquote { border-left: 4px solid #e0e7ff; padding-left: 1rem; font-style: italic; margin-bottom: 1rem; color: #4338ca; }
 
         @media print {
+            @page { margin: 1cm; }
+
             /* Masquer les éléments inutiles */
             nav, .mb-10 > div:last-child, button, .text-right a, .fa-trash-can, #global-loader,
             #ai-modal .fixed.inset-0.bg-slate-900\/60,
@@ -35,9 +37,9 @@
                 display: none !important;
             }
 
-            body { background: white !important; padding-bottom: 0 !important; }
+            body { background: white !important; padding: 0 !important; margin: 0 !important; }
             .max-w-6xl { max-width: 100% !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }
-            main { padding: 0 !important; display: flex !important; flex-direction: column !important; }
+            main { display: flex !important; flex-direction: column !important; }
             .animate-fade-in { animation: none !important; transform: none !important; display: flex !important; flex-direction: column !important; }
 
             /* Section Analyse IA - En haut lors de l'impression */
@@ -79,6 +81,37 @@
             .md\:grid-cols-3 { grid-template-columns: repeat(3, 1fr) !important; }
             .lg\:grid-cols-4 { grid-template-columns: repeat(4, 1fr) !important; }
             .lg\:grid-cols-5 { grid-template-columns: repeat(5, 1fr) !important; }
+
+            /* Missing Tailwind Print Utilities */
+            .print\:hidden { display: none !important; }
+            .print\:flex { display: flex !important; }
+            .print\:inline { display: inline !important; }
+            .print\:flex-1 { flex: 1 1 0% !important; }
+            .print\:shrink-0 { flex-shrink: 0 !important; }
+            .print\:w-\[45\%\] { width: 45% !important; }
+            .print\:text-sm { font-size: 0.875rem !important; }
+            .print\:mb-0 { margin-bottom: 0 !important; }
+            .print\:mb-1 { margin-bottom: 0.25rem !important; }
+            .print\:mb-2 { margin-bottom: 0.5rem !important; }
+            .print\:mt-0 { margin-top: 0 !important; }
+            .print\:mt-4 { margin-top: 1rem !important; }
+            .print\:p-0 { padding: 0 !important; }
+            .print\:pl-6 { padding-left: 1.5rem !important; }
+            .print\:gap-2 { gap: 0.5rem !important; }
+            .print\:gap-4 { gap: 1rem !important; }
+            .print\:gap-8 { gap: 2rem !important; }
+            .print\:gap-x-8 { column-gap: 2rem !important; }
+            .print\:gap-y-2 { row-gap: 0.5rem !important; }
+            .print\:flex-row { flex-direction: row !important; }
+            .print\:text-left { text-align: left !important; }
+            .print\:h-auto { height: auto !important; }
+            .print\:line-clamp-none { -webkit-line-clamp: unset !important; }
+            .print\:border-none { border-style: none !important; }
+            .print\:shadow-none { box-shadow: none !important; }
+            .print\:bg-transparent { background-color: transparent !important; }
+            .print\:border-slate-100 { border-color: #f1f5f9 !important; }
+            .print\:grid-cols-1 { grid-template-columns: repeat(1, 1fr) !important; }
+            .print\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
             .print\:grid-cols-5 { grid-template-columns: repeat(5, 1fr) !important; }
 
             /* Verbatims */
