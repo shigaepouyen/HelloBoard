@@ -1,97 +1,203 @@
-# 🎭 HelloBoard - Dashboard Live HelloAsso
+# HelloBoard 2
 
-HelloBoard est une application PHP légère et puissante permettant de suivre en temps réel les inscriptions, les ventes et les recettes de vos campagnes HelloAsso.
-Conçue spécifiquement pour les associations, elle transforme les données brutes de l'API en indicateurs visuels clairs et outils opérationnels (émargement, analyse financière).
+HelloBoard 2 est une application web PHP dediee au pilotage de campagnes HelloAsso pour les associations.
+Elle combine un dashboard live, un module d'emargement, un module de mailing avec suivi de lecture, et un module satisfaction avec reporting.
 
----
+## Sommaire
 
-## ✨ Fonctionnalités clés
+- Presentation
+- Fonctionnalites
+- Architecture
+- Fonctionnement detaille
+- Installation
+- Configuration
+- Exploitation quotidienne
+- Securite et bonnes pratiques
+- Depannage
+- Licence
 
-### 📊 Dashboard Interactif
-- **KPIs en temps réel** : Chiffre d'affaires, nombre d'inscrits, taux de générosité (dons).
-- **Visualisations avancées** : Graphiques d'évolution (Timeline), répartition par catégories (Pie/Bar/Donut) et Heatmap de densité des inscriptions.
-- **Projections (Pacing)** : Estimation de la date de fin d'objectif basée sur la vélocité des 7 derniers jours.
-- **Marqueurs temporels** : Visualisez l'impact de vos actions de communication directement sur la courbe des ventes.
+## Presentation
 
-### 🛍️ Spécialisation "Boutique" (Shop)
-- **Analyse de rentabilité** : Calcul automatique du bénéfice net, de la marge et du taux de contribution par produit.
-- **Matrice de performance** : Graphique à bulles comparant le volume de ventes au bénéfice généré.
-- **Suivi d'inventaire** : Alertes de stock et barres de progression pour chaque article.
+L'objectif de HelloBoard 2 est de transformer les donnees HelloAsso (inscriptions, commandes, dons, adhesions) en outils actionnables pour les equipes terrain:
 
-### 📝 Liste d'Émargement (Guestlist)
-- **Check-in synchronisé** : Émargez les participants depuis plusieurs appareils simultanément avec synchronisation en temps réel.
-- **Sécurité anti-erreur** : Système de verrouillage lors du "dé-pointage" pour éviter les erreurs de manipulation.
-- **Vue flexible** : Affichage individuel ou groupé par commande (idéal pour les distributions de produits).
-- **Exports & Impression** : Export CSV complet et mode impression optimisé.
+- Suivi en temps reel des performances.
+- Gestion de la presence (check-in / guestlist).
+- Relances email personnalisees.
+- Collecte et analyse de la satisfaction post-evenement.
 
-### ⚙️ Administration simplifiée
-- **Scanner de campagnes** : Importation facile de vos formulaires HelloAsso (Événements, Boutiques, Adhésions, Dons, etc.).
-- **Mapping intelligent** : Renommez les articles, regroupez-les et appliquez des transformations (REGEX, Majuscules, etc.).
-- **Partage sécurisé** : Génération de liens publics avec jetons (tokens) pour partager le dashboard sans donner d'accès admin.
+Le projet privilegie la simplicite:
 
----
+- PHP natif (sans framework).
+- Stockage local JSON + SQLite.
+- Interface admin centralisee.
 
-## 📁 Structure du projet
+## Fonctionnalites
+
+### 1) Dashboard live
+
+- KPIs: recettes, volume, dons, progression vs objectifs.
+- Visualisations: timeline, heatmap, repartitions, vues adaptees au type de formulaire.
+- Support de plusieurs types HelloAsso: `Event`, `Shop`, `Membership`, `Donation`, `Crowdfunding`, etc.
+- Partage securise d'un board via `shareToken`.
+
+### 2) Guestlist / emargement
+
+- Pointage en temps reel.
+- Synchronisation entre plusieurs postes.
+- Export CSV.
+- Impression optimisee.
+
+### 3) Mailing
+
+- Brouillons par campagne.
+- Envoi test, envoi unitaire, envoi de masse.
+- Pieces jointes par campagne.
+- Historique d'envoi et de lecture.
+- Pixel de tracking via `public/track.php`.
+
+### 4) Satisfaction
+
+- Envoi de questionnaires via token unique.
+- Formulaire public dedie (`public/satisfaction.php`).
+- Tableau de bord satisfaction global.
+- Export CSV des retours.
+- Analyse IA optionnelle des verbatims.
+
+### 5) IA (optionnel)
+
+- Generation de contenu email.
+- Analyse de campagnes satisfaction.
+- Integration Mistral via `mistralApiKey`.
+
+## Architecture
 
 ```text
-/
-├── config/             # Stockage des données (JSON)
-│   ├── campaigns/      # Configurations spécifiques à chaque board
-│   ├── checkins/       # États d'émargement synchronisés
-│   └── settings.json   # Identifiants API HelloAsso (ignoré par Git)
-├── public/             # Point d'entrée web
-│   ├── admin.php       # Console d'administration et exports
-│   ├── api.php         # Endpoint de données temps réel
-│   ├── index.php       # Routeur et afficheur des boards
-│   └── assets/         # Ressources statiques (images, logo)
-├── src/
-│   └── Services/       # Logique métier (PHP 8+)
-│       ├── HelloAssoClient.php # Communication API
-│       ├── StatsEngine.php     # Calculs statistiques et financiers
-│       └── Storage.php         # Gestion de la persistance JSON
-├── templates/          # Vues HTML/PHP
-│   ├── dashboard.php   # Interface du tableau de bord
-│   └── guestlist.php   # Interface d'émargement
-└── .gitignore          # Protection des données sensibles
+HelloBoard/
+|-- config/
+|   |-- campaigns/                  # Config boards (JSON)
+|   |-- checkins/                   # Etats d'emargement
+|   |-- mailing/                    # Historiques mailing + pieces jointes
+|   |-- settings.json               # Configuration globale sensible
+|   |-- satisfaction.db             # Base SQLite satisfaction
+|   `-- .htaccess                   # Protection du dossier
+|-- public/
+|   |-- index.php                   # Supervision et affichage dashboard
+|   |-- admin.php                   # Console d'administration
+|   |-- api.php                     # Endpoint stats JSON
+|   |-- satisfaction.php            # Formulaire satisfaction public
+|   `-- track.php                   # Pixel tracking lecture
+|-- src/Services/
+|   |-- HelloAssoClient.php         # Appels API HelloAsso
+|   |-- StatsEngine.php             # Calculs statistiques
+|   |-- Storage.php                 # Persistance locale
+|   |-- MailService.php             # SMTP + templates dynamiques
+|   |-- SatisfactionService.php     # Gestion questionnaires/stats
+|   `-- AiService.php               # Integration Mistral
+|-- templates/
+|   |-- dashboard.php
+|   |-- guestlist.php
+|   |-- mailing.php
+|   |-- satisfaction.php
+|   `-- satisfaction_global.php
+`-- readme.md
 ```
 
----
+## Fonctionnement detaille
 
-## 🚀 Installation
+### Cycle standard d'utilisation
 
-### Prérequis
-- PHP **8.0+**
-- Extension **cURL** activée
-- Permissions en écriture sur le dossier `config/`
+1. Configurer les identifiants globaux dans l'admin (`action=settings`).
+2. Scanner les formulaires HelloAsso.
+3. Creer/editer un board (slug, regles, mappings, objectifs).
+4. Ouvrir le dashboard et suivre la campagne.
+5. Utiliser les modules selon le besoin:
+- guestlist pour l'accueil / emargement
+- mailing pour rappels et communication
+- satisfaction pour feedback post-action
 
-### Déploiement
-1. Clonez ou copiez les fichiers sur votre serveur.
-2. Assurez-vous que le dossier `config/` est accessible en écriture par le serveur web (CHMOD 755 ou 775).
-3. Accédez à `admin.php` pour la configuration initiale.
+### Stockage des donnees
 
----
+- `config/settings.json`: credentials et reglages globaux.
+- `config/campaigns/*.json`: configuration metier par board.
+- `config/checkins/*.json`: etat des check-ins.
+- `config/mailing/*.json`: historique d'envois/lectures.
+- `config/satisfaction.db`: questionnaires/reponses/statistiques.
 
-## ⚙️ Configuration Avancée
+## Installation
 
-### Transformations de valeur
-Dans l'interface d'administration, vous pouvez transformer les réponses aux champs personnalisés :
-- `FIRST_LETTER` : Garde le premier caractère (ex: "6ème A" -> "6").
-- `UPPER` : Force la mise en majuscules.
-- `REGEX:/pattern/` : Extrait une partie de la valeur via une expression régulière.
+### Prerequis
 
-### Finances & Stock (Mode Boutique)
-Pour les formulaires de type "Shop", vous pouvez renseigner :
-- **Prix d'achat** : Pour le calcul du bénéfice net.
-- **Stock** : Pour afficher les jauges de disponibilité.
+- PHP 8.0 ou superieur.
+- Extension PHP `curl`.
+- Droits en ecriture pour le processus PHP sur:
+- `config/`
+- `logs/` (si debug active)
 
----
+### Installation locale (rapide)
 
-## 🔐 Sécurité
-- Les clés API sont stockées localement dans `config/settings.json` et ne doivent jamais être poussées sur un dépôt public.
-- L'accès à la console admin peut être protégé par mot de passe via les réglages globaux.
-- Les dashboards publics utilisent un `shareToken` unique pour empêcher l'accès non autorisé.
+Depuis la racine du projet:
 
----
+```bash
+php -S localhost:8080 -t public
+```
 
-## 📄 Licence
-Distribué sous licence MIT. Libre d'utilisation pour toutes les associations ! ❤️
+Puis ouvrir:
+
+- `http://localhost:8080/admin.php` (configuration et pilotage)
+- `http://localhost:8080/index.php` (supervision / dashboards)
+
+### Installation serveur (Apache/Nginx)
+
+- Pointer le `DocumentRoot` sur `public/`.
+- Interdire l'acces HTTP direct au dossier `config/`.
+- Verifier les droits d'ecriture sur `config/`.
+- Utiliser HTTPS en production.
+
+## Configuration
+
+La configuration centrale est `config/settings.json`.
+
+Champs principaux:
+
+- HelloAsso: `clientId`, `clientSecret`, `orgSlug`
+- SMTP: `smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`, `smtpFromName`
+- Admin: `adminPassword`
+- IA: `mistralApiKey` (optionnel)
+- Interface: `customLogo`, `debugMode`
+
+Configuration par campagne:
+
+- Creee depuis `admin.php` puis stockee dans `config/campaigns/<slug>.json`.
+- Inclut slug, type de formulaire, objectifs, regles de mapping, token de partage.
+
+## Exploitation quotidienne
+
+- Ouvrir la supervision pour consulter l'etat de toutes les campagnes.
+- Entrer dans une campagne pour visualiser les KPIs live.
+- Lancer un rappel mailing avant l'evenement.
+- Utiliser la guestlist le jour J.
+- Envoyer un questionnaire satisfaction apres la campagne.
+- Exporter les CSV pour archivage ou reporting.
+
+## Securite et bonnes pratiques
+
+- Ne jamais versionner `config/settings.json`.
+- Conserver la protection du dossier `config/`.
+- Definir un mot de passe admin robuste.
+- Regenerer les `shareToken` si un lien public fuite.
+- Desactiver le debug en production.
+- Sauvegarder regulierement `config/` (incluant `satisfaction.db`).
+
+## Depannage
+
+- Si le dashboard ne charge pas: verifier `clientId/clientSecret/orgSlug`.
+- Si le mailing echoue: verifier SMTP (hote, port, auth, TLS).
+- Si le tracking n'apparait pas: verifier l'accessibilite de `track.php`.
+- Si les check-ins ne se sauvegardent pas: verifier les droits sur `config/checkins/`.
+
+## Licence
+
+Copyright (c) 2025 Shigaepouyen - Jean-Christophe CAMuS - Tous droits reserves.
+
+La redistribution ou l'utilisation commerciale de ce projet est interdite sans autorisation.
+Voir le fichier `LICENSE.md` pour plus de details.
