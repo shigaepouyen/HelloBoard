@@ -117,15 +117,16 @@
             .print\:grid-cols-5 { grid-template-columns: repeat(5, 1fr) !important; }
 
             /* Verbatims */
-            .admin-card { border: 1px solid #eee !important; border-radius: 2rem !important; }
+            .admin-card { border: 1px solid #eee !important; border-radius: 2rem !important; padding: 2rem !important; }
             .grid .admin-card { break-inside: avoid; } /* Avoid breaking KPI cards */
-            .divide-y > div { break-inside: avoid; padding: 1rem 0 !important; border-bottom: 1px solid #eee !important; }
+            .divide-y > div { break-inside: avoid; padding: 1.5rem !important; border-bottom: 1px solid #eee !important; }
             [id^="details-"] { display: block !important; }
             .p-8 { padding: 1.5rem !important; }
-            .print\:p-8 { padding: 0.75rem !important; }
+            .print\:p-8 { padding: 2rem !important; }
+            .print\:p-4 { padding: 1rem !important; }
 
             /* Expert Print Style */
-            [id^="details-"] { display: block !important; margin-top: 0 !important; padding: 0 !important; background: transparent !important; border: none !important; }
+            [id^="details-"] { display: block !important; margin-top: 0 !important; background: transparent !important; border: none !important; }
             [id^="details-"] p { font-size: 8pt !important; line-height: 1.2 !important; height: auto !important; margin-bottom: 0 !important; text-transform: none !important; letter-spacing: normal !important; font-weight: 600 !important; color: #475569 !important; text-align: left !important; }
             [id^="details-"] .fa-star { font-size: 7pt !important; }
             [id^="details-"] span { font-size: 9pt !important; }
@@ -369,7 +370,7 @@
                         }
                         $avg = ($countQ > 0) ? ($sum - $countQ) / ($countQ * 4.0) * 100.0 : 0;
                     ?>
-                        <div class="p-8 hover:bg-slate-50 transition group print:px-6 print:py-4">
+                        <div class="p-8 hover:bg-slate-50 transition group print:p-8">
                             <div class="flex flex-col md:flex-row justify-between gap-6 print:gap-2">
                                 <div class="flex-1">
                                     <div class="flex items-center justify-between md:justify-start gap-3 mb-2 print:mb-1">
@@ -402,13 +403,13 @@
 
                                     <div class="print:flex print:gap-8 print:items-start print:mt-4">
                                         <?php if ($hasComment): ?>
-                                            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm italic text-slate-600 leading-relaxed print:p-0 print:border-none print:shadow-none print:bg-transparent print:flex-1 print:border-l-4 print:border-slate-100 print:pl-6 print:italic print:text-slate-600 print:leading-relaxed print:text-sm">
+                                            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm italic text-slate-600 leading-relaxed print:p-4 print:border-none print:shadow-none print:bg-transparent print:flex-1 print:border-l-4 print:border-slate-100 print:pl-6 print:italic print:text-slate-600 print:leading-relaxed print:text-sm">
                                                 "<?= htmlspecialchars($r['comment']) ?>."
                                             </div>
                                         <?php endif; ?>
 
                                         <!-- Détails des réponses -->
-                                        <div id="details-<?= $r['token'] ?>" class="hidden mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-fade-in print:mt-0 print:p-0 print:bg-transparent print:border-none <?= $hasComment ? 'print:w-[45%] print:shrink-0' : 'print:w-full' ?>">
+                                        <div id="details-<?= $r['token'] ?>" class="hidden mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-fade-in print:mt-0 print:p-4 print:bg-transparent print:border-none <?= $hasComment ? 'print:w-[45%] print:shrink-0' : 'print:w-full' ?>">
                                             <div class="grid grid-cols-1 md:grid-cols-5 <?= $hasComment ? 'print:grid-cols-1' : 'print:grid-cols-2' ?> gap-4 print:gap-x-8 print:gap-y-2">
                                                 <?php
                                                 for($i=1; $i<=5; $i++):
