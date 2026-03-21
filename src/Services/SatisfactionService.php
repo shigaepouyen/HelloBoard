@@ -150,6 +150,12 @@ class SatisfactionService {
         return $stmt->fetchColumn() > 0;
     }
 
+    public function isAlreadySentToEmail($campaignSlug, $email) {
+        $stmt = $this->db->prepare("SELECT COUNT(*) FROM survey_tokens WHERE campaign_slug = ? AND email = ?");
+        $stmt->execute([$campaignSlug, $email]);
+        return $stmt->fetchColumn() > 0;
+    }
+
     public function hasEverReceived($email) {
         $stmt = $this->db->prepare("SELECT COUNT(*) FROM survey_tokens WHERE email = ?");
         $stmt->execute([$email]);

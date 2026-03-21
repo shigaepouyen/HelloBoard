@@ -167,6 +167,10 @@
                             <span class="text-[9px] font-black uppercase text-slate-400">Exclure si déjà sollicité auparavant (global)</span>
                             <div class="toggle-btn" id="filter-exclude-ever" onclick="this.classList.toggle('active'); fetchRecipients()"></div>
                         </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9px] font-black uppercase text-slate-400">N'envoyer qu'aux présents (check-in)</span>
+                            <div class="toggle-btn active" id="filter-only-present" onclick="this.classList.toggle('active'); fetchRecipients()"></div>
+                        </div>
                     </div>
 
                     <div class="max-h-[300px] overflow-y-auto pr-2 space-y-2 mb-6" id="recipients-list">
@@ -394,6 +398,7 @@
 
             const excludeSent = document.getElementById('filter-exclude-sent').classList.contains('active') ? '1' : '0';
             const excludeEver = document.getElementById('filter-exclude-ever').classList.contains('active') ? '1' : '0';
+            const onlyPresent = document.getElementById('filter-only-present').classList.contains('active');
 
             try {
                 const res = await fetch(`admin.php?action=satisfaction_recipients&campaign=${campaign}&exclude_sent=${excludeSent}&exclude_ever=${excludeEver}`);
@@ -406,20 +411,25 @@
                     return;
                 }
 
-                recipients = data.recipients || [];
+                const allRecipients = data.recipients || [];
                 tokenMap = data.tokens || [];
                 responseMap = data.responses || [];
+
+                // Filter recipients based on toggle
+                recipients = onlyPresent ? allRecipients.filter(r => r.isPresent) : allRecipients;
+
                 document.getElementById('btn-send-all').disabled = (recipients.length === 0);
                 document.getElementById('btn-send-all').innerText = recipients.length > 0 ? `Lancer pour ${recipients.length} contacts` : "Aucun destinataire";
 
-                if (recipients.length === 0) {
+                if (allRecipients.length === 0) {
                     listContainer.innerHTML = '<div class="py-10 text-center text-slate-200 font-black uppercase text-[10px] italic">Tout a déjà été envoyé.</div>';
                     return;
                 }
 
-                listContainer.innerHTML = recipients.map(r => {
-                    const haToken = tokenMap.find(t => t.order_id == r.orderId);
-                    const haResp = responseMap.find(resp => resp.order_id == r.orderId);
+                listContainer.innerHTML = allRecipients.map(r => {
+                    // Check by email since admin.php now groups by email
+                    const haToken = tokenMap.find(t => t.email == r.email);
+                    const haResp = responseMap.find(resp => resp.email == r.email);
                     const isSent = !!haToken;
                     const isRead = !!(haToken && haToken.read_at);
                     const isReplied = !!haResp;
@@ -435,9 +445,9 @@
                                     <i class="fa-solid fa-sync-alt text-[8px]"></i>
                                 </button>
                             ` : `
-                                <span class="w-6 h-6 flex items-center justify-center rounded-lg bg-slate-200 text-slate-400" title="Non envoyé">
-                                    <i class="fa-solid fa-paper-plane"></i>
-                                </span>
+                                <button onclick="sendManualOne('${r.orderId}', '${r.email}', '${r.firstName.replace(/'/g, "\\'")}', '${r.lastName.replace(/'/g, "\\'")}', '${r.itemName.replace(/'/g, "\\'")}')" class="w-6 h-6 flex items-center justify-center rounded-lg bg-slate-100 text-slate-500 hover:bg-blue-600 hover:text-white transition" title="Envoyer maintenant">
+                                    <i class="fa-solid fa-paper-plane text-[8px]"></i>
+                                </button>
                             `}
                             <span class="w-6 h-6 flex items-center justify-center rounded-lg ${isRead ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-400'}" title="${isRead ? 'Lu le ' + haToken.read_at : 'Non lu'}">
                                 <i class="fa-solid fa-eye"></i>
@@ -450,11 +460,16 @@
                         </div>
                     `;
 
+                    const isFiltered = onlyPresent && !r.isPresent;
+
                     return `
-                        <div class="p-3 bg-slate-50 rounded-xl flex items-center justify-between gap-3 text-[10px] border border-transparent transition ${isSent ? 'opacity-60' : ''}" id="row-${r.orderId}">
+                        <div class="p-3 bg-slate-50 rounded-xl flex items-center justify-between gap-3 text-[10px] border border-transparent transition ${isSent || isFiltered ? 'opacity-60' : ''}" id="row-${r.orderId}">
                             <div class="truncate">
                                 <p class="font-black text-slate-700 truncate uppercase">${r.lastName} ${r.firstName}</p>
-                                <p class="text-slate-400 truncate">${r.email}</p>
+                                <div class="flex items-center gap-2">
+                                    <p class="text-slate-400 truncate">${r.email}</p>
+                                    ${!r.isPresent ? '<span class="text-[8px] bg-red-100 text-red-500 px-1 rounded font-black uppercase">Absent</span>' : '<span class="text-[8px] bg-emerald-100 text-emerald-500 px-1 rounded font-black uppercase">Présent</span>'}
+                                </div>
                             </div>
                             <div class="flex items-center">
                                 ${statusHtml}
@@ -549,8 +564,16 @@
 
         async function resendOne(orderId, email, firstName, lastName, itemName) {
             if (!confirm(`Renvoyer l'email à ${email} ?`)) return;
+            sendOne(orderId, email, firstName, lastName, itemName, true);
+        }
 
-            notify("Renvoi en cours...", "info");
+        async function sendManualOne(orderId, email, firstName, lastName, itemName) {
+            if (!confirm(`Envoyer l'email à ${email} ?`)) return;
+            sendOne(orderId, email, firstName, lastName, itemName, false);
+        }
+
+        async function sendOne(orderId, email, firstName, lastName, itemName, force = false) {
+            notify(force ? "Renvoi en cours..." : "Envoi en cours...", "info");
 
             try {
                 const res = await fetch('admin.php?action=satisfaction_send_one', {
@@ -565,18 +588,13 @@
                         itemName: itemName,
                         subject: document.getElementById('email-subject').value,
                         body: document.getElementById('email-body').value,
-                        force: '1'
+                        force: force ? '1' : '0'
                     })
                 });
                 const data = await res.json();
                 if (data.success) {
-                    notify("Email renvoyé avec succès !", "success");
-                    if (document.getElementById('modal-history').classList.contains('open')) {
-                        // Re-fetch history to show the new attempt
-                        // We need the token.
-                        const haToken = tokenMap.find(t => t.order_id == orderId);
-                        if (haToken) openSatisfactionHistory(haToken.token, email, firstName, lastName, orderId, itemName);
-                    }
+                    notify(force ? "Email renvoyé avec succès !" : "Email envoyé avec succès !", "success");
+                    fetchRecipients();
                 } else {
                     notify("Erreur : " + data.error, "error");
                 }
@@ -682,7 +700,12 @@
             modal.classList.add('open');
 
             const resBtn = document.getElementById('modal-resend-btn');
-            resBtn.onclick = () => resendOne(orderId, email, firstName, lastName, itemName);
+            if (token) {
+                resBtn.classList.remove('hidden');
+                resBtn.onclick = () => resendOne(orderId, email, firstName, lastName, itemName);
+            } else {
+                resBtn.classList.add('hidden');
+            }
 
             try {
                 const res = await fetch(`admin.php?action=get_recipient_history&campaign=${campaign}&token=${token}&type=satisfaction`);
