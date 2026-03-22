@@ -31,16 +31,22 @@ $formType = $campaign['formType'] ?? null;
 $questions = $satService->getQuestions($info['campaign_slug'], $formType);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$alreadyResponded) {
-    $ratings = [
-        isset($_POST['q1']) ? (int)$_POST['q1'] : null,
-        isset($_POST['q2']) ? (int)$_POST['q2'] : null,
-        isset($_POST['q3']) ? (int)$_POST['q3'] : null,
-        isset($_POST['q4']) ? (int)$_POST['q4'] : null,
-        isset($_POST['q5']) ? (int)$_POST['q5'] : null
-    ];
+    $ratings = [];
+    $customAnswer = null;
+
+    foreach ($questions as $i => $q) {
+        $idx = $i + 1;
+        $type = $q['type'] ?? 'rating';
+        if ($type === 'text') {
+            $customAnswer = $_POST['custom_answer'] ?? null;
+        } else {
+            $ratings[] = isset($_POST['q' . $idx]) ? (int)$_POST['q' . $idx] : null;
+        }
+    }
+
     $comment = $_POST['comment'] ?? '';
 
-    $satService->saveResponse($token, $ratings, $comment);
+    $satService->saveResponse($token, $ratings, $comment, $customAnswer);
     $alreadyResponded = true;
     $success = true;
 }
@@ -102,10 +108,18 @@ $emojis = [
 
         <div class="card p-6 md:p-10 relative overflow-hidden">
 
+            <?php
+            // On ne compte que les questions qui ont un label (les questions vides sont masquées)
+            $activeQuestions = array_filter($questions, function($q) {
+                return !empty(trim($q['label'] ?? ''));
+            });
+            $totalSteps = count($activeQuestions) + 1; // +1 pour le commentaire final
+            ?>
+
             <?php if (!isset($success) && !$alreadyResponded): ?>
                 <div class="mb-8">
                     <div class="flex justify-between items-center mb-2">
-                        <span id="step-indicator" class="text-[10px] font-black text-blue-600 uppercase tracking-widest italic">Question 1 / <?= count($questions) + 1 ?></span>
+                        <span id="step-indicator" class="text-[10px] font-black text-blue-600 uppercase tracking-widest italic">Question 1 / <?= $totalSteps ?></span>
                         <span id="percent-indicator" class="text-[10px] font-black text-slate-300 uppercase tracking-widest italic">0%</span>
                     </div>
                     <div class="progress-bar">
@@ -138,25 +152,38 @@ $emojis = [
                 <form method="POST" id="survey-form">
 
                     <!-- Questions Steps -->
-                    <?php foreach($questions as $i => $q): $idx = $i + 1; ?>
-                        <div class="step-content <?= $idx === 1 ? 'active' : '' ?>" data-step="<?= $idx ?>">
+                    <?php
+                    $stepIdx = 1;
+                    foreach($questions as $i => $q):
+                        if (empty(trim($q['label'] ?? ''))) continue;
+                        $idx = $i + 1;
+                        $type = $q['type'] ?? 'rating';
+                    ?>
+                        <div class="step-content <?= $stepIdx === 1 ? 'active' : '' ?>" data-step="<?= $stepIdx ?>">
                             <h2 class="text-xl md:text-2xl font-black text-slate-800 leading-tight mb-8">
-                                <span class="text-blue-600 mr-1"><?= $idx ?>.</span> <?= htmlspecialchars($q['label']) ?>
+                                <span class="text-blue-600 mr-1"><?= $stepIdx ?>.</span> <?= htmlspecialchars($q['label']) ?>
                             </h2>
 
-                            <div class="grid grid-cols-5 gap-3 md:gap-4">
-                                <?php foreach($emojis as $val => $e): ?>
-                                    <div class="rating-btn <?= $e['color'] ?>" onclick="setRating(<?= $idx ?>, <?= $val ?>, this)" data-val="<?= $val ?>">
-                                        <span class="emoji"><?= $e['char'] ?></span>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                            <input type="hidden" name="q<?= $idx ?>" id="q<?= $idx ?>-val" required>
+                            <?php if ($type === 'text'): ?>
+                                <div class="space-y-6">
+                                    <input type="text" name="custom_answer" id="custom-answer-val" class="w-full bg-slate-50 border-2 border-transparent focus:border-blue-600 rounded-2xl p-6 text-slate-700 outline-none transition text-lg" placeholder="Votre réponse ici (optionnel)..." onkeydown="if(event.key === 'Enter') { event.preventDefault(); nextStep(); }">
+                                    <button type="button" onclick="nextStep()" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-blue-100 hover:bg-blue-700 transition">Continuer</button>
+                                </div>
+                            <?php else: ?>
+                                <div class="grid grid-cols-5 gap-3 md:gap-4">
+                                    <?php foreach($emojis as $val => $e): ?>
+                                        <div class="rating-btn <?= $e['color'] ?>" onclick="setRating(<?= $idx ?>, <?= $val ?>, this)" data-val="<?= $val ?>">
+                                            <span class="emoji"><?= $e['char'] ?></span>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                <input type="hidden" name="q<?= $idx ?>" id="q<?= $idx ?>-val" data-required="true">
+                            <?php endif; ?>
                         </div>
-                    <?php endforeach; ?>
+                    <?php $stepIdx++; endforeach; ?>
 
                     <!-- Final Comment Step -->
-                    <div class="step-content" data-step="<?= count($questions) + 1 ?>">
+                    <div class="step-content" data-step="<?= $totalSteps ?>">
                         <h2 class="text-xl md:text-2xl font-black text-slate-800 leading-tight mb-4">
                             Un dernier mot ?
                         </h2>
@@ -176,7 +203,7 @@ $emojis = [
                             <i class="fa-solid fa-arrow-left mr-2"></i> Précédent
                         </button>
                         <div class="flex gap-1">
-                            <?php for($s=1; $s<=count($questions)+1; $s++): ?>
+                            <?php for($s=1; $s<=$totalSteps; $s++): ?>
                                 <div class="w-1.5 h-1.5 rounded-full bg-slate-200 step-dot" data-step="<?= $s ?>"></div>
                             <?php endfor; ?>
                         </div>
@@ -194,7 +221,7 @@ $emojis = [
 
     <script>
         let currentStep = 1;
-        const totalSteps = <?= count($questions) + 1 ?>;
+        const totalSteps = <?= $totalSteps ?>;
         const ratings = {};
 
         function updateUI() {
@@ -249,14 +276,15 @@ $emojis = [
 
         function nextStep() {
             if (currentStep < totalSteps) {
-                // Check if current question is answered (if it's not the comment step)
-                if (currentStep <= totalSteps - 1) {
-                    if (!document.getElementById(`q${currentStep}-val`).value) {
-                        return; // Force answer
-                    }
+                // Check if current question is answered (if it's not the comment step or custom text question)
+                const currentStepEl = document.querySelector(`.step-content[data-step="${currentStep}"]`);
+                const ratingInput = currentStepEl.querySelector('input[data-required="true"]');
+
+                if (ratingInput && !ratingInput.value) {
+                    return; // Force answer for ratings
                 }
 
-                document.querySelector(`.step-content[data-step="${currentStep}"]`).classList.remove('active');
+                currentStepEl.classList.remove('active');
                 currentStep++;
                 document.querySelector(`.step-content[data-step="${currentStep}"]`).classList.add('active');
                 updateUI();

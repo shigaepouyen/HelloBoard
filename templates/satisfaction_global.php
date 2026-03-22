@@ -402,19 +402,31 @@
 
                                     <?php
                                         $hasComment = isset($r['comment']) && $r['comment'] !== '';
+                                        $hasCustomAnswer = isset($r['custom_answer']) && $r['custom_answer'] !== '';
                                         $qLabels = $campaignsQuestions[$r['campaign_slug']] ?? $genericLabels;
+                                        $customQLabel = ($qLabels[5] ?? null) ? (is_array($qLabels[5]) ? $qLabels[5]['label'] : $qLabels[5]) : null;
                                     ?>
 
                                     <div class="print:flex print:gap-8 print:items-start print:mt-4">
-                                        <?php if ($hasComment): ?>
-                                            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm italic text-slate-600 leading-relaxed print:p-4 print:border-none print:shadow-none print:bg-transparent print:flex-1 print:border-l-4 print:border-slate-100 print:pl-6 print:italic print:text-slate-600 print:leading-relaxed print:text-sm">
-                                                "<?= htmlspecialchars($r['comment']) ?>."
-                                            </div>
-                                        <?php endif; ?>
+                                        <div class="flex-1 space-y-4">
+                                            <?php if ($hasCustomAnswer && $customQLabel): ?>
+                                                <div class="bg-indigo-50/30 p-5 rounded-2xl border border-indigo-100 shadow-sm text-slate-700 leading-relaxed print:p-4 print:border-none print:shadow-none print:bg-transparent print:border-l-4 print:border-indigo-100 print:pl-6">
+                                                    <p class="text-[9px] font-black text-indigo-400 uppercase mb-2 italic tracking-widest"><?= htmlspecialchars($customQLabel) ?></p>
+                                                    <p class="font-medium text-slate-700 italic">"<?= htmlspecialchars($r['custom_answer']) ?>."</p>
+                                                </div>
+                                            <?php endif; ?>
+
+                                            <?php if ($hasComment): ?>
+                                                <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm italic text-slate-600 leading-relaxed print:p-4 print:border-none print:shadow-none print:bg-transparent print:border-l-4 print:border-slate-100 print:pl-6 print:italic print:text-slate-600 print:leading-relaxed print:text-sm">
+                                                    <p class="text-[9px] font-black text-slate-300 uppercase mb-2 italic tracking-widest">Dernier mot</p>
+                                                    "<?= htmlspecialchars($r['comment']) ?>."
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
 
                                         <!-- Détails des réponses -->
-                                        <div id="details-<?= $r['token'] ?>" class="hidden mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-fade-in print:mt-0 print:p-4 print:bg-transparent print:border-none <?= $hasComment ? 'print:w-[45%] print:shrink-0' : 'print:w-full' ?>">
-                                            <div class="grid grid-cols-1 md:grid-cols-5 <?= $hasComment ? 'print:grid-cols-1' : 'print:grid-cols-2' ?> gap-4 print:gap-x-8 print:gap-y-2">
+                                        <div id="details-<?= $r['token'] ?>" class="hidden mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 animate-fade-in print:mt-0 print:p-4 print:bg-transparent print:border-none <?= ($hasComment || $hasCustomAnswer) ? 'print:w-[45%] print:shrink-0' : 'print:w-full' ?>">
+                                            <div class="grid grid-cols-1 md:grid-cols-5 <?= ($hasComment || $hasCustomAnswer) ? 'print:grid-cols-1' : 'print:grid-cols-2' ?> gap-4 print:gap-x-8 print:gap-y-2">
                                                 <?php
                                                 for($i=1; $i<=5; $i++):
                                                     $score = $r['q'.$i];

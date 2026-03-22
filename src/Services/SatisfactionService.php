@@ -40,6 +40,7 @@ class SatisfactionService {
                 q4 INTEGER,
                 q5 INTEGER,
                 comment TEXT,
+                custom_answer TEXT,
                 submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )");
 
@@ -70,6 +71,13 @@ class SatisfactionService {
             } catch (Exception $e) {
                 $this->db->exec("ALTER TABLE survey_tokens ADD COLUMN status TEXT DEFAULT 'sent'");
             }
+
+            // Migration: Add custom_answer column to survey_responses if missing
+            try {
+                $this->db->query("SELECT custom_answer FROM survey_responses LIMIT 1");
+            } catch (Exception $e) {
+                $this->db->exec("ALTER TABLE survey_responses ADD COLUMN custom_answer TEXT");
+            }
         } catch (PDOException $e) {
             error_log("SatisfactionService Connection Error: " . $e->getMessage());
         }
@@ -85,13 +93,16 @@ class SatisfactionService {
         }
 
         // Default questions adapted by formType
+        $defaultTextQuestion = ['label' => 'Auriez-vous une idée pour nos prochaines actions ou évènements ?', 'type' => 'text'];
+
         if ($formType === 'Shop' || $formType === 'Checkout' || $formType === 'PaymentForm' || $formType === 'Product') {
             return [
                 ['label' => 'Êtes-vous satisfait de votre interaction avec l\'association ?'],
                 ['label' => 'Le processus d\'achat vous a-t-il semblé simple ?'],
                 ['label' => 'L\'objet ou le produit correspondait-il à vos attentes ?'],
                 ['label' => 'Seriez-vous prêt à commander à nouveau ou à nous recommander ?'],
-                ['label' => 'Comment évaluez-vous la qualité du retrait / livraison ?']
+                ['label' => 'Comment évaluez-vous la qualité du retrait / livraison ?'],
+                $defaultTextQuestion
             ];
         } else if ($formType === 'Donation') {
             return [
@@ -99,7 +110,8 @@ class SatisfactionService {
                 ['label' => 'Le processus de don vous a-t-il semblé simple ?'],
                 ['label' => 'Avez-vous le sentiment que votre don est utile ?'],
                 ['label' => 'Seriez-vous prêt à nous soutenir à nouveau ?'],
-                ['label' => 'La transparence sur l\'usage des fonds vous semble-t-elle correcte ?']
+                ['label' => 'La transparence sur l\'usage des fonds vous semble-t-elle correcte ?'],
+                $defaultTextQuestion
             ];
         } else if ($formType === 'Membership') {
             return [
@@ -107,7 +119,8 @@ class SatisfactionService {
                 ['label' => 'Le processus d\'adhésion vous a-t-il semblé simple ?'],
                 ['label' => 'Les avantages de l\'adhésion répondent-ils à vos attentes ?'],
                 ['label' => 'Recommanderiez-vous notre association à votre entourage ?'],
-                ['label' => 'Le montant de la cotisation vous semble-t-il justifié ?']
+                ['label' => 'Le montant de la cotisation vous semble-t-il justifié ?'],
+                $defaultTextQuestion
             ];
         }
 
@@ -117,7 +130,8 @@ class SatisfactionService {
             ['label' => 'Le processus d\'inscription vous a-t-il semblé simple ?'],
             ['label' => 'L\'événement correspondait-il à vos attentes ?'],
             ['label' => 'Seriez-vous prêt à renouveler l\'expérience ou à nous recommander ?'],
-            ['label' => 'Comment évaluez-vous la qualité de l\'accueil / organisation ?']
+            ['label' => 'Comment évaluez-vous la qualité de l\'accueil / organisation ?'],
+            $defaultTextQuestion
         ];
     }
 
@@ -173,8 +187,8 @@ class SatisfactionService {
         return $stmt->execute([$token]);
     }
 
-    public function saveResponse($token, $ratings, $comment) {
-        $stmt = $this->db->prepare("INSERT INTO survey_responses (token, q1, q2, q3, q4, q5, comment) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    public function saveResponse($token, $ratings, $comment, $customAnswer = null) {
+        $stmt = $this->db->prepare("INSERT INTO survey_responses (token, q1, q2, q3, q4, q5, comment, custom_answer) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
         return $stmt->execute([
             $token,
             $ratings[0] ?? null,
@@ -182,7 +196,8 @@ class SatisfactionService {
             $ratings[2] ?? null,
             $ratings[3] ?? null,
             $ratings[4] ?? null,
-            $comment
+            $comment,
+            $customAnswer
         ]);
     }
 
@@ -200,7 +215,7 @@ class SatisfactionService {
     }
 
     public function getResponsesByCampaign($campaignSlug = null) {
-        $sql = "SELECT r.*, t.payer_name, t.item_name, t.campaign_slug, t.email, t.read_at, t.sent_at, t.order_id
+        $sql = "SELECT r.*, t.payer_name, t.item_name, t.campaign_slug, t.email, t.read_at, t.sent_at, t.order_id, r.custom_answer
                 FROM survey_responses r
                 JOIN survey_tokens t ON r.token = t.token";
 
