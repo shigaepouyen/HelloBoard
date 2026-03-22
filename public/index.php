@@ -1,6 +1,8 @@
 <?php
-session_start();
+require_once __DIR__ . '/../src/Services/SessionService.php';
 require_once __DIR__ . '/../src/Services/Storage.php';
+
+SessionService::start();
 
 // --- CONFIGURATION ---
 $globals = Storage::getGlobalSettings();
@@ -24,7 +26,7 @@ function getCleanUrl($campaignSlug = null, $token = null) {
 
 // --- GESTION DECONNEXION ---
 if (isset($_GET['logout'])) {
-    session_destroy();
+    SessionService::destroy();
     header('Location: index.php');
     exit;
 }
@@ -33,6 +35,10 @@ if (isset($_GET['logout'])) {
 $loginError = null;
 if (isset($_POST['login'])) {
     if ($_POST['password'] === $adminPassword) {
+        if (isset($_POST['remember'])) {
+            SessionService::destroy();
+            SessionService::start(true);
+        }
         $_SESSION['authenticated'] = true;
         // On redirige pour nettoyer le POST
         header("Location: index.php" . (isset($_GET['campaign']) ? "?campaign=".urlencode($_GET['campaign']) : "")); 
@@ -178,6 +184,12 @@ if ($isAdmin) {
             
             <form method="POST" class="space-y-4">
                 <input type="password" name="password" class="w-full bg-slate-50 border-2 border-transparent focus:border-blue-600 rounded-2xl p-4 text-center font-black outline-none transition" placeholder="Code d'accès" required autofocus>
+
+                <div class="flex items-center justify-center gap-2 py-2">
+                    <input type="checkbox" name="remember" id="remember" class="w-4 h-4 accent-slate-900 cursor-pointer">
+                    <label for="remember" class="text-[10px] font-black uppercase text-slate-400 cursor-pointer select-none">Se souvenir de moi (30 jours)</label>
+                </div>
+
                 <button type="submit" name="login" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase text-xs hover:bg-blue-600 transition shadow-xl">
                     Connexion
                 </button>
