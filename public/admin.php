@@ -325,7 +325,8 @@ if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
 
         $satService = new SatisfactionService();
         $orders = $client->fetchAllOrders($currentCamp['orgSlug'], $currentCamp['formSlug'], $currentCamp['formType']);
-        $recipients = [];
+        $checkins = Storage::getCheckins($slug);
+        $recipientsByEmail = [];
 
         foreach ($orders as $o) {
             // Un order est éligible si au moins un item est 'Paid' ou 'Processed'
@@ -341,22 +342,49 @@ if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
             $email = trim(strtolower($o['payer']['email'] ?? ''));
             if (!$email) continue;
 
-            if ($excludeSent && $satService->isAlreadySent($slug, $o['id'])) continue;
             if ($excludeEver && $satService->hasEverReceived($email)) continue;
+            if ($excludeSent && $satService->isAlreadySentToEmail($slug, $email)) {
+                // We mark it as sent but still might want to see it in the list if it's already sent
+                // Actually the current UI filters them out if excludeSent is on.
+                continue;
+            }
 
-            $recipients[$o['id']] = [
-                'orderId' => $o['id'],
-                'email' => $email,
-                'firstName' => trim($o['payer']['firstName'] ?? ''),
-                'lastName' => trim($o['payer']['lastName'] ?? ''),
-                'itemName' => $currentCamp['title'],
-                'date' => $o['date']
-            ];
+            // Check if ANY item in this order is checked-in
+            $orderIsPresent = false;
+            foreach ($o['items'] ?? [] as $item) {
+                $checkId = $o['id'] . '-' . $item['id'];
+                if (!empty($checkins[$checkId]) || !empty($checkins[$o['id']])) {
+                    $orderIsPresent = true;
+                    break;
+                }
+            }
+
+            if (!isset($recipientsByEmail[$email])) {
+                $recipientsByEmail[$email] = [
+                    'orderId' => $o['id'], // We keep one orderId for the token generation
+                    'email' => $email,
+                    'firstName' => trim($o['payer']['firstName'] ?? ''),
+                    'lastName' => trim($o['payer']['lastName'] ?? ''),
+                    'itemName' => $currentCamp['title'],
+                    'date' => $o['date'],
+                    'isPresent' => $orderIsPresent
+                ];
+            } else {
+                // If we already have this email, we just update isPresent if this order is present
+                if ($orderIsPresent) {
+                    $recipientsByEmail[$email]['isPresent'] = true;
+                }
+                // Keep the most recent order date maybe?
+                if ($o['date'] > $recipientsByEmail[$email]['date']) {
+                    $recipientsByEmail[$email]['date'] = $o['date'];
+                    $recipientsByEmail[$email]['orderId'] = $o['id'];
+                }
+            }
         }
         echo json_encode([
             'success' => true,
             'isEligible' => true,
-            'recipients' => array_values($recipients),
+            'recipients' => array_values($recipientsByEmail),
             'tokens' => $satService->getTokensByCampaign($slug),
             'responses' => $satService->getResponsesByCampaign($slug)
         ]);
@@ -553,13 +581,19 @@ if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
         $satService = new SatisfactionService();
 
         $token = null;
-        if (!$isTest && $satService->isAlreadySent($slug, $orderId)) {
+        if (!$isTest && $satService->isAlreadySentToEmail($slug, $email)) {
             if (!$force) {
                 echo json_encode(['success' => false, 'error' => 'Déjà envoyé']);
                 exit;
             }
-            $existing = $satService->getTokenByOrder($slug, $orderId);
-            $token = $existing['token'] ?? null;
+            // Find most recent token for this email
+            $tokens = $satService->getTokensByCampaign($slug);
+            foreach($tokens as $t) {
+                if ($t['email'] === $email) {
+                    $token = $t['token'];
+                    break;
+                }
+            }
         }
 
         if (!$token) {
