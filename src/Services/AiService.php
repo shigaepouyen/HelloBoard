@@ -66,8 +66,12 @@ class AiService {
             }
             $formattedResponses .= "--- Avis anonyme ---\n";
             $formattedResponses .= "Notes : " . (empty($scores) ? 'N/A' : implode(', ', $scores)) . "\n";
+            if (isset($r['custom_answer']) && $r['custom_answer'] !== '') {
+                $customQLabel = ($questions[5] ?? null) ? (is_array($questions[5]) ? ($questions[5]['label'] ?? 'Question Texte') : $questions[5]) : 'Question Texte';
+                $formattedResponses .= "$customQLabel : " . $r['custom_answer'] . "\n";
+            }
             if (isset($r['comment']) && $r['comment'] !== '') {
-                $formattedResponses .= "Commentaire : " . $r['comment'] . "\n";
+                $formattedResponses .= "Dernier mot : " . $r['comment'] . "\n";
             }
             $formattedResponses .= "\n";
         }

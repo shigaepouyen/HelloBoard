@@ -112,14 +112,25 @@
                     <div id="questions-collapse" class="collapsible-content">
                         <div class="p-8 pt-0">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <?php foreach($questions as $i => $q): ?>
+                                <?php for($i=0; $i<5; $i++): $q = $questions[$i] ?? ['label' => '']; ?>
                                     <div>
-                                        <label class="text-[9px] font-black text-slate-400 uppercase block mb-1 italic">Question <?= $i+1 ?></label>
-                                        <input type="text" class="question-input input-soft !py-3 !text-xs" value="<?= htmlspecialchars($q['label']) ?>" data-index="<?= $i ?>">
+                                        <label class="text-[9px] font-black text-slate-400 uppercase block mb-1 italic">Note <?= $i+1 ?></label>
+                                        <input type="text" class="question-input input-soft !py-3 !text-xs" value="<?= htmlspecialchars($q['label']) ?>" data-index="<?= $i ?>" data-type="rating">
                                     </div>
-                                <?php endforeach; ?>
+                                <?php endfor; ?>
                             </div>
-                            <button onclick="saveQuestions()" id="btn-save-questions" class="w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-black uppercase text-xs hover:bg-slate-200 transition mt-6">
+
+                            <div class="mt-8 pt-8 border-t border-slate-50">
+                                <div class="flex items-center gap-2 mb-4">
+                                    <label class="text-[9px] font-black text-indigo-600 uppercase tracking-widest italic">Question texte libre supplémentaire</label>
+                                    <span class="text-[8px] bg-indigo-50 text-indigo-400 px-2 py-0.5 rounded-full font-bold uppercase">Optionnel</span>
+                                </div>
+                                <?php $qText = $questions[5] ?? ['label' => '']; ?>
+                                <input type="text" id="custom-text-question" class="question-input input-soft !py-4 !text-sm" value="<?= htmlspecialchars($qText['label']) ?>" data-index="5" data-type="text" placeholder="Ex: Auriez-vous des idées de thèmes pour les prochaines soirées ?">
+                                <p class="text-[9px] text-slate-400 font-bold uppercase mt-2 italic">Laissez vide pour désactiver cette question dans le questionnaire.</p>
+                            </div>
+
+                            <button onclick="saveQuestions()" id="btn-save-questions" class="w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-black uppercase text-xs hover:bg-slate-200 transition mt-8">
                                 Enregistrer les questions
                             </button>
                         </div>
@@ -341,7 +352,10 @@
 
             const questions = [];
             document.querySelectorAll('.question-input').forEach(input => {
-                questions.push({ label: input.value });
+                questions.push({
+                    label: input.value,
+                    type: input.dataset.type || 'rating'
+                });
             });
 
             try {
