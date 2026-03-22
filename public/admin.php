@@ -1,7 +1,9 @@
 <?php
-session_start();
 $srcPath = __DIR__ . '/../src/Services/';
+require_once $srcPath . 'SessionService.php';
 require_once $srcPath . 'Storage.php';
+
+SessionService::start();
 require_once $srcPath . 'HelloAssoClient.php';
 require_once $srcPath . 'SatisfactionService.php';
 require_once $srcPath . 'AiService.php';
@@ -10,14 +12,22 @@ $globals = Storage::getGlobalSettings();
 $adminPassword = $globals['adminPassword'] ?? null;
 
 // --- 1. GESTION AUTHENTIFICATION ---
-if (isset($_GET['logout'])) { session_destroy(); header('Location: index.php'); exit; }
+if (isset($_GET['logout'])) { SessionService::destroy(); header('Location: index.php'); exit; }
 if (isset($_POST['login'])) {
-    if ($_POST['password'] === $adminPassword) { $_SESSION['authenticated'] = true; } else { $loginError = "Mot de passe incorrect"; }
+    if ($_POST['password'] === $adminPassword) {
+        if (isset($_POST['remember'])) {
+            SessionService::destroy();
+            SessionService::start(true);
+        }
+        $_SESSION['authenticated'] = true;
+    } else {
+        $loginError = "Mot de passe incorrect";
+    }
 }
 
 if ($adminPassword && !isset($_SESSION['authenticated'])) {
     ?>
-    <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Admin</title><script src="https://cdn.tailwindcss.com"></script><style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap');body{font-family:'Plus Jakarta Sans',sans-serif;background:#0f172a;}</style></head><body class="min-h-screen flex items-center justify-center p-6"><div class="w-full max-w-md bg-white rounded-[3rem] p-10 text-center"><div class="w-20 h-20 mx-auto mb-8 flex items-center justify-center"><img src="<?= $globals['customLogo'] ?? 'assets/img/logo.svg' ?>" alt="HelloBoard" class="max-w-full max-h-20 object-contain"></div><h2 class="text-3xl font-black mb-10 italic uppercase">Console Admin</h2><form method="POST" class="space-y-4"><input type="password" name="password" class="w-full bg-slate-50 border-2 border-transparent focus:border-blue-600 rounded-[1.5rem] p-5 text-2xl text-center outline-none" placeholder="••••••" required autofocus><button type="submit" name="login" class="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black uppercase text-xs">Accéder</button></form><?php if(isset($loginError)): ?><p class="text-red-500 font-bold mt-4"><?= $loginError ?></p><?php endif; ?></div></body></html>
+    <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Admin</title><script src="https://cdn.tailwindcss.com"></script><style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&display=swap');body{font-family:'Plus Jakarta Sans',sans-serif;background:#0f172a;}</style></head><body class="min-h-screen flex items-center justify-center p-6"><div class="w-full max-w-md bg-white rounded-[3rem] p-10 text-center"><div class="w-20 h-20 mx-auto mb-8 flex items-center justify-center"><img src="<?= $globals['customLogo'] ?? 'assets/img/logo.svg' ?>" alt="HelloBoard" class="max-w-full max-h-20 object-contain"></div><h2 class="text-3xl font-black mb-10 italic uppercase">Console Admin</h2><form method="POST" class="space-y-4"><input type="password" name="password" class="w-full bg-slate-50 border-2 border-transparent focus:border-blue-600 rounded-[1.5rem] p-5 text-2xl text-center outline-none" placeholder="••••••" required autofocus><div class="flex items-center justify-center gap-2 py-2"><input type="checkbox" name="remember" id="remember" class="w-4 h-4 accent-blue-600 cursor-pointer"><label for="remember" class="text-[10px] font-black uppercase text-slate-400 cursor-pointer select-none">Se souvenir de moi (30 jours)</label></div><button type="submit" name="login" class="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black uppercase text-xs">Accéder</button></form><?php if(isset($loginError)): ?><p class="text-red-500 font-bold mt-4"><?= $loginError ?></p><?php endif; ?></div></body></html>
     <?php exit;
 }
 
