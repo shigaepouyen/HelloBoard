@@ -153,6 +153,12 @@ class SatisfactionService {
         return $stmt->fetch();
     }
 
+    public function getTokenByEmail($campaignSlug, $email) {
+        $stmt = $this->db->prepare("SELECT * FROM survey_tokens WHERE campaign_slug = ? AND email = ? ORDER BY rowid DESC LIMIT 1");
+        $stmt->execute([$campaignSlug, $email]);
+        return $stmt->fetch();
+    }
+
     public function updateSentDate($token) {
         $stmt = $this->db->prepare("UPDATE survey_tokens SET sent_at = CURRENT_TIMESTAMP WHERE token = ?");
         return $stmt->execute([$token]);
@@ -212,6 +218,70 @@ class SatisfactionService {
         $stmt = $this->db->prepare("SELECT * FROM survey_tokens WHERE campaign_slug = ?");
         $stmt->execute([$campaignSlug]);
         return $stmt->fetchAll();
+    }
+
+    public function buildRecipientsByEmail($campaignSlug, $campaignTitle, array $orders, array $checkins = [], $excludeSent = false, $excludeEver = false) {
+        $recipientsByEmail = [];
+
+        foreach ($orders as $order) {
+            $hasValidItem = false;
+            foreach ($order['items'] ?? [] as $item) {
+                if (in_array(($item['state'] ?? ''), ['Paid', 'Processed'], true)) {
+                    $hasValidItem = true;
+                    break;
+                }
+            }
+
+            if (!$hasValidItem) {
+                continue;
+            }
+
+            $email = trim(strtolower($order['payer']['email'] ?? ''));
+            if (!$email) {
+                continue;
+            }
+
+            if ($excludeEver && $this->hasEverReceived($email)) {
+                continue;
+            }
+
+            if ($excludeSent && $this->isAlreadySentToEmail($campaignSlug, $email)) {
+                continue;
+            }
+
+            $orderIsPresent = false;
+            foreach ($order['items'] ?? [] as $item) {
+                $checkId = ($order['id'] ?? '') . '-' . ($item['id'] ?? '');
+                if (!empty($checkins[$checkId]) || !empty($checkins[$order['id'] ?? ''])) {
+                    $orderIsPresent = true;
+                    break;
+                }
+            }
+
+            if (!isset($recipientsByEmail[$email])) {
+                $recipientsByEmail[$email] = [
+                    'orderId' => $order['id'] ?? null,
+                    'email' => $email,
+                    'firstName' => trim($order['payer']['firstName'] ?? ''),
+                    'lastName' => trim($order['payer']['lastName'] ?? ''),
+                    'itemName' => $campaignTitle,
+                    'date' => $order['date'] ?? null,
+                    'isPresent' => $orderIsPresent
+                ];
+                continue;
+            }
+
+            if ($orderIsPresent) {
+                $recipientsByEmail[$email]['isPresent'] = true;
+            }
+
+            if (($order['date'] ?? '') > ($recipientsByEmail[$email]['date'] ?? '')) {
+                $recipientsByEmail[$email]['date'] = $order['date'] ?? null;
+                $recipientsByEmail[$email]['orderId'] = $order['id'] ?? null;
+            }
+        }
+
+        return $recipientsByEmail;
     }
 
     public function getResponsesByCampaign($campaignSlug = null) {

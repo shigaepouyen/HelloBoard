@@ -5,50 +5,124 @@ require_once $srcPath . 'Storage.php';
 
 $satService = new SatisfactionService();
 $globals = Storage::getGlobalSettings();
-$token = $_GET['t'] ?? null;
-
-if (!$token) {
-    die("Token manquant.");
-}
-
-$info = $satService->getTokenInfo($token);
-if (!$info) {
-    die("Token invalide ou expiré.");
-}
-
-// Check if already responded
-$responses = $satService->getResponsesByCampaign($info['campaign_slug']);
+$token = trim($_GET['t'] ?? '');
+$campaignSlug = trim($_GET['campaign'] ?? '');
+$accessToken = trim($_GET['access'] ?? '');
+$info = null;
+$campaign = null;
+$questions = [];
+$activeQuestions = [];
 $alreadyResponded = false;
-foreach ($responses as $r) {
-    if ($r['token'] === $token) {
-        $alreadyResponded = true;
-        break;
+$emailLookupMode = false;
+$emailLookupError = null;
+$submittedEmail = '';
+$pageItemName = 'Questionnaire';
+$totalSteps = 0;
+
+if ($token !== '') {
+    $info = $satService->getTokenInfo($token);
+    if (!$info) {
+        die("Token invalide ou expiré.");
     }
-}
 
-$campaign = Storage::getCampaign($info['campaign_slug']);
-$formType = $campaign['formType'] ?? null;
-$questions = $satService->getQuestions($info['campaign_slug'], $formType);
+    $campaign = Storage::getCampaign($info['campaign_slug']);
+    $formType = $campaign['formType'] ?? null;
+    $questions = $satService->getQuestions($info['campaign_slug'], $formType);
+    $pageItemName = $info['item_name'] ?: ($campaign['title'] ?? 'Questionnaire');
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$alreadyResponded) {
-    $ratings = [];
-    $customAnswer = null;
-
-    foreach ($questions as $i => $q) {
-        $idx = $i + 1;
-        $type = $q['type'] ?? 'rating';
-        if ($type === 'text') {
-            $customAnswer = $_POST['custom_answer'] ?? null;
-        } else {
-            $ratings[] = isset($_POST['q' . $idx]) ? (int)$_POST['q' . $idx] : null;
+    $responses = $satService->getResponsesByCampaign($info['campaign_slug']);
+    foreach ($responses as $response) {
+        if ($response['token'] === $token) {
+            $alreadyResponded = true;
+            break;
         }
     }
 
-    $comment = $_POST['comment'] ?? '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$alreadyResponded) {
+        $ratings = [];
+        $customAnswer = null;
 
-    $satService->saveResponse($token, $ratings, $comment, $customAnswer);
-    $alreadyResponded = true;
-    $success = true;
+        foreach ($questions as $i => $q) {
+            $idx = $i + 1;
+            $type = $q['type'] ?? 'rating';
+            if ($type === 'text') {
+                $customAnswer = $_POST['custom_answer'] ?? null;
+            } else {
+                $ratings[] = isset($_POST['q' . $idx]) ? (int) $_POST['q' . $idx] : null;
+            }
+        }
+
+        $comment = $_POST['comment'] ?? '';
+
+        $satService->saveResponse($token, $ratings, $comment, $customAnswer);
+        $alreadyResponded = true;
+        $success = true;
+    }
+
+    $activeQuestions = array_values(array_filter($questions, function($question) {
+        return !empty(trim($question['label'] ?? ''));
+    }));
+    $totalSteps = count($activeQuestions) + 1;
+} elseif ($campaignSlug !== '' && $accessToken !== '') {
+    $campaign = Storage::getCampaign($campaignSlug);
+    if (
+        !$campaign ||
+        empty($campaign['satisfactionAccessToken']) ||
+        !hash_equals((string) $campaign['satisfactionAccessToken'], $accessToken)
+    ) {
+        die("Lien invalide ou expiré.");
+    }
+
+    $emailLookupMode = true;
+    $pageItemName = $campaign['title'] ?? 'Questionnaire';
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resolve_email') {
+        $submittedEmail = trim(strtolower($_POST['email'] ?? ''));
+
+        if (!$submittedEmail || !filter_var($submittedEmail, FILTER_VALIDATE_EMAIL)) {
+            $emailLookupError = "Veuillez saisir l'email utilisé lors de votre commande.";
+        } else {
+            require_once $srcPath . 'HelloAssoClient.php';
+
+            try {
+                $client = new HelloAssoClient(
+                    $globals['clientId'] ?? '',
+                    $globals['clientSecret'] ?? '',
+                    $globals['debugMode'] ?? false
+                );
+
+                $orders = $client->fetchAllOrders($campaign['orgSlug'], $campaign['formSlug'], $campaign['formType']);
+                $recipientsByEmail = $satService->buildRecipientsByEmail(
+                    $campaign['slug'],
+                    $campaign['title'] ?? $campaign['slug'],
+                    $orders
+                );
+
+                $recipient = $recipientsByEmail[$submittedEmail] ?? null;
+                if (!$recipient) {
+                    $emailLookupError = "Nous n'avons pas retrouvé de commande associée à cet email pour cette campagne.";
+                } else {
+                    $existingToken = $satService->getTokenByEmail($campaign['slug'], $submittedEmail);
+                    $resolvedToken = $existingToken['token'] ?? $satService->generateToken(
+                        $campaign['slug'],
+                        $recipient['orderId'],
+                        $recipient['email'],
+                        trim(($recipient['firstName'] ?? '') . ' ' . ($recipient['lastName'] ?? '')),
+                        $recipient['itemName'] ?? ($campaign['title'] ?? 'Questionnaire')
+                    );
+
+                    $satService->markAsRead($resolvedToken);
+                    header('Location: satisfaction.php?t=' . rawurlencode($resolvedToken));
+                    exit;
+                }
+            } catch (Throwable $e) {
+                error_log('Satisfaction public access error: ' . $e->getMessage());
+                $emailLookupError = "Le service de vérification est temporairement indisponible. Merci de réessayer.";
+            }
+        }
+    }
+} else {
+    die("Lien invalide ou incomplet.");
 }
 
 $emojis = [
@@ -65,7 +139,7 @@ $emojis = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Votre avis — <?= htmlspecialchars($info['item_name']) ?></title>
+    <title>Votre avis — <?= htmlspecialchars($pageItemName) ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -103,20 +177,42 @@ $emojis = [
         <div class="text-center mb-8">
             <img src="<?= $globals['customLogo'] ?? 'assets/img/logo.svg' ?>" alt="Logo" class="max-h-16 mx-auto mb-6">
             <h1 class="text-2xl font-black uppercase italic tracking-tight">Votre avis nous intéresse</h1>
-            <p class="text-slate-400 font-bold text-[10px] uppercase mt-2 italic tracking-widest"><?= htmlspecialchars($info['item_name']) ?></p>
+            <p class="text-slate-400 font-bold text-[10px] uppercase mt-2 italic tracking-widest"><?= htmlspecialchars($pageItemName) ?></p>
         </div>
 
         <div class="card p-6 md:p-10 relative overflow-hidden">
+            <?php if ($emailLookupMode): ?>
+                <div class="text-center py-4 md:py-8 animate-fade-in">
+                    <div class="w-24 h-24 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-8">
+                        <i class="fa-solid fa-envelope text-4xl"></i>
+                    </div>
+                    <h2 class="text-3xl font-black mb-4 italic uppercase">Identifier votre commande</h2>
+                    <p class="text-slate-500 font-medium leading-relaxed max-w-md mx-auto">
+                        Saisissez l'adresse email utilisee lors de votre commande pour ouvrir votre questionnaire personnel.
+                    </p>
 
-            <?php
-            // On ne compte que les questions qui ont un label (les questions vides sont masquées)
-            $activeQuestions = array_filter($questions, function($q) {
-                return !empty(trim($q['label'] ?? ''));
-            });
-            $totalSteps = count($activeQuestions) + 1; // +1 pour le commentaire final
-            ?>
-
-            <?php if (!isset($success) && !$alreadyResponded): ?>
+                    <form method="POST" class="mt-10 space-y-4 max-w-md mx-auto text-left">
+                        <input type="hidden" name="action" value="resolve_email">
+                        <label for="email" class="text-[10px] font-black text-slate-400 uppercase tracking-widest italic block">Email de commande</label>
+                        <input
+                            type="email"
+                            name="email"
+                            id="email"
+                            value="<?= htmlspecialchars($submittedEmail) ?>"
+                            class="w-full bg-slate-50 border-2 <?= $emailLookupError ? 'border-red-200' : 'border-transparent focus:border-blue-600' ?> rounded-[2rem] p-5 text-slate-700 outline-none transition text-base"
+                            placeholder="vous@exemple.fr"
+                            autocomplete="email"
+                            required
+                        >
+                        <?php if ($emailLookupError): ?>
+                            <p class="text-red-500 font-bold text-sm"><?= htmlspecialchars($emailLookupError) ?></p>
+                        <?php endif; ?>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl hover:bg-blue-700 transition">
+                            Acceder a mon questionnaire
+                        </button>
+                    </form>
+                </div>
+            <?php elseif (!isset($success) && !$alreadyResponded): ?>
                 <div class="mb-8">
                     <div class="flex justify-between items-center mb-2">
                         <span id="step-indicator" class="text-[10px] font-black text-blue-600 uppercase tracking-widest italic">Question 1 / <?= $totalSteps ?></span>
@@ -221,7 +317,7 @@ $emojis = [
 
     <script>
         let currentStep = 1;
-        const totalSteps = <?= $totalSteps ?>;
+        const totalSteps = <?= (int) $totalSteps ?>;
         const ratings = {};
 
         function updateUI() {
@@ -233,7 +329,7 @@ $emojis = [
             if (stepInd) stepInd.innerText = `Question ${currentStep} / ${totalSteps}`;
 
             // Update progress
-            const progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
+            const progress = totalSteps > 1 ? ((currentStep - 1) / (totalSteps - 1)) * 100 : 100;
             if (progFill) progFill.style.width = `${progress}%`;
             if (percInd) percInd.innerText = `${Math.round(progress)}%`;
 

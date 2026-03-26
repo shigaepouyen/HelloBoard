@@ -142,6 +142,20 @@
             <!-- COLONNE DROITE : STATS & ENVOI -->
             <div class="space-y-8">
 
+                <!-- LIEN PUBLIC -->
+                <div class="admin-card p-8 border-amber-100 bg-amber-50/30">
+                    <h3 class="text-xs font-black uppercase text-amber-600 mb-4 italic tracking-widest">Lien public sans email</h3>
+                    <p class="text-[11px] text-slate-500 leading-relaxed">
+                        Ce lien ouvre un formulaire qui demande l'email de commande, puis bascule la personne sur son questionnaire avec token individuel.
+                    </p>
+                    <div class="mt-4 flex gap-3">
+                        <input type="text" id="public-satisfaction-url" class="input-soft !bg-white !text-[10px] !py-3" value="<?= htmlspecialchars($publicSatisfactionUrl) ?>" readonly>
+                        <button onclick="copyPublicSatisfactionUrl()" class="px-4 bg-amber-500 text-white rounded-xl font-black uppercase text-[10px] hover:bg-amber-600 transition shrink-0">
+                            Copier
+                        </button>
+                    </div>
+                </div>
+
                 <!-- ENVOI & PROGRESSION -->
                 <div class="admin-card p-8">
                     <div id="sending-progress-container" class="hidden mb-6">
@@ -342,6 +356,19 @@
                 div.style.transition = '0.3s';
                 setTimeout(() => div.remove(), 300);
             }, 5000);
+        }
+
+        async function copyPublicSatisfactionUrl() {
+            const input = document.getElementById('public-satisfaction-url');
+
+            try {
+                await navigator.clipboard.writeText(input.value);
+                notify("Lien public copie !", "success");
+            } catch (e) {
+                input.select();
+                document.execCommand('copy');
+                notify("Lien public copie !", "success");
+            }
         }
 
         async function saveQuestions() {

@@ -35,6 +35,30 @@ $action = $_GET['action'] ?? 'list';
 $localCampaigns = Storage::listCampaigns();
 $client = new HelloAssoClient($globals['clientId']??'', $globals['clientSecret']??'', $globals['debugMode']??false);
 
+function buildAppUrl($scriptName) {
+    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'];
+    $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+    return $protocol . '://' . $host . $path . '/' . ltrim($scriptName, '/');
+}
+
+function ensureSatisfactionAccessToken(array $campaign) {
+    if (empty($campaign['satisfactionAccessToken'])) {
+        $campaign['satisfactionAccessToken'] = bin2hex(random_bytes(16));
+        Storage::saveCampaign($campaign['slug'], $campaign);
+    }
+
+    return $campaign;
+}
+
+function buildSatisfactionAccessUrl(array $campaign) {
+    $campaign = ensureSatisfactionAccessToken($campaign);
+    return buildAppUrl('satisfaction.php') . '?' . http_build_query([
+        'campaign' => $campaign['slug'],
+        'access' => $campaign['satisfactionAccessToken']
+    ]);
+}
+
 // --- 2. TRAITEMENT DES ACTIONS ---
 
 // Sauvegarde globale
@@ -141,6 +165,7 @@ if (isset($_POST['save_campaign'])) {
     $config = json_decode($_POST['config'], true);
     if ($config) {
         if (empty($config['shareToken'])) $config['shareToken'] = bin2hex(random_bytes(16));
+        if (empty($config['satisfactionAccessToken'])) $config['satisfactionAccessToken'] = bin2hex(random_bytes(16));
         Storage::saveCampaign($config['slug'], $config);
     }
     echo json_encode(['success' => true]); exit;
@@ -333,64 +358,17 @@ if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
             exit;
         }
 
-        $satService = new SatisfactionService();
         $orders = $client->fetchAllOrders($currentCamp['orgSlug'], $currentCamp['formSlug'], $currentCamp['formType']);
         $checkins = Storage::getCheckins($slug);
-        $recipientsByEmail = [];
+        $recipientsByEmail = $satService->buildRecipientsByEmail(
+            $slug,
+            $currentCamp['title'] ?? $slug,
+            $orders,
+            $checkins,
+            $excludeSent,
+            $excludeEver
+        );
 
-        foreach ($orders as $o) {
-            // Un order est éligible si au moins un item est 'Paid' ou 'Processed'
-            $hasValidItem = false;
-            foreach ($o['items'] ?? [] as $item) {
-                if (in_array(($item['state'] ?? ''), ['Paid', 'Processed'])) {
-                    $hasValidItem = true;
-                    break;
-                }
-            }
-            if (!$hasValidItem) continue;
-
-            $email = trim(strtolower($o['payer']['email'] ?? ''));
-            if (!$email) continue;
-
-            if ($excludeEver && $satService->hasEverReceived($email)) continue;
-            if ($excludeSent && $satService->isAlreadySentToEmail($slug, $email)) {
-                // We mark it as sent but still might want to see it in the list if it's already sent
-                // Actually the current UI filters them out if excludeSent is on.
-                continue;
-            }
-
-            // Check if ANY item in this order is checked-in
-            $orderIsPresent = false;
-            foreach ($o['items'] ?? [] as $item) {
-                $checkId = $o['id'] . '-' . $item['id'];
-                if (!empty($checkins[$checkId]) || !empty($checkins[$o['id']])) {
-                    $orderIsPresent = true;
-                    break;
-                }
-            }
-
-            if (!isset($recipientsByEmail[$email])) {
-                $recipientsByEmail[$email] = [
-                    'orderId' => $o['id'], // We keep one orderId for the token generation
-                    'email' => $email,
-                    'firstName' => trim($o['payer']['firstName'] ?? ''),
-                    'lastName' => trim($o['payer']['lastName'] ?? ''),
-                    'itemName' => $currentCamp['title'],
-                    'date' => $o['date'],
-                    'isPresent' => $orderIsPresent
-                ];
-            } else {
-                // If we already have this email, we just update isPresent if this order is present
-                if ($orderIsPresent) {
-                    $recipientsByEmail[$email]['isPresent'] = true;
-                }
-                // Keep the most recent order date maybe?
-                if ($o['date'] > $recipientsByEmail[$email]['date']) {
-                    $recipientsByEmail[$email]['date'] = $o['date'];
-                    $recipientsByEmail[$email]['orderId'] = $o['id'];
-                }
-            }
-        }
         echo json_encode([
             'success' => true,
             'isEligible' => true,
@@ -596,14 +574,8 @@ if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
                 echo json_encode(['success' => false, 'error' => 'Déjà envoyé']);
                 exit;
             }
-            // Find most recent token for this email
-            $tokens = $satService->getTokensByCampaign($slug);
-            foreach($tokens as $t) {
-                if ($t['email'] === $email) {
-                    $token = $t['token'];
-                    break;
-                }
-            }
+            $existingToken = $satService->getTokenByEmail($slug, $email);
+            $token = $existingToken['token'] ?? null;
         }
 
         if (!$token) {
@@ -998,8 +970,10 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
                 header('Location: admin.php?action=satisfaction&campaign=' . $slug);
                 exit;
             }
+            $currentCamp = ensureSatisfactionAccessToken($currentCamp);
             $questions = $satService->getQuestions($slug, $currentCamp['formType']);
             $tokens = $satService->getTokensByCampaign($slug);
+            $publicSatisfactionUrl = buildSatisfactionAccessUrl($currentCamp);
 
             $mailingDraft = $currentCamp['satisfactionMailingDraft'] ?? null;
             if (!$mailingDraft) {
