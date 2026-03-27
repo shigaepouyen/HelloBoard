@@ -58,6 +58,7 @@ Le projet privilegie la simplicite:
 ### 😊 4) Satisfaction
 
 - Envoi de questionnaires via token unique.
+- Lien public de satisfaction par campagne avec saisie de l'email de commande.
 - Formulaire public dedie (`public/satisfaction.php`).
 - Tableau de bord satisfaction global.
 - Export CSV des retours.
@@ -123,6 +124,20 @@ HelloBoard/
 - `config/mailing/*.json`: historique d'envois/lectures.
 - `config/satisfaction.db`: questionnaires/reponses/statistiques.
 
+### 😊 Parcours satisfaction
+
+Le module satisfaction supporte deux modes d'entree sur `public/satisfaction.php`:
+
+- Lien individuel tokenise: utilise dans les emails (`?t=<token>`).
+- Lien public de campagne: utilise pour un partage libre (`?campaign=<slug>&access=<satisfactionAccessToken>`).
+
+Quand un lien public de campagne est utilise:
+
+1. Le visiteur saisit l'email utilise lors de sa commande / inscription.
+2. HelloBoard verifie cet email contre les commandes HelloAsso de la campagne.
+3. L'application reutilise le token existant pour cet email ou en genere un nouveau.
+4. Le visiteur est redirige vers le questionnaire standard, avec le meme traitement qu'un lien tokenise.
+
 ## 🚀 Installation
 
 ### ✅ Prerequis
@@ -168,7 +183,7 @@ Champs principaux:
 Configuration par campagne:
 
 - Creee depuis `admin.php` puis stockee dans `config/campaigns/<slug>.json`.
-- Inclut slug, type de formulaire, objectifs, regles de mapping, token de partage.
+- Inclut slug, type de formulaire, objectifs, regles de mapping, token de partage (`shareToken`) et token d'acces public satisfaction (`satisfactionAccessToken`).
 
 ## 🧭 Exploitation quotidienne
 
@@ -177,6 +192,7 @@ Configuration par campagne:
 - Lancer un rappel mailing avant l'evenement.
 - Utiliser la guestlist le jour J.
 - Envoyer un questionnaire satisfaction apres la campagne.
+- Si besoin, copier le lien public "sans email" depuis l'ecran Satisfaction pour permettre une auto-identification par email de commande.
 - Exporter les CSV pour archivage ou reporting.
 
 ## 🔐 Securite et bonnes pratiques
@@ -185,6 +201,7 @@ Configuration par campagne:
 - Conserver la protection du dossier `config/`.
 - Definir un mot de passe admin robuste.
 - Regenerer les `shareToken` si un lien public fuite.
+- Regenerer les `satisfactionAccessToken` si un lien public satisfaction fuite.
 - Desactiver le debug en production.
 - Sauvegarder regulierement `config/` (incluant `satisfaction.db`).
 
