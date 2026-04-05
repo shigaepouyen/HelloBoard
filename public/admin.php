@@ -628,7 +628,7 @@ if ($action === 'satisfaction_export_csv' && isset($_GET['campaign'])) {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename=satisfaction_logs_' . $slug . '_' . date('Y-m-d') . '.csv');
     $output = fopen('php://output', 'w');
-    fputcsv($output, ['Date Envoi', 'Nom', 'Email', 'Objet HelloAsso', 'Lu le', 'Répondu le', 'Score Moyen'], ',', '"', "\\");
+    fputcsv($output, ['Statut', 'Date Envoi', 'Nom', 'Email', 'Objet HelloAsso', 'Lu le', 'Répondu le', 'Score Moyen'], ',', '"', "\\");
 
     foreach ($tokens as $t) {
         $resp = $respMap[$t['token']] ?? null;
@@ -645,6 +645,7 @@ if ($action === 'satisfaction_export_csv' && isset($_GET['campaign'])) {
         }
 
         fputcsv($output, [
+            !empty($t['sent_at']) ? 'envoye' : 'acces_public',
             $t['sent_at'],
             $t['payer_name'],
             $t['email'],

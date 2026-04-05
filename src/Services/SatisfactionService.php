@@ -401,7 +401,15 @@ class SatisfactionService {
         $sql = "SELECT campaign_slug,
                 COUNT(CASE WHEN sent_at IS NOT NULL THEN 1 END) as total_sent,
                 COUNT(CASE WHEN sent_at IS NOT NULL AND read_at IS NOT NULL THEN 1 END) as total_read,
-                (SELECT COUNT(*) FROM survey_responses r WHERE r.token IN (SELECT token FROM survey_tokens t2 WHERE t2.campaign_slug = t.campaign_slug)) as total_replied
+                (SELECT COUNT(*)
+                    FROM survey_responses r
+                    WHERE r.token IN (
+                        SELECT token
+                        FROM survey_tokens t2
+                        WHERE t2.campaign_slug = t.campaign_slug
+                          AND t2.sent_at IS NOT NULL
+                    )
+                ) as total_replied
                 FROM survey_tokens t
                 GROUP BY campaign_slug";
         $stmt = $this->db->query($sql);
