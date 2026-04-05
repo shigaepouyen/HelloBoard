@@ -140,10 +140,12 @@ class SatisfactionService {
         return $stmt->execute([$campaignSlug, json_encode($questions)]);
     }
 
-    public function generateToken($campaignSlug, $orderId, $email, $payerName, $itemName) {
+    public function generateToken($campaignSlug, $orderId, $email, $payerName, $itemName, $markAsSent = false) {
         $token = bin2hex(random_bytes(16));
-        $stmt = $this->db->prepare("INSERT INTO survey_tokens (token, campaign_slug, order_id, email, payer_name, item_name) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$token, $campaignSlug, $orderId, $email, $payerName, $itemName]);
+        $sentAt = $markAsSent ? date('Y-m-d H:i:s') : null;
+        $status = $markAsSent ? 'sent' : 'pending';
+        $stmt = $this->db->prepare("INSERT INTO survey_tokens (token, campaign_slug, order_id, email, payer_name, item_name, sent_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$token, $campaignSlug, $orderId, $email, $payerName, $itemName, $sentAt, $status]);
         return $token;
     }
 
@@ -154,30 +156,30 @@ class SatisfactionService {
     }
 
     public function getTokenByEmail($campaignSlug, $email) {
-        $stmt = $this->db->prepare("SELECT * FROM survey_tokens WHERE campaign_slug = ? AND email = ? ORDER BY rowid DESC LIMIT 1");
+        $stmt = $this->db->prepare("SELECT * FROM survey_tokens WHERE campaign_slug = ? AND email = ? ORDER BY (sent_at IS NOT NULL) DESC, rowid DESC LIMIT 1");
         $stmt->execute([$campaignSlug, $email]);
         return $stmt->fetch();
     }
 
     public function updateSentDate($token) {
-        $stmt = $this->db->prepare("UPDATE survey_tokens SET sent_at = CURRENT_TIMESTAMP WHERE token = ?");
+        $stmt = $this->db->prepare("UPDATE survey_tokens SET sent_at = CURRENT_TIMESTAMP, status = 'sent' WHERE token = ?");
         return $stmt->execute([$token]);
     }
 
     public function isAlreadySent($campaignSlug, $orderId) {
-        $stmt = $this->db->prepare("SELECT COUNT(*) FROM survey_tokens WHERE campaign_slug = ? AND order_id = ?");
+        $stmt = $this->db->prepare("SELECT COUNT(*) FROM survey_tokens WHERE campaign_slug = ? AND order_id = ? AND sent_at IS NOT NULL");
         $stmt->execute([$campaignSlug, $orderId]);
         return $stmt->fetchColumn() > 0;
     }
 
     public function isAlreadySentToEmail($campaignSlug, $email) {
-        $stmt = $this->db->prepare("SELECT COUNT(*) FROM survey_tokens WHERE campaign_slug = ? AND email = ?");
+        $stmt = $this->db->prepare("SELECT COUNT(*) FROM survey_tokens WHERE campaign_slug = ? AND email = ? AND sent_at IS NOT NULL");
         $stmt->execute([$campaignSlug, $email]);
         return $stmt->fetchColumn() > 0;
     }
 
     public function hasEverReceived($email) {
-        $stmt = $this->db->prepare("SELECT COUNT(*) FROM survey_tokens WHERE email = ?");
+        $stmt = $this->db->prepare("SELECT COUNT(*) FROM survey_tokens WHERE email = ? AND sent_at IS NOT NULL");
         $stmt->execute([$email]);
         return $stmt->fetchColumn() > 0;
     }
@@ -189,7 +191,7 @@ class SatisfactionService {
     }
 
     public function markAsRead($token) {
-        $stmt = $this->db->prepare("UPDATE survey_tokens SET read_at = CURRENT_TIMESTAMP WHERE token = ? AND read_at IS NULL");
+        $stmt = $this->db->prepare("UPDATE survey_tokens SET read_at = CURRENT_TIMESTAMP WHERE token = ? AND sent_at IS NOT NULL AND read_at IS NULL");
         return $stmt->execute([$token]);
     }
 
@@ -215,7 +217,7 @@ class SatisfactionService {
     }
 
     public function getTokensByCampaign($campaignSlug) {
-        $stmt = $this->db->prepare("SELECT * FROM survey_tokens WHERE campaign_slug = ?");
+        $stmt = $this->db->prepare("SELECT * FROM survey_tokens WHERE campaign_slug = ? ORDER BY email ASC, (sent_at IS NOT NULL) DESC, rowid DESC");
         $stmt->execute([$campaignSlug]);
         return $stmt->fetchAll();
     }
@@ -304,8 +306,8 @@ class SatisfactionService {
 
     public function getStats($campaignSlug = null) {
         $sql = "SELECT
-            COUNT(DISTINCT t.token) as total_sent,
-            COUNT(t.read_at) as total_read,
+            COUNT(DISTINCT CASE WHEN t.sent_at IS NOT NULL THEN t.token END) as total_sent,
+            COUNT(CASE WHEN t.sent_at IS NOT NULL AND t.read_at IS NOT NULL THEN 1 END) as total_read,
             COUNT(DISTINCT r.token) as total_responses,
             AVG(r.q1) as avg_q1,
             AVG(r.q2) as avg_q2,
@@ -397,8 +399,8 @@ class SatisfactionService {
 
     public function getSummaryPerCampaign() {
         $sql = "SELECT campaign_slug,
-                COUNT(*) as total_sent,
-                COUNT(read_at) as total_read,
+                COUNT(CASE WHEN sent_at IS NOT NULL THEN 1 END) as total_sent,
+                COUNT(CASE WHEN sent_at IS NOT NULL AND read_at IS NOT NULL THEN 1 END) as total_read,
                 (SELECT COUNT(*) FROM survey_responses r WHERE r.token IN (SELECT token FROM survey_tokens t2 WHERE t2.campaign_slug = t.campaign_slug)) as total_replied
                 FROM survey_tokens t
                 GROUP BY campaign_slug";

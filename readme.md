@@ -212,6 +212,17 @@ Configuration par campagne:
 - Si le tracking n'apparait pas: verifier l'accessibilite de `track.php`.
 - Si les check-ins ne se sauvegardent pas: verifier les droits sur `config/checkins/`.
 
+### Reparer les faux envois satisfaction lies a l'ancien lien public
+
+Un script CLI de reparation est disponible pour remettre a zero les tokens pollues par l'ancien flux public:
+
+```bash
+php scripts/repair_public_satisfaction_tokens.php
+php scripts/repair_public_satisfaction_tokens.php --apply
+```
+
+Le script fonctionne en `dry-run` par defaut et cible uniquement les tokens crees apres l'introduction du lien public (`2026-03-26 17:30:19`) avec `sent_at` et `read_at` quasi simultanes.
+
 ## 📄 Licence
 
 Copyright (c) 2025 Shigaepouyen - Jean-Christophe CAMuS - Tous droits reserves.

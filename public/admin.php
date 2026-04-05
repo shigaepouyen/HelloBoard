@@ -36,8 +36,17 @@ $localCampaigns = Storage::listCampaigns();
 $client = new HelloAssoClient($globals['clientId']??'', $globals['clientSecret']??'', $globals['debugMode']??false);
 
 function buildAppUrl($scriptName) {
-    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'];
+    $forwardedProto = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')[0]);
+    $protocol = $forwardedProto === 'https'
+        ? 'https'
+        : ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http');
+
+    $forwardedHost = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_HOST'] ?? '')[0]);
+    $hostCandidate = $forwardedHost ?: ($_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? 'localhost'));
+    $host = preg_match('/^[A-Za-z0-9.-]+(?::\d+)?$/', $hostCandidate)
+        ? $hostCandidate
+        : ($_SERVER['SERVER_NAME'] ?? 'localhost');
+
     $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
     return $protocol . '://' . $host . $path . '/' . ltrim($scriptName, '/');
 }
@@ -443,21 +452,14 @@ if ($action === 'get_recipient_history') {
         } else {
             echo json_encode(['success' => false, 'error' => 'Destinataire non trouvé']);
         }
-    } else {
-        $satService = new SatisfactionService();
-        $tokenInfo = null;
-        if ($token) {
-            $tokenInfo = $satService->getTokenInfo($token);
-        } else if ($email) {
-            // Find most recent token for this email/campaign
-            $tokens = $satService->getTokensByCampaign($slug);
-            foreach($tokens as $t) {
-                if ($t['email'] === $email) {
-                    $tokenInfo = $t;
-                    break;
-                }
+        } else {
+            $satService = new SatisfactionService();
+            $tokenInfo = null;
+            if ($token) {
+                $tokenInfo = $satService->getTokenInfo($token);
+            } else if ($email) {
+                $tokenInfo = $satService->getTokenByEmail($slug, $email);
             }
-        }
 
         if ($tokenInfo) {
             $attempts = $satService->getAttempts($tokenInfo['token']);
@@ -582,10 +584,7 @@ if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
             $token = $satService->generateToken($slug, $orderId, $email, trim($firstName . ' ' . $lastName), $itemName);
         }
 
-        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http');
-        $host = $_SERVER['HTTP_HOST'];
-        $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
-        $baseUrl = $protocol . '://' . $host . $path;
+        $baseUrl = rtrim(dirname(buildAppUrl('index.php')), '/\\');
 
         $surveyUrl = $baseUrl . '/satisfaction.php?t=' . $token;
         $trackingUrl = $baseUrl . '/track.php?c=' . $slug . '&t=' . $token;

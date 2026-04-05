@@ -3,6 +3,64 @@ $srcPath = __DIR__ . '/../src/Services/';
 require_once $srcPath . 'SatisfactionService.php';
 require_once $srcPath . 'Storage.php';
 
+function getSatisfactionLookupClientIp() {
+    $forwardedFor = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '')[0]);
+    return $forwardedFor ?: ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+}
+
+function consumeSatisfactionLookupAttempt($campaignSlug, $maxAttempts = 5, $windowSeconds = 900) {
+    $storePath = sys_get_temp_dir() . '/helloboard_satisfaction_lookup_rate_limit.json';
+    $clientKey = sha1($campaignSlug . '|' . getSatisfactionLookupClientIp());
+    $now = time();
+
+    $handle = @fopen($storePath, 'c+');
+    if (!$handle) {
+        return true;
+    }
+
+    if (!flock($handle, LOCK_EX)) {
+        fclose($handle);
+        return true;
+    }
+
+    $rawState = stream_get_contents($handle);
+    $state = json_decode($rawState ?: '{}', true);
+    if (!is_array($state)) {
+        $state = [];
+    }
+
+    foreach ($state as $key => $timestamps) {
+        $filtered = array_values(array_filter((array) $timestamps, function($timestamp) use ($now, $windowSeconds) {
+            return is_int($timestamp) && $timestamp >= ($now - $windowSeconds);
+        }));
+
+        if ($filtered) {
+            $state[$key] = $filtered;
+        } else {
+            unset($state[$key]);
+        }
+    }
+
+    $attempts = $state[$clientKey] ?? [];
+    if (count($attempts) >= $maxAttempts) {
+        flock($handle, LOCK_UN);
+        fclose($handle);
+        return false;
+    }
+
+    $attempts[] = $now;
+    $state[$clientKey] = $attempts;
+
+    ftruncate($handle, 0);
+    rewind($handle);
+    fwrite($handle, json_encode($state));
+    fflush($handle);
+    flock($handle, LOCK_UN);
+    fclose($handle);
+
+    return true;
+}
+
 $satService = new SatisfactionService();
 $globals = Storage::getGlobalSettings();
 $token = trim($_GET['t'] ?? '');
@@ -15,7 +73,9 @@ $activeQuestions = [];
 $alreadyResponded = false;
 $emailLookupMode = false;
 $emailLookupError = null;
+$emailLookupNotice = null;
 $submittedEmail = '';
+$lookupRedirectUrl = null;
 $pageItemName = 'Questionnaire';
 $totalSteps = 0;
 
@@ -81,6 +141,8 @@ if ($token !== '') {
 
         if (!$submittedEmail || !filter_var($submittedEmail, FILTER_VALIDATE_EMAIL)) {
             $emailLookupError = "Veuillez saisir l'email utilisé lors de votre commande.";
+        } elseif (!consumeSatisfactionLookupAttempt($campaign['slug'])) {
+            $emailLookupError = "Trop de tentatives. Merci de réessayer dans quelques minutes.";
         } else {
             require_once $srcPath . 'HelloAssoClient.php';
 
@@ -99,9 +161,7 @@ if ($token !== '') {
                 );
 
                 $recipient = $recipientsByEmail[$submittedEmail] ?? null;
-                if (!$recipient) {
-                    $emailLookupError = "Nous n'avons pas retrouvé de commande associée à cet email pour cette campagne.";
-                } else {
+                if ($recipient) {
                     $existingToken = $satService->getTokenByEmail($campaign['slug'], $submittedEmail);
                     $resolvedToken = $existingToken['token'] ?? $satService->generateToken(
                         $campaign['slug'],
@@ -111,13 +171,15 @@ if ($token !== '') {
                         $recipient['itemName'] ?? ($campaign['title'] ?? 'Questionnaire')
                     );
 
-                    $satService->markAsRead($resolvedToken);
-                    header('Location: satisfaction.php?t=' . rawurlencode($resolvedToken));
-                    exit;
+                    $lookupRedirectUrl = 'satisfaction.php?t=' . rawurlencode($resolvedToken);
                 }
+
+                usleep(500000);
+                $emailLookupNotice = "Si cette adresse correspond à une commande pour cette campagne, vous allez être redirigé vers votre questionnaire personnel.";
             } catch (Throwable $e) {
                 error_log('Satisfaction public access error: ' . $e->getMessage());
-                $emailLookupError = "Le service de vérification est temporairement indisponible. Merci de réessayer.";
+                usleep(500000);
+                $emailLookupNotice = "Si cette adresse correspond à une commande pour cette campagne, vous allez être redirigé vers votre questionnaire personnel.";
             }
         }
     }
@@ -206,11 +268,20 @@ $emojis = [
                         >
                         <?php if ($emailLookupError): ?>
                             <p class="text-red-500 font-bold text-sm"><?= htmlspecialchars($emailLookupError) ?></p>
+                        <?php elseif ($emailLookupNotice): ?>
+                            <p class="text-blue-600 font-bold text-sm"><?= htmlspecialchars($emailLookupNotice) ?></p>
                         <?php endif; ?>
                         <button type="submit" class="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl hover:bg-blue-700 transition">
                             Acceder a mon questionnaire
                         </button>
                     </form>
+                    <?php if ($lookupRedirectUrl): ?>
+                        <script>
+                            window.setTimeout(function () {
+                                window.location.href = <?= json_encode($lookupRedirectUrl) ?>;
+                            }, 1500);
+                        </script>
+                    <?php endif; ?>
                 </div>
             <?php elseif (!isset($success) && !$alreadyResponded): ?>
                 <div class="mb-8">

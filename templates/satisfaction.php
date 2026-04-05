@@ -471,8 +471,8 @@
                     // Check by email since admin.php now groups by email
                     const haToken = tokenMap.find(t => t.email == r.email);
                     const haResp = responseMap.find(resp => resp.email == r.email);
-                    const isSent = !!haToken;
-                    const isRead = !!(haToken && haToken.read_at);
+                    const isSent = !!(haToken && haToken.sent_at);
+                    const isRead = !!(haToken && haToken.sent_at && haToken.read_at);
                     const isReplied = !!haResp;
                     const token = haToken ? haToken.token : '';
 
