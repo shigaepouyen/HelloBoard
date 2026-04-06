@@ -222,8 +222,31 @@ class SatisfactionService {
         return $stmt->fetchAll();
     }
 
-    public function buildRecipientsByEmail($campaignSlug, $campaignTitle, array $orders, array $checkins = [], $excludeSent = false, $excludeEver = false) {
+    public function getRespondedEmailsByCampaign($campaignSlug) {
+        $stmt = $this->db->prepare("
+            SELECT DISTINCT LOWER(TRIM(t.email)) AS email
+            FROM survey_responses r
+            JOIN survey_tokens t ON t.token = r.token
+            WHERE t.campaign_slug = ?
+              AND t.email IS NOT NULL
+              AND TRIM(t.email) <> ''
+        ");
+        $stmt->execute([$campaignSlug]);
+
+        $emails = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $email = $row['email'] ?? '';
+            if ($email !== '') {
+                $emails[$email] = true;
+            }
+        }
+
+        return $emails;
+    }
+
+    public function buildRecipientsByEmail($campaignSlug, $campaignTitle, array $orders, array $checkins = [], $excludeSent = false, $excludeEver = false, $excludeResponded = false) {
         $recipientsByEmail = [];
+        $respondedEmails = $excludeResponded ? $this->getRespondedEmailsByCampaign($campaignSlug) : [];
 
         foreach ($orders as $order) {
             $hasValidItem = false;
@@ -248,6 +271,10 @@ class SatisfactionService {
             }
 
             if ($excludeSent && $this->isAlreadySentToEmail($campaignSlug, $email)) {
+                continue;
+            }
+
+            if ($excludeResponded && isset($respondedEmails[$email])) {
                 continue;
             }
 

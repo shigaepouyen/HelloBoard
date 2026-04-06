@@ -193,6 +193,10 @@
                             <div class="toggle-btn" id="filter-exclude-ever" onclick="this.classList.toggle('active'); fetchRecipients()"></div>
                         </div>
                         <div class="flex items-center justify-between">
+                            <span class="text-[9px] font-black uppercase text-slate-400">Exclure si déjà répondu sur cette opération</span>
+                            <div class="toggle-btn active" id="filter-exclude-responded" onclick="this.classList.toggle('active'); fetchRecipients()"></div>
+                        </div>
+                        <div class="flex items-center justify-between">
                             <span class="text-[9px] font-black uppercase text-slate-400">N'envoyer qu'aux présents (check-in)</span>
                             <div class="toggle-btn active" id="filter-only-present" onclick="this.classList.toggle('active'); fetchRecipients()"></div>
                         </div>
@@ -439,10 +443,11 @@
 
             const excludeSent = document.getElementById('filter-exclude-sent').classList.contains('active') ? '1' : '0';
             const excludeEver = document.getElementById('filter-exclude-ever').classList.contains('active') ? '1' : '0';
+            const excludeResponded = document.getElementById('filter-exclude-responded').classList.contains('active') ? '1' : '0';
             const onlyPresent = document.getElementById('filter-only-present').classList.contains('active');
 
             try {
-                const res = await fetch(`admin.php?action=satisfaction_recipients&campaign=${campaign}&exclude_sent=${excludeSent}&exclude_ever=${excludeEver}`);
+                const res = await fetch(`admin.php?action=satisfaction_recipients&campaign=${campaign}&exclude_sent=${excludeSent}&exclude_ever=${excludeEver}&exclude_responded=${excludeResponded}`);
                 const data = await res.json();
 
                 if (!data.isEligible) {
@@ -463,7 +468,7 @@
                 document.getElementById('btn-send-all').innerText = recipients.length > 0 ? `Lancer pour ${recipients.length} contacts` : "Aucun destinataire";
 
                 if (allRecipients.length === 0) {
-                    listContainer.innerHTML = '<div class="py-10 text-center text-slate-200 font-black uppercase text-[10px] italic">Tout a déjà été envoyé.</div>';
+                    listContainer.innerHTML = '<div class="py-10 text-center text-slate-200 font-black uppercase text-[10px] italic">Aucun destinataire avec les filtres actuels.</div>';
                     return;
                 }
 

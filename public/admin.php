@@ -341,6 +341,7 @@ if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
     $typeFilter = $_GET['type_filter'] ?? null;
     $excludeSent = isset($_GET['exclude_sent']) && $_GET['exclude_sent'] === '1';
     $excludeEver = isset($_GET['exclude_ever']) && $_GET['exclude_ever'] === '1';
+    $excludeResponded = isset($_GET['exclude_responded']) && $_GET['exclude_responded'] === '1';
 
     $currentCamp = null;
     foreach($localCampaigns as $c) { if($c['slug'] === $slug) $currentCamp = $c; }
@@ -375,7 +376,8 @@ if ($action === 'satisfaction_recipients' && isset($_GET['campaign'])) {
             $orders,
             $checkins,
             $excludeSent,
-            $excludeEver
+            $excludeEver,
+            $excludeResponded
         );
 
         echo json_encode([
