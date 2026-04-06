@@ -171,7 +171,7 @@
                 </div>
 
                 <div class="admin-card p-6 overflow-hidden">
-                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4">Liste des payeurs</h3>
+                    <h3 class="text-xs font-black uppercase text-slate-400 mb-6 italic tracking-widest border-b border-slate-50 pb-4"><?= htmlspecialchars($mailingWording['recipientListTitle']) ?></h3>
                     <div class="max-h-[400px] overflow-y-auto pr-2 space-y-2" id="payers-list">
                         <?php foreach ($payers as $p):
                             $mid = md5($p['email']);
@@ -212,7 +212,7 @@
                     <div class="space-y-3">
                         <input type="text" id="manual-firstname" class="input-soft !bg-white !text-[10px] !py-3" placeholder="Prénom">
                         <input type="text" id="manual-lastname" class="input-soft !bg-white !text-[10px] !py-3" placeholder="Nom">
-                        <input type="email" id="manual-email" class="input-soft !bg-white !text-[10px] !py-3" placeholder="Email du destinataire">
+                        <input type="email" id="manual-email" class="input-soft !bg-white !text-[10px] !py-3" placeholder="<?= htmlspecialchars($mailingWording['contactEmailPlaceholder']) ?>">
                         <button onclick="sendManual()" id="btn-send-manual" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition flex items-center justify-center gap-2">
                             <i class="fa-solid fa-user-plus"></i> Envoyer ce rappel
                         </button>

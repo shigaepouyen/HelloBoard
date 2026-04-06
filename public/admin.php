@@ -7,6 +7,7 @@ SessionService::start();
 require_once $srcPath . 'HelloAssoClient.php';
 require_once $srcPath . 'SatisfactionService.php';
 require_once $srcPath . 'AiService.php';
+require_once $srcPath . 'TerminologyService.php';
 
 $globals = Storage::getGlobalSettings();
 $adminPassword = $globals['adminPassword'] ?? null;
@@ -592,7 +593,8 @@ if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
         $trackingUrl = $baseUrl . '/track.php?c=' . $slug . '&t=' . $token;
 
         $subject = $_POST['subject'] ?? ("Votre avis nous intéresse : " . $currentCamp['title']);
-        $body = $_POST['body'] ?? ("Bonjour {{PRENOM}},\n\nMerci pour votre récent achat/participation à \"" . $currentCamp['title'] . "\".\n\nNous aimerions recueillir votre avis via ce court questionnaire :\n" . $surveyUrl . "\n\nCordialement,\n" . ($globals['smtpFromName'] ?? 'L\'équipe'));
+        $wording = TerminologyService::forFormType($currentCamp['formType'] ?? 'Event');
+        $body = $_POST['body'] ?? ("Bonjour {{PRENOM}},\n\n" . $wording['fallbackThankYouLine'] . " \"" . $currentCamp['title'] . "\".\n\nNous aimerions recueillir votre avis via ce court questionnaire :\n" . $surveyUrl . "\n\nCordialement,\n" . ($globals['smtpFromName'] ?? 'L\'équipe'));
 
         try {
             $mailer->send($email, $subject, $body, [
@@ -962,6 +964,7 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
             $history = Storage::getMailingHistory($slug);
             $attachments = Storage::listMailingAttachments($slug);
             $mailingDraft = $currentCamp['mailingDraft'] ?? ['subject' => '', 'body' => "Bonjour {{PRENOM}},\n\nCeci est un rappel pour la campagne {{NOM_CAMPAGNE}}.\n\nCordialement."];
+            $mailingWording = TerminologyService::forFormType($currentCamp['formType'] ?? 'Event');
             include __DIR__ . '/../templates/mailing.php';
             exit;
         }
@@ -976,6 +979,7 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
             $questions = $satService->getQuestions($slug, $currentCamp['formType']);
             $tokens = $satService->getTokensByCampaign($slug);
             $publicSatisfactionUrl = buildSatisfactionAccessUrl($currentCamp);
+            $satisfactionWording = TerminologyService::forFormType($currentCamp['formType'] ?? 'Event');
 
             $mailingDraft = $currentCamp['satisfactionMailingDraft'] ?? null;
             if (!$mailingDraft) {

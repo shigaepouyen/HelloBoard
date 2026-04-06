@@ -2,6 +2,7 @@
 $srcPath = __DIR__ . '/../src/Services/';
 require_once $srcPath . 'SatisfactionService.php';
 require_once $srcPath . 'Storage.php';
+require_once $srcPath . 'TerminologyService.php';
 
 function getSatisfactionLookupClientIp() {
     $forwardedFor = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '')[0]);
@@ -78,6 +79,7 @@ $submittedEmail = '';
 $lookupRedirectUrl = null;
 $pageItemName = 'Questionnaire';
 $totalSteps = 0;
+$wording = TerminologyService::forFormType('Event');
 
 if ($token !== '') {
     $info = $satService->getTokenInfo($token);
@@ -87,6 +89,7 @@ if ($token !== '') {
 
     $campaign = Storage::getCampaign($info['campaign_slug']);
     $formType = $campaign['formType'] ?? null;
+    $wording = TerminologyService::forFormType($formType);
     $questions = $satService->getQuestions($info['campaign_slug'], $formType);
     $pageItemName = $info['item_name'] ?: ($campaign['title'] ?? 'Questionnaire');
 
@@ -134,13 +137,14 @@ if ($token !== '') {
     }
 
     $emailLookupMode = true;
+    $wording = TerminologyService::forFormType($campaign['formType'] ?? 'Event');
     $pageItemName = $campaign['title'] ?? 'Questionnaire';
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'resolve_email') {
         $submittedEmail = trim(strtolower($_POST['email'] ?? ''));
 
         if (!$submittedEmail || !filter_var($submittedEmail, FILTER_VALIDATE_EMAIL)) {
-            $emailLookupError = "Veuillez saisir l'email utilisé lors de votre commande.";
+            $emailLookupError = $wording['lookupEmailError'];
         } elseif (!consumeSatisfactionLookupAttempt($campaign['slug'])) {
             $emailLookupError = "Trop de tentatives. Merci de réessayer dans quelques minutes.";
         } else {
@@ -175,11 +179,11 @@ if ($token !== '') {
                 }
 
                 usleep(500000);
-                $emailLookupNotice = "Si cette adresse correspond à une commande pour cette campagne, vous allez être redirigé vers votre questionnaire personnel.";
+                $emailLookupNotice = $wording['lookupNotice'];
             } catch (Throwable $e) {
                 error_log('Satisfaction public access error: ' . $e->getMessage());
                 usleep(500000);
-                $emailLookupNotice = "Si cette adresse correspond à une commande pour cette campagne, vous allez être redirigé vers votre questionnaire personnel.";
+                $emailLookupNotice = $wording['lookupNotice'];
             }
         }
     }
@@ -248,14 +252,14 @@ $emojis = [
                     <div class="w-24 h-24 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-8">
                         <i class="fa-solid fa-envelope text-4xl"></i>
                     </div>
-                    <h2 class="text-3xl font-black mb-4 italic uppercase">Identifier votre commande</h2>
+                    <h2 class="text-3xl font-black mb-4 italic uppercase"><?= htmlspecialchars($wording['lookupTitle']) ?></h2>
                     <p class="text-slate-500 font-medium leading-relaxed max-w-md mx-auto">
-                        Saisissez l'adresse email utilisee lors de votre commande pour ouvrir votre questionnaire personnel.
+                        <?= htmlspecialchars($wording['lookupDescription']) ?>
                     </p>
 
                     <form method="POST" class="mt-10 space-y-4 max-w-md mx-auto text-left">
                         <input type="hidden" name="action" value="resolve_email">
-                        <label for="email" class="text-[10px] font-black text-slate-400 uppercase tracking-widest italic block">Email de commande</label>
+                        <label for="email" class="text-[10px] font-black text-slate-400 uppercase tracking-widest italic block"><?= htmlspecialchars($wording['lookupEmailLabel']) ?></label>
                         <input
                             type="email"
                             name="email"

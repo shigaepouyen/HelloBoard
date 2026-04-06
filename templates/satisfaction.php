@@ -146,7 +146,7 @@
                 <div class="admin-card p-8 border-amber-100 bg-amber-50/30">
                     <h3 class="text-xs font-black uppercase text-amber-600 mb-4 italic tracking-widest">Lien public sans email</h3>
                     <p class="text-[11px] text-slate-500 leading-relaxed">
-                        Ce lien ouvre un formulaire qui demande l'email de commande, puis bascule la personne sur son questionnaire avec token individuel.
+                        <?= htmlspecialchars($satisfactionWording['publicLinkDescription']) ?>
                     </p>
                     <div class="mt-4 flex gap-3">
                         <input type="text" id="public-satisfaction-url" class="input-soft !bg-white !text-[10px] !py-3" value="<?= htmlspecialchars($publicSatisfactionUrl) ?>" readonly>
@@ -177,7 +177,7 @@
                 <!-- FILTRES ET LISTE -->
                 <div class="admin-card p-8">
                     <div class="flex justify-between items-start mb-6 border-b border-slate-50 pb-4">
-                        <h3 class="text-xs font-black uppercase text-slate-400 italic tracking-widest">Liste des payeurs</h3>
+                        <h3 class="text-xs font-black uppercase text-slate-400 italic tracking-widest"><?= htmlspecialchars($satisfactionWording['recipientListTitle']) ?></h3>
                         <a href="admin.php?action=satisfaction_export_csv&campaign=<?= $slug ?>" class="text-[9px] font-black uppercase text-blue-500 hover:underline">
                             <i class="fa-solid fa-file-csv mr-1"></i> Export Logs
                         </a>
@@ -230,7 +230,7 @@
                     <div class="space-y-3">
                         <input type="text" id="manual-firstname" class="input-soft !bg-white !text-[10px] !py-3" placeholder="Prénom">
                         <input type="text" id="manual-lastname" class="input-soft !bg-white !text-[10px] !py-3" placeholder="Nom">
-                        <input type="email" id="manual-email" class="input-soft !bg-white !text-[10px] !py-3" placeholder="Email du destinataire">
+                        <input type="email" id="manual-email" class="input-soft !bg-white !text-[10px] !py-3" placeholder="<?= htmlspecialchars($satisfactionWording['contactEmailPlaceholder']) ?>">
                         <button onclick="sendManual()" id="btn-send-manual" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition flex items-center justify-center gap-2">
                             <i class="fa-solid fa-user-plus"></i> Envoyer le questionnaire
                         </button>

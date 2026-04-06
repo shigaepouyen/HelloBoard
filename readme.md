@@ -58,7 +58,7 @@ Le projet privilegie la simplicite:
 ### 😊 4) Satisfaction
 
 - Envoi de questionnaires via token unique.
-- Lien public de satisfaction par campagne avec saisie de l'email de commande.
+- Lien public de satisfaction par campagne avec saisie de l'email utilise lors de la reservation, commande, adhesion ou don.
 - Formulaire public dedie (`public/satisfaction.php`).
 - Tableau de bord satisfaction global.
 - Export CSV des retours.
@@ -133,8 +133,8 @@ Le module satisfaction supporte deux modes d'entree sur `public/satisfaction.php
 
 Quand un lien public de campagne est utilise:
 
-1. Le visiteur saisit l'email utilise lors de sa commande / inscription.
-2. HelloBoard verifie cet email contre les commandes HelloAsso de la campagne.
+1. Le visiteur saisit l'email utilise lors de sa reservation, commande, adhesion ou don.
+2. HelloBoard verifie cet email contre les donnees HelloAsso de la campagne.
 3. L'application reutilise le token existant pour cet email ou en genere un nouveau.
 4. Le visiteur est redirige vers le questionnaire standard, avec le meme traitement qu'un lien tokenise.
 
@@ -192,7 +192,7 @@ Configuration par campagne:
 - Lancer un rappel mailing avant l'evenement.
 - Utiliser la guestlist le jour J.
 - Envoyer un questionnaire satisfaction apres la campagne.
-- Si besoin, copier le lien public "sans email" depuis l'ecran Satisfaction pour permettre une auto-identification par email de commande.
+- Si besoin, copier le lien public "sans email" depuis l'ecran Satisfaction pour permettre une auto-identification par email selon le type de campagne.
 - Exporter les CSV pour archivage ou reporting.
 
 ## 🔐 Securite et bonnes pratiques
