@@ -1,3 +1,5 @@
+![Status: Stable](https://img.shields.io/badge/status-Stable-brightgreen)
+
 # 🎭 HelloBoard 2
 
 HelloBoard 2 est une application web PHP dediee au pilotage de campagnes HelloAsso pour les associations.
