@@ -436,4 +436,36 @@ class SatisfactionService {
         $stmt = $this->db->query($sql);
         return $stmt->fetchAll();
     }
+
+    // --- Conservation (RGPD) ---
+
+    /** [slug => timestamp de la dernière activité (envoi ou réponse)] pour les campagnes encore nominatives. */
+    public function lastActivityByCampaign() {
+        $sql = "SELECT t.campaign_slug,
+                       MAX(COALESCE(r.submitted_at, t.sent_at)) AS last_activity,
+                       MAX(t.sent_at) AS last_sent
+                FROM survey_tokens t
+                LEFT JOIN survey_responses r ON r.token = t.token
+                WHERE t.email IS NOT NULL AND t.email <> ''
+                GROUP BY t.campaign_slug";
+        $result = [];
+        foreach ($this->db->query($sql)->fetchAll() as $row) {
+            $result[$row['campaign_slug']] = max((int)strtotime($row['last_activity'] ?? ''), (int)strtotime($row['last_sent'] ?? ''));
+        }
+        return $result;
+    }
+
+    /**
+     * Anonymise une campagne : email, nom et commande retirés des jetons, historique
+     * des tentatives supprimé. Les notes et commentaires restent, détachés de la personne.
+     */
+    public function anonymizeCampaign($campaignSlug) {
+        $this->db->beginTransaction();
+        $this->db->prepare("DELETE FROM survey_attempts WHERE token IN (SELECT token FROM survey_tokens WHERE campaign_slug = ?)")
+            ->execute([$campaignSlug]);
+        $stmt = $this->db->prepare("UPDATE survey_tokens SET email = '', payer_name = 'Anonymisé', order_id = '' WHERE campaign_slug = ? AND email <> ''");
+        $stmt->execute([$campaignSlug]);
+        $this->db->commit();
+        return $stmt->rowCount();
+    }
 }

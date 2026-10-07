@@ -207,6 +207,20 @@ Configuration par campagne:
 - Desactiver le debug en production.
 - Sauvegarder regulierement `config/` (incluant `satisfaction.db`).
 
+## 🧹 Conservation des donnees (RGPD)
+
+Une campagne sans activite (envoi, pointage, reponse) depuis `retentionMonths` mois (12 par defaut, reglable dans Reglages) perd ses donnees nominatives :
+
+- pointages (`config/checkins/`) et historique d'envoi (`config/mailing/*.json`) supprimes ;
+- questionnaires de satisfaction anonymises : email, nom et commande retires, tentatives d'envoi supprimees ; notes et commentaires conserves.
+
+La verification tourne au plus une fois par jour a l'ouverture de l'admin. Pour un hebergement avec cron :
+
+```bash
+php scripts/purge.php            # simulation
+php scripts/purge.php --apply    # purge reelle
+```
+
 ## 🛠️ Depannage
 
 - Si le dashboard ne charge pas: verifier `clientId/clientSecret/orgSlug`.
