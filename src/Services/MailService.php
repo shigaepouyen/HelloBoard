@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/DebugLog.php';
+
 class MailService {
     private $host;
     private $port;
@@ -19,9 +21,7 @@ class MailService {
 
     private function log($message) {
         if (!$this->debugMode) return;
-        $dir = __DIR__ . '/../../logs';
-        if (!is_dir($dir)) mkdir($dir, 0755, true);
-        file_put_contents($dir . '/debug_mail.log', date('[Y-m-d H:i:s] ') . $message . "\n", FILE_APPEND);
+        DebugLog::write('debug_mail.log', date('[Y-m-d H:i:s] ') . DebugLog::redactString($message) . "\n");
     }
 
     public function send($to, $subject, $body, $vars = [], $trackingUrl = '', $attachments = []) {
@@ -50,7 +50,7 @@ class MailService {
     }
 
     private function smtpSend($to, $subject, $body, $attachments = []) {
-        $this->log("Tentative d'envoi à: $to");
+        $this->log("Tentative d'envoi à: " . DebugLog::maskEmail($to));
         $timeout = 10;
         $hostPrefix = ($this->port === 465) ? 'ssl://' : 'tcp://';
         $socket = stream_socket_client($hostPrefix . $this->host . ':' . $this->port, $errno, $errstr, $timeout);
@@ -138,7 +138,8 @@ class MailService {
     }
 
     private function sendCmd($socket, $cmd, $isSecret = false) {
-        $this->log("> " . ($isSecret ? "******" : $cmd));
+        $logged = preg_replace_callback('/[^\s<>]+@[^\s<>]+/', fn($m) => DebugLog::maskEmail($m[0]), $cmd);
+        $this->log("> " . ($isSecret ? "******" : $logged));
         fwrite($socket, $cmd . "\r\n");
     }
 

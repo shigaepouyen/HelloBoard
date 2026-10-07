@@ -167,6 +167,8 @@ Puis ouvrir:
 
 - Pointer le `DocumentRoot` sur `public/`.
 - Interdire l'acces HTTP direct au dossier `config/`.
+- Sur un hebergement mutualise ou le depot entier est sous la racine web, le `.htaccess` racine bloque tout sauf `public/` (`config/`, `logs/`, `src/`...) et desactive le listing des dossiers.
+- Mode debug : les journaux `logs/debug_*.log` masquent les secrets (client_secret, jetons, mots de passe, cles API) et ne contiennent ni commandes ni participants HelloAsso. Le dossier `logs/` est verrouille automatiquement. Desactiver le mode debug apres usage.
 - Verifier les droits d'ecriture sur `config/`.
 - Utiliser HTTPS en production.
 

@@ -1,0 +1,6 @@
+# Filet de sécurité quand le dépôt entier est déployé sous la racine web
+# (hébergement mutualisé sans DocumentRoot sur public/) : seul public/ est servi.
+Options -Indexes
+
+RedirectMatch 403 (?i)/(config|logs|src|scripts|templates|test-results|\.git)(/|$)
+RedirectMatch 403 (?i)\.(md|log|json|db|sqlite)$

@@ -1190,7 +1190,7 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
                                         <input type="checkbox" name="debugMode" id="debugMode" class="w-6 h-6 accent-blue-600" <?= ($globals['debugMode']??false) ? 'checked' : '' ?>>
                                         <div>
                                             <label for="debugMode" class="text-xs font-black uppercase text-slate-700 cursor-pointer block">Mode Débug</label>
-                                            <p class="text-[10px] text-slate-400 font-bold">Enregistre les échanges API pour le support</p>
+                                            <p class="text-[10px] text-slate-400 font-bold">Enregistre les échanges API pour le support (secrets masqués). À désactiver après usage.</p>
                                         </div>
                                     </div>
                                     <div class="flex flex-col gap-2">
