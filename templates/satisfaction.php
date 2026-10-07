@@ -261,11 +261,6 @@
                         <div id="step-sent-icon" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm">1</div>
                         <span class="text-[8px] font-black uppercase text-slate-400">Envoyé</span>
                     </div>
-                    <div id="line-sent-read" class="step-line"></div>
-                    <div class="flex flex-col items-center gap-2">
-                        <div id="step-read-icon" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm">2</div>
-                        <span class="text-[8px] font-black uppercase text-slate-400">Lu</span>
-                    </div>
                 </div>
 
                 <!-- Liste des tentatives -->
@@ -477,7 +472,6 @@
                     const haToken = tokenMap.find(t => t.email == r.email);
                     const haResp = responseMap.find(resp => resp.email == r.email);
                     const isSent = !!(haToken && haToken.sent_at);
-                    const isRead = !!(haToken && haToken.sent_at && haToken.read_at);
                     const isReplied = !!haResp;
                     const token = haToken ? haToken.token : '';
 
@@ -495,9 +489,6 @@
                                     <i class="fa-solid fa-paper-plane text-[8px]"></i>
                                 </button>
                             `}
-                            <span class="w-6 h-6 flex items-center justify-center rounded-lg ${isRead ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-400'}" title="${isRead ? 'Lu le ' + haToken.read_at : 'Non lu'}">
-                                <i class="fa-solid fa-eye"></i>
-                            </span>
                             ${isReplied ? `
                                 <span class="w-6 h-6 flex items-center justify-center rounded-lg bg-amber-100 text-amber-600" title="Répondu le ${haResp.submitted_at}">
                                     <i class="fa-solid fa-star"></i>
@@ -760,8 +751,6 @@
                 if (data.success) {
                     // Visual Workflow
                     const stepSent = document.getElementById('step-sent-icon');
-                    const stepRead = document.getElementById('step-read-icon');
-                    const line = document.getElementById('line-sent-read');
 
                     if (data.sent_at) {
                         stepSent.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm bg-emerald-500 text-white";
@@ -769,16 +758,6 @@
                     } else {
                         stepSent.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm bg-slate-100 text-slate-300";
                         stepSent.innerHTML = '1';
-                    }
-
-                    if (data.read_at) {
-                        stepRead.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm bg-blue-500 text-white";
-                        stepRead.innerHTML = '<i class="fa-solid fa-eye"></i>';
-                        line.className = "step-line done bg-emerald-500";
-                    } else {
-                        stepRead.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm bg-slate-100 text-slate-300";
-                        stepRead.innerHTML = '2';
-                        line.className = "step-line";
                     }
 
                     // Attempts

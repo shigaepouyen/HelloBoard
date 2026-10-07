@@ -299,19 +299,17 @@
                             <tr class="text-[10px] font-black uppercase text-slate-400 border-b border-slate-50">
                                 <th class="p-6">Campagne</th>
                                 <th class="p-6 text-center">Envoyés</th>
-                                <th class="p-6 text-center">Lus (%)</th>
                                 <th class="p-6 text-center">Réponses (%)</th>
                                 <th class="p-6 text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-50">
                             <?php if (empty($campaignSummary)): ?>
-                                <tr><td colspan="5" class="p-10 text-center text-slate-300 font-bold italic">Aucune donnée d'envoi.</td></tr>
+                                <tr><td colspan="4" class="p-10 text-center text-slate-300 font-bold italic">Aucune donnée d'envoi.</td></tr>
                             <?php else: foreach ($campaignSummary as $row):
                                 $cTitle = $row['campaign_slug'];
                                 foreach($localCampaigns as $lc) if($lc['slug'] === $row['campaign_slug']) $cTitle = $lc['title'];
 
-                                $readPct = $row['total_sent'] > 0 ? round(($row['total_read'] / $row['total_sent']) * 100) : 0;
                                 $repliedPct = $row['total_sent'] > 0 ? round(($row['total_replied'] / $row['total_sent']) * 100) : 0;
                             ?>
                                 <tr class="hover:bg-slate-50/50 transition">
@@ -320,10 +318,6 @@
                                         <p class="text-[9px] text-slate-300 font-bold uppercase"><?= $row['campaign_slug'] ?></p>
                                     </td>
                                     <td class="p-6 text-center font-black text-slate-600"><?= $row['total_sent'] ?></td>
-                                    <td class="p-6 text-center">
-                                        <span class="font-black text-blue-600"><?= $readPct ?>%</span>
-                                        <p class="text-[8px] text-slate-300 font-bold uppercase"><?= $row['total_read'] ?> ouvertures</p>
-                                    </td>
                                     <td class="p-6 text-center">
                                         <span class="font-black text-emerald-600"><?= $repliedPct ?>%</span>
                                         <p class="text-[8px] text-slate-300 font-bold uppercase"><?= $row['total_replied'] ?> réponses</p>

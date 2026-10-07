@@ -130,16 +130,14 @@
                     <?php
                         $total = count($payers);
                         $sentCount = 0;
-                        $readCount = 0;
                         foreach ($payers as $p) {
                             if (!empty($history[$p['email']]['sent_at'])) $sentCount++;
-                            if (!empty($history[$p['email']]['read_at'])) $readCount++;
                         }
                         $remaining = $total - $sentCount;
                     ?>
 
                     <div class="space-y-6">
-                        <div class="grid grid-cols-3 gap-4 text-center">
+                        <div class="grid grid-cols-2 gap-4 text-center">
                             <div>
                                 <p class="text-2xl font-black text-slate-900"><?= $total ?></p>
                                 <p class="text-[8px] font-black uppercase text-slate-400">Total</p>
@@ -147,10 +145,6 @@
                             <div>
                                 <p class="text-2xl font-black text-emerald-500" id="stat-sent"><?= $sentCount ?></p>
                                 <p class="text-[8px] font-black uppercase text-slate-400">Envoyés</p>
-                            </div>
-                            <div>
-                                <p class="text-2xl font-black text-blue-500" id="stat-read"><?= $readCount ?></p>
-                                <p class="text-[8px] font-black uppercase text-slate-400">Lus</p>
                             </div>
                         </div>
 
@@ -177,7 +171,6 @@
                             $mid = md5($p['email']);
                             $h = $history[$p['email']] ?? null;
                             $isSent = !empty($h['sent_at']);
-                            $isRead = !empty($h['read_at']);
                         ?>
                             <div class="p-3 bg-slate-50 rounded-xl flex items-center justify-between gap-3 text-[10px] border border-transparent transition <?= $isSent ? 'opacity-60' : '' ?>" id="row-<?= $mid ?>">
                                 <div class="truncate">
@@ -197,9 +190,6 @@
                                             <i class="fa-solid fa-paper-plane"></i>
                                         </span>
                                     <?php endif; ?>
-                                    <span class="status-read w-6 h-6 flex items-center justify-center rounded-lg <?= $isRead ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-400' ?>" title="<?= $isRead ? 'Lu le ' . $h['read_at'] : 'Non lu' ?>">
-                                        <i class="fa-solid fa-eye"></i>
-                                    </span>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -241,11 +231,6 @@
                     <div class="flex flex-col items-center gap-2">
                         <div id="step-sent-icon" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm">1</div>
                         <span class="text-[8px] font-black uppercase text-slate-400">Envoyé</span>
-                    </div>
-                    <div id="line-sent-read" class="step-line"></div>
-                    <div class="flex flex-col items-center gap-2">
-                        <div id="step-read-icon" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm">2</div>
-                        <span class="text-[8px] font-black uppercase text-slate-400">Lu</span>
                     </div>
                 </div>
 
@@ -412,8 +397,6 @@
                 if (data.success) {
                     // Visual Workflow
                     const stepSent = document.getElementById('step-sent-icon');
-                    const stepRead = document.getElementById('step-read-icon');
-                    const line = document.getElementById('line-sent-read');
 
                     if (data.sent_at) {
                         stepSent.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm bg-emerald-500 text-white";
@@ -421,16 +404,6 @@
                     } else {
                         stepSent.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm bg-slate-100 text-slate-300";
                         stepSent.innerHTML = '1';
-                    }
-
-                    if (data.read_at) {
-                        stepRead.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm bg-blue-500 text-white";
-                        stepRead.innerHTML = '<i class="fa-solid fa-eye"></i>';
-                        line.className = "step-line done bg-emerald-500";
-                    } else {
-                        stepRead.className = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shadow-sm bg-slate-100 text-slate-300";
-                        stepRead.innerHTML = '2';
-                        line.className = "step-line";
                     }
 
                     // Attempts

@@ -58,11 +58,12 @@ class SatisfactionService {
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )");
 
-            // Migration: Add read_at column if missing
+            // read_at : alimenté autrefois par un pixel de suivi d'ouverture, supprimé (RGPD).
+            // La colonne reste pour les bases existantes ; les valeurs déjà collectées sont effacées.
             try {
-                $this->db->query("SELECT read_at FROM survey_tokens LIMIT 1");
+                $this->db->exec("UPDATE survey_tokens SET read_at = NULL WHERE read_at IS NOT NULL");
             } catch (Exception $e) {
-                $this->db->exec("ALTER TABLE survey_tokens ADD COLUMN read_at DATETIME");
+                // Base créée sans la colonne : rien à effacer.
             }
 
             // Migration: Add status column if missing
@@ -190,11 +191,6 @@ class SatisfactionService {
         return $stmt->fetch();
     }
 
-    public function markAsRead($token) {
-        $stmt = $this->db->prepare("UPDATE survey_tokens SET read_at = CURRENT_TIMESTAMP WHERE token = ? AND sent_at IS NOT NULL AND read_at IS NULL");
-        return $stmt->execute([$token]);
-    }
-
     public function saveResponse($token, $ratings, $comment, $customAnswer = null) {
         $stmt = $this->db->prepare("INSERT INTO survey_responses (token, q1, q2, q3, q4, q5, comment, custom_answer) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
         return $stmt->execute([
@@ -314,7 +310,7 @@ class SatisfactionService {
     }
 
     public function getResponsesByCampaign($campaignSlug = null) {
-        $sql = "SELECT r.*, t.payer_name, t.item_name, t.campaign_slug, t.email, t.read_at, t.sent_at, t.order_id, r.custom_answer
+        $sql = "SELECT r.*, t.payer_name, t.item_name, t.campaign_slug, t.email, t.sent_at, t.order_id, r.custom_answer
                 FROM survey_responses r
                 JOIN survey_tokens t ON r.token = t.token";
 
@@ -334,7 +330,6 @@ class SatisfactionService {
     public function getStats($campaignSlug = null) {
         $sql = "SELECT
             COUNT(DISTINCT CASE WHEN t.sent_at IS NOT NULL THEN t.token END) as total_sent,
-            COUNT(CASE WHEN t.sent_at IS NOT NULL AND t.read_at IS NOT NULL THEN 1 END) as total_read,
             COUNT(DISTINCT r.token) as total_responses,
             AVG(r.q1) as avg_q1,
             AVG(r.q2) as avg_q2,
@@ -427,7 +422,6 @@ class SatisfactionService {
     public function getSummaryPerCampaign() {
         $sql = "SELECT campaign_slug,
                 COUNT(CASE WHEN sent_at IS NOT NULL THEN 1 END) as total_sent,
-                COUNT(CASE WHEN sent_at IS NOT NULL AND read_at IS NOT NULL THEN 1 END) as total_read,
                 (SELECT COUNT(*)
                     FROM survey_responses r
                     WHERE r.token IN (

@@ -24,21 +24,11 @@ class MailService {
         DebugLog::write('debug_mail.log', date('[Y-m-d H:i:s] ') . DebugLog::redactString($message) . "\n");
     }
 
-    public function send($to, $subject, $body, $vars = [], $trackingUrl = '', $attachments = []) {
+    public function send($to, $subject, $body, $vars = [], $attachments = []) {
         // Replace variables
         foreach ($vars as $key => $value) {
             $body = str_replace('{{' . $key . '}}', $value, $body);
             $subject = str_replace('{{' . $key . '}}', $value, $subject);
-        }
-
-        // Inject tracking pixel if provided
-        if ($trackingUrl) {
-            $pixel = '<img src="' . $trackingUrl . '" width="1" height="1" style="display:none !important;" />';
-            if (stripos($body, '</body>') !== false) {
-                $body = str_ireplace('</body>', $pixel . '</body>', $body);
-            } else {
-                $body .= $pixel;
-            }
         }
 
         // Basic HTML wrapper if it doesn't look like full HTML

@@ -238,10 +238,6 @@ if ($action === 'mailing_send_one' && isset($_POST['campaign'])) {
         }
 
         $token = $history[$targetEmail]['token'] ?? bin2hex(random_bytes(16));
-        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http');
-        $host = $_SERVER['HTTP_HOST'];
-        $path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
-        $trackingUrl = $protocol . '://' . $host . $path . '/track.php?c=' . $slug . '&t=' . $token;
 
         $subject = $_POST['subject'];
         $body = $_POST['body'];
@@ -254,7 +250,7 @@ if ($action === 'mailing_send_one' && isset($_POST['campaign'])) {
                 'NOM' => strtoupper($lastName),
                 'PRENOM' => $firstName,
                 'NOM_CAMPAGNE' => $currentCamp['title']
-            ], $trackingUrl, $attachmentPaths);
+            ], $attachmentPaths);
 
             if (!$isTest) {
                 if (!isset($history[$targetEmail])) $history[$targetEmail] = [];
@@ -295,13 +291,12 @@ if ($action === 'mailing_export_csv' && isset($_GET['campaign'])) {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename=mailing_logs_' . $slug . '_' . date('Y-m-d') . '.csv');
     $output = fopen('php://output', 'w');
-    fputcsv($output, ['Email', 'Dernier Envoi', 'Lu le'], ',', '"', "\\");
+    fputcsv($output, ['Email', 'Dernier Envoi'], ',', '"', "\\");
 
     foreach ($history as $email => $h) {
         fputcsv($output, [
             $email,
-            $h['sent_at'] ?? '?',
-            $h['read_at'] ?? 'Non lu'
+            $h['sent_at'] ?? '?'
         ], ',', '"', "\\");
     }
     exit;
@@ -449,7 +444,6 @@ if ($action === 'get_recipient_history') {
                 'success' => true,
                 'email' => $email,
                 'sent_at' => $data['sent_at'] ?? null,
-                'read_at' => $data['read_at'] ?? null,
                 'attempts' => $data['attempts'] ?? []
             ]);
         } else {
@@ -471,7 +465,6 @@ if ($action === 'get_recipient_history') {
                 'email' => $tokenInfo['email'],
                 'payer_name' => $tokenInfo['payer_name'],
                 'sent_at' => $tokenInfo['sent_at'],
-                'read_at' => $tokenInfo['read_at'],
                 'attempts' => $attempts
             ]);
         } else {
@@ -590,7 +583,6 @@ if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
         $baseUrl = rtrim(dirname(buildAppUrl('index.php')), '/\\');
 
         $surveyUrl = $baseUrl . '/satisfaction.php?t=' . $token;
-        $trackingUrl = $baseUrl . '/track.php?c=' . $slug . '&t=' . $token;
 
         $subject = $_POST['subject'] ?? ("Votre avis nous intéresse : " . $currentCamp['title']);
         $wording = TerminologyService::forFormType($currentCamp['formType'] ?? 'Event');
@@ -602,7 +594,7 @@ if ($action === 'satisfaction_send_one' && isset($_POST['campaign'])) {
                 'PRENOM' => $firstName,
                 'NOM_CAMPAGNE' => $currentCamp['title'],
                 'SURVEY_URL' => $surveyUrl
-            ], $trackingUrl, []);
+            ], []);
 
             if (!$isTest) {
                 $satService->updateSentDate($token);
@@ -632,7 +624,7 @@ if ($action === 'satisfaction_export_csv' && isset($_GET['campaign'])) {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename=satisfaction_logs_' . $slug . '_' . date('Y-m-d') . '.csv');
     $output = fopen('php://output', 'w');
-    fputcsv($output, ['Statut', 'Date Envoi', 'Nom', 'Email', 'Objet HelloAsso', 'Lu le', 'Répondu le', 'Score Moyen'], ',', '"', "\\");
+    fputcsv($output, ['Statut', 'Date Envoi', 'Nom', 'Email', 'Objet HelloAsso', 'Répondu le', 'Score Moyen'], ',', '"', "\\");
 
     foreach ($tokens as $t) {
         $resp = $respMap[$t['token']] ?? null;
@@ -654,7 +646,6 @@ if ($action === 'satisfaction_export_csv' && isset($_GET['campaign'])) {
             $t['payer_name'],
             $t['email'],
             $t['item_name'],
-            $t['read_at'] ?? 'Non lu',
             $resp ? $resp['submitted_at'] : 'Non répondu',
             $avg
         ], ',', '"', "\\");
