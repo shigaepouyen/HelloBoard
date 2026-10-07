@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Satisfaction — <?= htmlspecialchars($currentCamp['title']) ?></title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/lib/fontawesome-6.4.0/css/all.min.css">
     <style>
         @import url('assets/fonts/plus-jakarta-sans.css');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; }
@@ -29,6 +28,7 @@
         .step-line { flex: 1; height: 2px; background: #f1f5f9; position: relative; }
         .step-line.done { background: #10b981; }
     </style>
+    <link rel="stylesheet" href="assets/css/tailwind.css">
 </head>
 <body class="pb-32">
     <div id="notifications-container"></div>

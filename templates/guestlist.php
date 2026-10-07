@@ -56,8 +56,7 @@ $title = htmlspecialchars($currentCamp['title']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Check-in — <?= $title ?></title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/lib/fontawesome-6.4.0/css/all.min.css">
     <style>
         @import url('assets/fonts/plus-jakarta-sans.css');
 
@@ -106,6 +105,7 @@ $title = htmlspecialchars($currentCamp['title']);
             .hide-mobile { display: none; }
         }
     </style>
+    <link rel="stylesheet" href="assets/css/tailwind.css">
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen">
 

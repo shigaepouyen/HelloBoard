@@ -16,3 +16,5 @@ Thumbs.db
 
 #Dépendances (si vous utilisez composer plus tard)
 vendor/
+#Outils de build (Tailwind)
+node_modules/

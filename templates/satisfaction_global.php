@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Reporting Satisfaction — HelloBoard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="assets/lib/marked-15.0.12/marked.min.js"></script>
+    <link rel="stylesheet" href="assets/lib/fontawesome-6.4.0/css/all.min.css">
     <style>
         @import url('assets/fonts/plus-jakarta-sans.css');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; }
@@ -141,6 +140,7 @@
             h2, h3 { break-after: avoid; }
         }
     </style>
+    <link rel="stylesheet" href="assets/css/tailwind.css">
 </head>
 <body class="pb-32">
     <nav class="p-4 md:p-6 bg-white border-b border-slate-100 sticky top-0 z-50 flex justify-between items-center shadow-sm">

@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($campaignConfig['title']) ?> — HelloBoard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="assets/lib/chart.js-4.5.1/chart.umd.min.js"></script>
+    <script src="assets/lib/chartjs-plugin-annotation-3.0.1/chartjs-plugin-annotation.min.js"></script>
+    <link rel="stylesheet" href="assets/lib/fontawesome-6.4.0/css/all.min.css">
     <style>
         @import url('assets/fonts/plus-jakarta-sans.css');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; color: #1e293b; -webkit-font-smoothing: antialiased; }
@@ -56,6 +55,7 @@
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
     </style>
+    <link rel="stylesheet" href="assets/css/tailwind.css">
 </head>
 <body class="min-h-screen pb-32">
 

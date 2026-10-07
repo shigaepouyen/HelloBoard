@@ -206,8 +206,7 @@ $emojis = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Votre avis — <?= htmlspecialchars($pageItemName) ?></title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/lib/fontawesome-6.4.0/css/all.min.css">
     <style>
         @import url('assets/fonts/plus-jakarta-sans.css');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; color: #1e293b; overflow-x: hidden; }
@@ -236,6 +235,7 @@ $emojis = [
         .progress-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
         .progress-fill { height: 100%; background: #3b82f6; transition: width 0.4s ease-out; }
     </style>
+    <link rel="stylesheet" href="assets/css/tailwind.css">
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
 
