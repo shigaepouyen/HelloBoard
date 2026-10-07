@@ -8,6 +8,7 @@ require_once $srcPath . 'HelloAssoClient.php';
 require_once $srcPath . 'SatisfactionService.php';
 require_once $srcPath . 'AiService.php';
 require_once $srcPath . 'TerminologyService.php';
+require_once $srcPath . 'RetentionService.php';
 
 $globals = Storage::getGlobalSettings();
 $adminPassword = $globals['adminPassword'] ?? null;
@@ -33,6 +34,7 @@ if ($adminPassword && !isset($_SESSION['authenticated'])) {
 }
 
 $action = $_GET['action'] ?? 'list';
+RetentionService::runDaily($globals);
 $localCampaigns = Storage::listCampaigns();
 $client = new HelloAssoClient($globals['clientId']??'', $globals['clientSecret']??'', $globals['debugMode']??false);
 
@@ -85,6 +87,7 @@ if (isset($_POST['save_settings'])) {
         'mistralApiKey' => trim($_POST['mistralApiKey'] ?? ''),
         'adminPassword' => $adminPassword,
         'debugMode' => isset($_POST['debugMode']),
+        'retentionMonths' => max(1, (int)($_POST['retentionMonths'] ?? RetentionService::DEFAULT_MONTHS)),
         'customLogo' => $globals['customLogo'] ?? null
     ];
 
@@ -1171,6 +1174,17 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
                                 <div class="grid gap-4">
                                     <input type="password" name="mistralApiKey" placeholder="Clé API Mistral (laissez vide pour désactiver)" value="<?= htmlspecialchars($globals['mistralApiKey']??'') ?>" class="input-soft">
                                     <p class="text-[10px] text-slate-400 font-bold uppercase">Obtenez une clé gratuite sur <a href="https://console.mistral.ai/" target="_blank" class="text-blue-500 underline">console.mistral.ai</a></p>
+                                </div>
+                            </div>
+
+                            <div class="pt-8 border-t border-slate-100">
+                                <label class="text-[10px] font-black text-slate-400 uppercase block mb-3 tracking-widest italic">Conservation des données (RGPD)</label>
+                                <div class="flex items-center gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                                    <input type="number" min="1" max="120" name="retentionMonths" id="retentionMonths" value="<?= RetentionService::months($globals) ?>" class="input-soft !w-24 text-center">
+                                    <div>
+                                        <label for="retentionMonths" class="text-xs font-black uppercase text-slate-700 block">Mois sans activité avant purge</label>
+                                        <p class="text-[10px] text-slate-400 font-bold">Passé ce délai après le dernier envoi, pointage ou réponse, une campagne perd ses pointages et son historique d'envoi, et ses questionnaires sont anonymisés (notes et commentaires conservés). Vérification quotidienne.</p>
+                                    </div>
                                 </div>
                             </div>
 

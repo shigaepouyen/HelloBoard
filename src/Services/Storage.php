@@ -179,4 +179,53 @@ class Storage {
         }
         return false;
     }
+
+    // --- Conservation (RGPD) ---
+
+    /** Slugs ayant des données de pointage ou d'historique d'envoi. */
+    public static function listSlugsWithPersonalData() {
+        $slugs = [];
+        foreach ([self::$checkinsPath, self::$mailingPath] as $dir) {
+            foreach (glob($dir . '*.json') ?: [] as $f) $slugs[] = basename($f, '.json');
+        }
+        return array_values(array_unique($slugs));
+    }
+
+    /** Dernière activité connue (timestamp) sur les pointages et l'historique d'envoi d'une campagne. */
+    public static function lastPersonalDataActivity($slug) {
+        $last = 0;
+        $checkins = self::$checkinsPath . basename($slug) . '.json';
+        if (is_file($checkins)) $last = max($last, filemtime($checkins));
+        foreach (self::getMailingHistory($slug) as $h) {
+            if (!empty($h['sent_at'])) $last = max($last, (int)strtotime($h['sent_at']));
+            foreach ($h['attempts'] ?? [] as $a) {
+                if (!empty($a['date'])) $last = max($last, (int)strtotime($a['date']));
+            }
+        }
+        return $last;
+    }
+
+    /** Supprime les pointages et l'historique d'envoi d'une campagne. Renvoie le nombre de fichiers supprimés. */
+    public static function deletePersonalData($slug) {
+        $deleted = 0;
+        foreach ([self::$checkinsPath, self::$mailingPath] as $dir) {
+            $f = $dir . basename($slug) . '.json';
+            if (is_file($f) && unlink($f)) $deleted++;
+        }
+        return $deleted;
+    }
+
+    /** Retire les dates d'ouverture héritées de l'ancien pixel de suivi. Renvoie le nombre d'entrées nettoyées. */
+    public static function stripLegacyReadTracking($slug) {
+        $history = self::getMailingHistory($slug);
+        $cleaned = 0;
+        foreach ($history as $email => $h) {
+            if (array_key_exists('read_at', $h)) {
+                unset($history[$email]['read_at']);
+                $cleaned++;
+            }
+        }
+        if ($cleaned) self::saveMailingHistory($slug, $history);
+        return $cleaned;
+    }
 }
