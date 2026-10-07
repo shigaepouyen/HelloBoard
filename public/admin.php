@@ -29,7 +29,7 @@ if (isset($_POST['login'])) {
 
 if ($adminPassword && !isset($_SESSION['authenticated'])) {
     ?>
-    <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Admin</title><script src="https://cdn.tailwindcss.com"></script><style>@import url('assets/fonts/plus-jakarta-sans.css');body{font-family:'Plus Jakarta Sans',sans-serif;background:#0f172a;}</style></head><body class="min-h-screen flex items-center justify-center p-6"><div class="w-full max-w-md bg-white rounded-[3rem] p-10 text-center"><div class="w-20 h-20 mx-auto mb-8 flex items-center justify-center"><img src="<?= $globals['customLogo'] ?? 'assets/img/logo.svg' ?>" alt="HelloBoard" class="max-w-full max-h-20 object-contain"></div><h2 class="text-3xl font-black mb-10 italic uppercase">Console Admin</h2><form method="POST" class="space-y-4"><input type="password" name="password" class="w-full bg-slate-50 border-2 border-transparent focus:border-blue-600 rounded-[1.5rem] p-5 text-2xl text-center outline-none" placeholder="••••••" required autofocus><div class="flex items-center justify-center gap-2 py-2"><input type="checkbox" name="remember" id="remember" class="w-4 h-4 accent-blue-600 cursor-pointer"><label for="remember" class="text-[10px] font-black uppercase text-slate-400 cursor-pointer select-none">Se souvenir de moi (30 jours)</label></div><button type="submit" name="login" class="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black uppercase text-xs">Accéder</button></form><?php if(isset($loginError)): ?><p class="text-red-500 font-bold mt-4"><?= $loginError ?></p><?php endif; ?></div></body></html>
+    <!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Admin</title><style>@import url('assets/fonts/plus-jakarta-sans.css');body{font-family:'Plus Jakarta Sans',sans-serif;background:#0f172a;}</style><link rel="stylesheet" href="assets/css/tailwind.css"></head><body class="min-h-screen flex items-center justify-center p-6"><div class="w-full max-w-md bg-white rounded-[3rem] p-10 text-center"><div class="w-20 h-20 mx-auto mb-8 flex items-center justify-center"><img src="<?= $globals['customLogo'] ?? 'assets/img/logo.svg' ?>" alt="HelloBoard" class="max-w-full max-h-20 object-contain"></div><h2 class="text-3xl font-black mb-10 italic uppercase">Console Admin</h2><form method="POST" class="space-y-4"><input type="password" name="password" class="w-full bg-slate-50 border-2 border-transparent focus:border-blue-600 rounded-[1.5rem] p-5 text-2xl text-center outline-none" placeholder="••••••" required autofocus><div class="flex items-center justify-center gap-2 py-2"><input type="checkbox" name="remember" id="remember" class="w-4 h-4 accent-blue-600 cursor-pointer"><label for="remember" class="text-[10px] font-black uppercase text-slate-400 cursor-pointer select-none">Se souvenir de moi (30 jours)</label></div><button type="submit" name="login" class="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black uppercase text-xs">Accéder</button></form><?php if(isset($loginError)): ?><p class="text-red-500 font-bold mt-4"><?= $loginError ?></p><?php endif; ?></div></body></html>
     <?php exit;
 }
 
@@ -1012,9 +1012,8 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
 <head>
     <meta charset="UTF-8">
     <title>HelloBoard — Admin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="assets/lib/sortablejs-1.15.0/Sortable.min.js"></script>
+    <link rel="stylesheet" href="assets/lib/fontawesome-6.4.0/css/all.min.css">
     <style>
         @import url('assets/fonts/plus-jakarta-sans.css');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; }
@@ -1028,6 +1027,7 @@ if (($action === 'export_csv' || $action === 'guestlist' || $action === 'mailing
         .animate-fade-in { animation: fadeIn 0.4s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
+    <link rel="stylesheet" href="assets/css/tailwind.css">
 </head>
 <body class="pb-32">
 

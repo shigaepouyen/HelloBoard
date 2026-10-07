@@ -207,6 +207,20 @@ Configuration par campagne:
 - Desactiver le debug en production.
 - Sauvegarder regulierement `config/` (incluant `satisfaction.db`).
 
+## 🎨 Ressources front (aucun CDN)
+
+Toutes les ressources sont servies par l'application : aucune requete vers un CDN, donc aucune adresse IP de visiteur transmise a un tiers.
+
+- `public/assets/css/tailwind.css` : feuille Tailwind 3.4.17 compilee depuis les classes de `public/`, `templates/` et `src/`. **Apres ajout de classes Tailwind**, la regenerer :
+
+```bash
+npm install
+npm run build:css
+```
+
+- `public/assets/lib/` : Font Awesome 6.4.0, Chart.js 4.5.1, chartjs-plugin-annotation 3.0.1, marked 15.0.12, SortableJS 1.15.0, blueimp-md5 2.19.0 (versions dans le nom du dossier).
+- `public/assets/fonts/` : Plus Jakarta Sans.
+
 ## 🧹 Conservation des donnees (RGPD)
 
 Une campagne sans activite (envoi, pointage, reponse) depuis `retentionMonths` mois (12 par defaut, reglable dans Reglages) perd ses donnees nominatives :
