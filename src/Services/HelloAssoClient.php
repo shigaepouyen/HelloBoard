@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/DebugLog.php';
+
 class HelloAssoClient {
     private $clientId;
     private $clientSecret;
@@ -11,25 +13,34 @@ class HelloAssoClient {
         $this->clientId = $id;
         $this->clientSecret = $secret;
         $this->debug = $debug;
-        // Le fichier sera stocké dans un dossier "logs" à la racine
-        $this->logFile = __DIR__ . '/../../logs/debug_helloasso.log';
+        $this->logFile = 'debug_helloasso.log';
     }
 
-    // NOUVELLE FONCTION PRIVÉE : ÉCRITURE SUR DISQUE
+    // Écriture du journal de debug : secrets masqués, dossier logs/ verrouillé (cf. DebugLog)
     private function writeToDisk($type, $msg, $data = null) {
         if (!$this->debug) return;
-
-        if (!is_dir(dirname($this->logFile))) mkdir(dirname($this->logFile), 0755, true);
 
         $entry = "========================================\n";
         $entry .= "[" . date('Y-m-d H:i:s') . "] [$type] $msg\n";
         if ($data !== null) {
+            $data = DebugLog::redact($data);
             $entry .= is_string($data) ? $data : json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
             $entry .= "\n";
         }
         $entry .= "========================================\n\n";
 
-        file_put_contents($this->logFile, $entry, FILE_APPEND);
+        DebugLog::write($this->logFile, $entry);
+    }
+
+    // Résumé d'une réponse réussie : jamais les commandes ni les participants (données personnelles)
+    private function summarize($decoded) {
+        if (!is_array($decoded)) return null;
+        $summary = [];
+        if (isset($decoded['data']) && is_array($decoded['data'])) $summary['items'] = count($decoded['data']);
+        if (isset($decoded['pagination'])) $summary['pagination'] = $decoded['pagination'];
+        if (isset($decoded['expires_in'])) $summary['expires_in'] = $decoded['expires_in'];
+        if (!$summary) $summary['keys'] = array_keys($decoded);
+        return $summary;
     }
 
     private function request($method, $url, $params = [], $token = null, $retryCount = 0) {
@@ -76,7 +87,8 @@ class HelloAssoClient {
 
         // --- LOG DE LA RÉPONSE ---
         $decoded = json_decode($response, true);
-        $this->writeToDisk('RESPONSE', "Code: $httpCode", $decoded ?: $response);
+        $isError = $httpCode < 200 || $httpCode >= 300;
+        $this->writeToDisk('RESPONSE', "Code: $httpCode", $isError ? ($decoded ?: $response) : $this->summarize($decoded));
 
         // Simple retry for 429
         if ($httpCode === 429 && $retryCount < 2) {

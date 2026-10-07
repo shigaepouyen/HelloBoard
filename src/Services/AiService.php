@@ -1,10 +1,12 @@
 <?php
 
+require_once __DIR__ . '/DebugLog.php';
+
 class AiService {
     private string $apiKey;
     private bool $debugMode;
     private string $baseUrl = "https://api.mistral.ai/v1/chat/completions";
-    private string $logFile = __DIR__ . '/../../logs/debug_ai.log';
+    private string $logFile = 'debug_ai.log';
 
     public function __construct(string $apiKey, bool $debugMode = false) {
         $this->apiKey = $apiKey;
@@ -13,15 +15,8 @@ class AiService {
 
     private function log($message) {
         if (!$this->debugMode) return;
-        $dir = dirname($this->logFile);
-        if (!is_dir($dir)) {
-            if (!mkdir($dir, 0755, true)) {
-                error_log("AiService: Impossible de créer le répertoire de logs $dir");
-                return;
-            }
-        }
         $time = date('Y-m-d H:i:s');
-        file_put_contents($this->logFile, "[$time] $message\n", FILE_APPEND);
+        DebugLog::write($this->logFile, "[$time] " . DebugLog::redactString($message) . "\n");
     }
 
     /**
