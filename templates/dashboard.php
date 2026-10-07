@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+        @import url('assets/fonts/plus-jakarta-sans.css');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; color: #1e293b; -webkit-font-smoothing: antialiased; }
         .sexy-card { background: #ffffff; border-radius: 2.5rem; border: 1px solid rgba(255,255,255,0.7); box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.06); overflow: hidden; }
         .kpi-label { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: #94a3b8; }

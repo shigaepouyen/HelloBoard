@@ -99,7 +99,7 @@ if ($isAdmin) {
         <title>Supervision — HelloBoard</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-        <style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap'); body{font-family:'Plus Jakarta Sans',sans-serif;background:#f1f5f9;}</style>
+        <style>@import url('assets/fonts/plus-jakarta-sans.css'); body{font-family:'Plus Jakarta Sans',sans-serif;background:#f1f5f9;}</style>
     </head>
     <body class="min-h-screen pb-20">
         <nav class="p-4 md:p-6 bg-white sticky top-0 z-50 flex justify-between items-center shadow-sm">
@@ -172,7 +172,7 @@ if ($isAdmin) {
         <title>Accès Sécurisé — HelloBoard</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-        <style>@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&display=swap'); body{font-family:'Plus Jakarta Sans',sans-serif;background:#0f172a;}</style>
+        <style>@import url('assets/fonts/plus-jakarta-sans.css'); body{font-family:'Plus Jakarta Sans',sans-serif;background:#0f172a;}</style>
     </head>
     <body class="min-h-screen flex items-center justify-center p-6">
         <div class="w-full max-w-md bg-white rounded-[2.5rem] p-10 text-center shadow-2xl">
